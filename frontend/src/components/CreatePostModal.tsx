@@ -46,6 +46,8 @@ export default function CreatePostModal({ open, onClose }: CreatePostModalProps)
       setVehicleId("");
       onClose();
     },
+    // TODO(orphan-cleanup): Uploaded media referenced in `images` but never published
+    // (e.g. modal closed without submit) remains in storage until a future worker removes it.
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -53,8 +55,8 @@ export default function CreatePostModal({ open, onClose }: CreatePostModalProps)
     if (!files?.length) return;
     setUploading(true);
     try {
-      const result = await api.uploadFiles(Array.from(files));
-      setImages((prev) => [...prev, ...result.files.map((f) => f.url)]);
+      const results = await api.uploadMediaFiles(Array.from(files), "post");
+      setImages((prev) => [...prev, ...results.map((r) => r.reference)]);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("error"));
     } finally {

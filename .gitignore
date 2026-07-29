@@ -10,3 +10,5 @@ dist/
 htmlcov/
 .pytest_cache/
 uploads/
+backups/*.dump
+*.tsbuildinfo

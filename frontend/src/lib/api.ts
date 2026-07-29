@@ -1,3 +1,9 @@
+import type { MediaPurpose } from "@/lib/mediaUpload";
+import {
+  uploadMedia as uploadMediaImpl,
+  uploadMediaFiles as uploadMediaFilesImpl,
+} from "@/lib/mediaUpload";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
 export interface User {
@@ -226,6 +232,21 @@ class ApiClient {
     return this.request<{ saved: boolean }>(`/posts/${postId}/save`, { method: "POST" });
   }
 
+  uploadMedia(file: File, purpose: MediaPurpose) {
+    return uploadMediaImpl(file, purpose, {
+      request: this.request.bind(this),
+      getToken: () => this.getToken(),
+    });
+  }
+
+  uploadMediaFiles(files: File[], purpose: MediaPurpose) {
+    return uploadMediaFilesImpl(files, purpose, {
+      request: this.request.bind(this),
+      getToken: () => this.getToken(),
+    });
+  }
+
+  /** @deprecated Use uploadMedia / uploadMediaFiles instead */
   uploadFiles(files: File[]) {
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
@@ -235,6 +256,7 @@ class ApiClient {
     });
   }
 
+  /** @deprecated Use uploadMedia instead */
   uploadFile(file: File) {
     const form = new FormData();
     form.append("file", file);

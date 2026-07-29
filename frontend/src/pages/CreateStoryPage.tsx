@@ -14,8 +14,13 @@ export default function CreateStoryPage() {
     if (!files?.[0]) return;
     setUploading(true);
     try {
-      const result = await api.uploadFile(files[0]);
-      await api.createStory({ media_url: result.url, media_type: result.type === "video" ? "video" : "image" });
+      const result = await api.uploadMedia(files[0], "story");
+      // TODO(orphan-cleanup): If createStory fails after a successful upload, the
+      // storage object remains unreferenced until a future cleanup worker removes it.
+      await api.createStory({
+        media_url: result.reference,
+        media_type: result.mediaType,
+      });
       toast.success(t("storyCreated"));
       navigate("/");
     } catch (err) {

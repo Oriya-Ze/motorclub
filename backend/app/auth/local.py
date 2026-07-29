@@ -10,7 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.base import AuthProvider, AuthTokens, AuthUser
 from app.config import settings
+from app.logging_config import get_logger
 from app.models import ProfileSettings, User
+
+logger = get_logger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -127,10 +130,9 @@ class LocalAuthProvider(AuthProvider):
         return self._to_auth_user(user)
 
     async def forgot_password(self, email: str) -> None:
-        # Local dev: no-op (log in docker output). Cognito handles this in production.
         user = await self._get_user_by_email(email.lower().strip())
         if user:
-            print(f"[LOCAL AUTH] Password reset requested for {email}")
+            logger.info("Password reset requested")
 
     async def reset_password(self, email: str, code: str, new_password: str) -> None:
         raise HTTPException(

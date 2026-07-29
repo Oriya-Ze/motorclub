@@ -1,62 +1,59 @@
-import uuid
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from app.config import settings
 from app.deps import get_user_model
+from app.media.factory import get_media_storage
+from app.media.local import LocalMediaStorage
 from app.models import User
+from app.schemas_media import UploadFileResponse, UploadMultipleResponse
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
-ALLOWED_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-ALLOWED_VIDEO = {"video/mp4", "video/webm", "video/quicktime"}
-MAX_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_MULTIPLE_FILES = 10
 
 
-@router.post("")
+def _require_local_storage() -> LocalMediaStorage:
+    storage = get_media_storage()
+    if not isinstance(storage, LocalMediaStorage):
+        raise HTTPException(
+            status_code=501,
+            detail="Direct multipart upload is only available with MEDIA_STORAGE_PROVIDER=local",
+        )
+    return storage
+
+
+@router.post("", response_model=UploadFileResponse)
 async def upload_file(
     file: UploadFile = File(...),
     user: User = Depends(get_user_model),
 ):
+    storage = _require_local_storage()
     content_type = file.content_type or ""
-    if content_type not in ALLOWED_IMAGE | ALLOWED_VIDEO:
-        raise HTTPException(status_code=400, detail="Unsupported file type")
-
     data = await file.read()
-    if len(data) > MAX_SIZE:
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
-
-    ext = Path(file.filename or "file").suffix or (".jpg" if "image" in content_type else ".mp4")
-    filename = f"{uuid.uuid4()}{ext}"
-    folder = "images" if content_type in ALLOWED_IMAGE else "videos"
-    dest_dir = Path(settings.upload_dir) / folder
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / filename
-    dest.write_bytes(data)
-
-    url = f"/uploads/{folder}/{filename}"
-    return {"url": url, "type": "image" if folder == "images" else "video"}
+    saved = storage.save_multipart_file(
+        content_type=content_type,
+        data=data,
+        original_filename=file.filename,
+    )
+    return UploadFileResponse(url=saved.url, type=saved.media_type)
 
 
-@router.post("/multiple")
+@router.post("/multiple", response_model=UploadMultipleResponse)
 async def upload_multiple(
     files: list[UploadFile] = File(...),
     user: User = Depends(get_user_model),
 ):
-    results = []
-    for file in files[:10]:
+    storage = _require_local_storage()
+    results: list[UploadFileResponse] = []
+    for file in files[:MAX_MULTIPLE_FILES]:
         content_type = file.content_type or ""
-        if content_type not in ALLOWED_IMAGE | ALLOWED_VIDEO:
+        try:
+            data = await file.read()
+            saved = storage.save_multipart_file(
+                content_type=content_type,
+                data=data,
+                original_filename=file.filename,
+            )
+            results.append(UploadFileResponse(url=saved.url, type=saved.media_type))
+        except HTTPException:
             continue
-        data = await file.read()
-        if len(data) > MAX_SIZE:
-            continue
-        ext = Path(file.filename or "file").suffix or ".jpg"
-        filename = f"{uuid.uuid4()}{ext}"
-        folder = "images" if content_type in ALLOWED_IMAGE else "videos"
-        dest_dir = Path(settings.upload_dir) / folder
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        (dest_dir / filename).write_bytes(data)
-        results.append({"url": f"/uploads/{folder}/{filename}", "type": folder[:-1]})
-    return {"files": results}
+    return UploadMultipleResponse(files=results)

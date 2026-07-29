@@ -17,6 +17,7 @@ export default function GaragePage() {
     make: "", model: "", year: "", color: "", engine: "", description: "", mods: "",
   });
   const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const { data: vehicles = [], isLoading } = useQuery({
     queryKey: ["garage"],
@@ -43,6 +44,8 @@ export default function GaragePage() {
       setImages([]);
       toast.success(t("garage.added"));
     },
+    // TODO(orphan-cleanup): Uploaded vehicle images that never reach createVehicle success
+    // remain unreferenced until a future cleanup worker removes them.
     onError: (err: Error) => toast.error(err.message),
   });
 
@@ -53,8 +56,15 @@ export default function GaragePage() {
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files?.length) return;
-    const result = await api.uploadFiles(Array.from(files));
-    setImages((prev) => [...prev, ...result.files.map((f) => f.url)]);
+    setUploading(true);
+    try {
+      const results = await api.uploadMediaFiles(Array.from(files), "vehicle");
+      setImages((prev) => [...prev, ...results.map((r) => r.reference)]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("error"));
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -87,7 +97,7 @@ export default function GaragePage() {
               rows={2}
               className="w-full bg-muted/30 border border-border rounded-xl px-4 py-2 text-sm resize-none"
             />
-            <Input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e.target.files)} className="text-sm" />
+            <Input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e.target.files)} className="text-sm" disabled={uploading} />
             {images.length > 0 && (
               <div className="flex gap-2">
                 {images.map((url, i) => (
@@ -97,7 +107,7 @@ export default function GaragePage() {
             )}
             <Button
               className="w-full"
-              disabled={!form.make || !form.model || createVehicle.isPending}
+              disabled={!form.make || !form.model || createVehicle.isPending || uploading}
               onClick={() => createVehicle.mutate()}
             >
               {t("garage.save")}

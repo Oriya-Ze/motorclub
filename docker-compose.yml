@@ -19,7 +19,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      APP_VERSION: ${APP_VERSION:-dev}
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://motorclub:motorclub_dev@postgres:5432/motorclub}
       AUTH_PROVIDER: ${AUTH_PROVIDER:-local}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
@@ -31,6 +35,12 @@ services:
       COGNITO_CLIENT_SECRET: ${COGNITO_CLIENT_SECRET:-}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
       UPLOAD_DIR: /app/uploads
+      MEDIA_STORAGE_PROVIDER: ${MEDIA_STORAGE_PROVIDER:-local}
+      MEDIA_BASE_URL: ${MEDIA_BASE_URL:-}
+      S3_MEDIA_BUCKET: ${S3_MEDIA_BUCKET:-}
+      S3_PRESIGNED_URL_EXPIRY_SECONDS: ${S3_PRESIGNED_URL_EXPIRY_SECONDS:-300}
+      MAX_IMAGE_UPLOAD_BYTES: ${MAX_IMAGE_UPLOAD_BYTES:-10485760}
+      MAX_VIDEO_UPLOAD_BYTES: ${MAX_VIDEO_UPLOAD_BYTES:-10485760}
     volumes:
       - uploads_data:/app/uploads
       - ./backend/app:/app/app
@@ -40,7 +50,13 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5

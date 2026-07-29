@@ -1,8 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
+import asyncio
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database import async_session
 from app.models import Event, Forum, Group, User
 
 
@@ -70,3 +73,12 @@ async def seed_database(db: AsyncSession) -> None:
     ]
     db.add_all(demo_groups)
     await db.commit()
+
+
+async def main() -> None:
+    async with async_session() as db:
+        await seed_database(db)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
