@@ -1,15 +1,25 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, type User } from "@/lib/api";
+import { api, type AuthResponse, type User } from "@/lib/api";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { email: string; username: string; full_name: string; password: string }) => Promise<void>;
+  register: (data: { email: string; username: string; full_name: string; password: string }) => Promise<AuthResponse>;
+  confirmSignUp: (data: { email: string; code: string; password: string }) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+function applyAuthResponse(res: AuthResponse, setUser: (user: User | null) => void) {
+  if (res.access_token) {
+    api.setToken(res.access_token);
+  }
+  if (res.user) {
+    setUser(res.user);
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -29,14 +39,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const res = await api.login({ email, password });
-    api.setToken(res.access_token);
-    setUser(res.user);
+    applyAuthResponse(res, setUser);
   };
 
   const register = async (data: { email: string; username: string; full_name: string; password: string }) => {
-    const res = await api.register(data);
-    api.setToken(res.access_token);
-    setUser(res.user);
+    return api.register(data);
+  };
+
+  const confirmSignUp = async (data: { email: string; code: string; password: string }) => {
+    const res = await api.confirmSignUp(data);
+    applyAuthResponse(res, setUser);
   };
 
   const logout = () => {
@@ -45,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, confirmSignUp, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,5 +1,7 @@
 from typing import Literal
 
+import os
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -69,6 +71,10 @@ class Settings(BaseSettings):
     def is_local(self) -> bool:
         return self.environment == "local"
 
+    @property
+    def is_lambda(self) -> bool:
+        return bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+
     @model_validator(mode="after")
     def apply_environment_defaults_and_validation(self) -> "Settings":
         if self.media_storage_provider == "s3":
@@ -88,6 +94,9 @@ class Settings(BaseSettings):
 
         if not self.database_url:
             raise ValueError("DATABASE_URL is required when ENVIRONMENT is not 'local'")
+
+        if self.is_lambda and self.media_storage_provider != "s3":
+            raise ValueError("MEDIA_STORAGE_PROVIDER must be 's3' on AWS Lambda")
 
         if not self.backend_cors_origins:
             raise ValueError("BACKEND_CORS_ORIGINS is required when ENVIRONMENT is not 'local'")

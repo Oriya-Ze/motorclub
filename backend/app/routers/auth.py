@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_auth_provider
+from app.auth.cognito import CognitoAuthProvider
 from app.auth.local import LocalAuthProvider, _create_access_token
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
@@ -10,6 +12,7 @@ from app.models import User
 from app.schemas import (
     AuthResponse,
     ChangePasswordRequest,
+    ConfirmSignUpRequest,
     ForgotPasswordRequest,
     LoginRequest,
     RegisterRequest,
@@ -18,26 +21,45 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+security = HTTPBearer(auto_error=False)
 
 
 @router.post("/register", response_model=AuthResponse)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     provider = get_auth_provider(db)
+
+    if isinstance(provider, CognitoAuthProvider):
+        await provider.register(body.email, body.username, body.full_name, body.password)
+        return AuthResponse(
+            confirmation_required=True,
+            message="Account created. Check your email for a verification code.",
+        )
+
     auth_user = await provider.register(body.email, body.username, body.full_name, body.password)
 
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()
 
-    if isinstance(provider, LocalAuthProvider):
-        tokens = _create_access_token(user.id, user.email)
-        return AuthResponse(
-            user=user_to_public(user),
-            access_token=tokens.access_token,
-            token_type=tokens.token_type,
-            expires_in=tokens.expires_in,
-        )
+    tokens = _create_access_token(user.id, user.email)
+    return AuthResponse(
+        user=user_to_public(user),
+        access_token=tokens.access_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
+    )
 
-    _, tokens = await provider.login(body.email, body.password)
+
+@router.post("/confirm", response_model=AuthResponse)
+async def confirm_sign_up(body: ConfirmSignUpRequest, db: AsyncSession = Depends(get_db)):
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        raise HTTPException(status_code=501, detail="Account confirmation is only available with Cognito auth")
+
+    auth_user, tokens = await provider.confirm_sign_up(body.email, body.code, body.password)
+
+    result = await db.execute(select(User).where(User.id == auth_user.id))
+    user = result.scalar_one()
+
     return AuthResponse(
         user=user_to_public(user),
         access_token=tokens.access_token,
@@ -86,7 +108,12 @@ async def change_password(
     body: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
     user=Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ):
     provider = get_auth_provider(db)
-    await provider.change_password(user.id, body.current_password, body.new_password)
+    access_token = credentials.credentials if credentials else None
+    if isinstance(provider, CognitoAuthProvider):
+        await provider.change_password(user.id, body.current_password, body.new_password, access_token)
+    else:
+        await provider.change_password(user.id, body.current_password, body.new_password)
     return {"message": "Password changed successfully"}

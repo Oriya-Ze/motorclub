@@ -5,7 +5,7 @@ import asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import async_session
+from app.database import get_session_factory
 from app.models import Event, Forum, Group, User
 
 
@@ -76,7 +76,7 @@ async def seed_database(db: AsyncSession) -> None:
 
 
 async def main() -> None:
-    async with async_session() as db:
+    async with get_session_factory()() as db:
         await seed_database(db)
 
 

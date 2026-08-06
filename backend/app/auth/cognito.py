@@ -25,6 +25,13 @@ class CognitoAuthProvider(AuthProvider):
             f"{settings.cognito_user_pool_id}/.well-known/jwks.json"
         )
 
+    def _cognito_client(self):
+        try:
+            import boto3
+        except ImportError as exc:
+            raise HTTPException(status_code=500, detail="boto3 not installed") from exc
+        return boto3.client("cognito-idp", region_name=settings.aws_region)
+
     async def _get_jwks(self) -> dict:
         if self._jwks is None:
             async with httpx.AsyncClient() as client:
@@ -69,12 +76,7 @@ class CognitoAuthProvider(AuthProvider):
         )
 
     async def register(self, email: str, username: str, full_name: str, password: str) -> AuthUser:
-        try:
-            import boto3
-        except ImportError as exc:
-            raise HTTPException(status_code=500, detail="boto3 not installed") from exc
-
-        client = boto3.client("cognito-idp", region_name=settings.aws_region)
+        client = self._cognito_client()
         try:
             client.sign_up(
                 ClientId=settings.cognito_client_id,
@@ -89,17 +91,29 @@ class CognitoAuthProvider(AuthProvider):
             )
         except client.exceptions.UsernameExistsException:
             raise HTTPException(status_code=409, detail="Email already registered") from None
+        except client.exceptions.InvalidPasswordException as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-        user = await self._get_or_create_user(cognito_sub=email, email=email, username=username, full_name=full_name)
-        return self._to_auth_user(user)
+    async def confirm_sign_up(self, email: str, code: str, password: str) -> tuple[AuthUser, AuthTokens]:
+        client = self._cognito_client()
+        try:
+            client.confirm_sign_up(
+                ClientId=settings.cognito_client_id,
+                Username=email,
+                ConfirmationCode=code,
+                SecretHash=self._secret_hash(email) if settings.cognito_client_secret else None,
+            )
+        except client.exceptions.CodeMismatchException:
+            raise HTTPException(status_code=400, detail="Invalid verification code") from None
+        except client.exceptions.ExpiredCodeException:
+            raise HTTPException(status_code=400, detail="Verification code expired") from None
+        except client.exceptions.NotAuthorizedException:
+            raise HTTPException(status_code=400, detail="Account already confirmed") from None
+
+        return await self.login(email, password)
 
     async def login(self, email: str, password: str) -> tuple[AuthUser, AuthTokens]:
-        try:
-            import boto3
-        except ImportError as exc:
-            raise HTTPException(status_code=500, detail="boto3 not installed") from exc
-
-        client = boto3.client("cognito-idp", region_name=settings.aws_region)
+        client = self._cognito_client()
         try:
             response = client.initiate_auth(
                 ClientId=settings.cognito_client_id,
@@ -112,6 +126,11 @@ class CognitoAuthProvider(AuthProvider):
             )
         except client.exceptions.NotAuthorizedException:
             raise HTTPException(status_code=401, detail="Invalid email or password") from None
+        except client.exceptions.UserNotConfirmedException:
+            raise HTTPException(
+                status_code=403,
+                detail="Email not verified. Enter the confirmation code sent to your email.",
+            ) from None
 
         auth_result = response["AuthenticationResult"]
         access_token = auth_result["AccessToken"]
@@ -144,9 +163,7 @@ class CognitoAuthProvider(AuthProvider):
         return self._to_auth_user(user)
 
     async def forgot_password(self, email: str) -> None:
-        import boto3
-
-        client = boto3.client("cognito-idp", region_name=settings.aws_region)
+        client = self._cognito_client()
         client.forgot_password(
             ClientId=settings.cognito_client_id,
             Username=email,
@@ -154,9 +171,7 @@ class CognitoAuthProvider(AuthProvider):
         )
 
     async def reset_password(self, email: str, code: str, new_password: str) -> None:
-        import boto3
-
-        client = boto3.client("cognito-idp", region_name=settings.aws_region)
+        client = self._cognito_client()
         client.confirm_forgot_password(
             ClientId=settings.cognito_client_id,
             Username=email,
@@ -165,19 +180,21 @@ class CognitoAuthProvider(AuthProvider):
             **({"SecretHash": self._secret_hash(email)} if settings.cognito_client_secret else {}),
         )
 
-    async def change_password(self, user_id: uuid.UUID, current_password: str, new_password: str) -> None:
-        import boto3
+    async def change_password(
+        self,
+        user_id: uuid.UUID,
+        current_password: str,
+        new_password: str,
+        access_token: str | None = None,
+    ) -> None:
+        if not access_token:
+            raise HTTPException(status_code=400, detail="Access token required to change password")
 
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        client = boto3.client("cognito-idp", region_name=settings.aws_region)
+        client = self._cognito_client()
         client.change_password(
             PreviousPassword=current_password,
             ProposedPassword=new_password,
-            AccessToken="",  # Requires access token from request context
+            AccessToken=access_token,
         )
 
     def _secret_hash(self, username: str) -> str:

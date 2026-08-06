@@ -52,8 +52,9 @@ app.include_router(social.notifications_router, prefix="/api/v1")
 app.include_router(social.stories_router, prefix="/api/v1")
 app.include_router(social.explore_router, prefix="/api/v1")
 
-os.makedirs(settings.upload_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+if settings.is_local and settings.media_storage_provider == "local":
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 
 @app.get("/health")

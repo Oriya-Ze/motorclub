@@ -18,10 +18,12 @@ export interface User {
 }
 
 export interface AuthResponse {
-  user: User;
-  access_token: string;
-  token_type: string;
+  user?: User | null;
+  access_token?: string | null;
+  token_type?: string;
   expires_in?: number;
+  confirmation_required?: boolean;
+  message?: string | null;
 }
 
 export interface Post {
@@ -191,6 +193,10 @@ class ApiClient {
 
   register(data: { email: string; username: string; full_name: string; password: string }) {
     return this.request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  confirmSignUp(data: { email: string; code: string; password: string }) {
+    return this.request<AuthResponse>("/auth/confirm", { method: "POST", body: JSON.stringify(data) });
   }
 
   login(data: { email: string; password: string }) {

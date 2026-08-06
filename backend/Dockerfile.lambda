@@ -1,0 +1,11 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+COPY requirements-lambda.txt ${LAMBDA_TASK_ROOT}/requirements-lambda.txt
+COPY requirements.txt ${LAMBDA_TASK_ROOT}/requirements.txt
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements-lambda.txt
+
+COPY app ${LAMBDA_TASK_ROOT}/app
+COPY alembic ${LAMBDA_TASK_ROOT}/alembic
+COPY alembic.ini ${LAMBDA_TASK_ROOT}/alembic.ini
+
+CMD ["app.handler.handler"]

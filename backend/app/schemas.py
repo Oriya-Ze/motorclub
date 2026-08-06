@@ -30,10 +30,18 @@ class LoginRequest(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    user: UserPublic
-    access_token: str
+    user: UserPublic | None = None
+    access_token: str | None = None
     token_type: str = "bearer"
     expires_in: int | None = None
+    confirmation_required: bool = False
+    message: str | None = None
+
+
+class ConfirmSignUpRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=1, max_length=10)
+    password: str = Field(min_length=8)
 
 
 class ForgotPasswordRequest(BaseModel):
