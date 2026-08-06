@@ -22,6 +22,78 @@ def _extract_hashtags(content: str | None) -> list[str]:
     return list({m.group(1).lower() for m in HASHTAG_RE.finditer(content)})
 
 
+async def _batch_post_responses(
+    db: AsyncSession,
+    posts: list[Post],
+    current_user_id: uuid.UUID | None,
+) -> list[PostResponse]:
+    if not posts:
+        return []
+
+    post_ids = [p.id for p in posts]
+    user_ids = list({p.user_id for p in posts})
+
+    likes_result = await db.execute(
+        select(PostLike.post_id, func.count())
+        .where(PostLike.post_id.in_(post_ids))
+        .group_by(PostLike.post_id)
+    )
+    likes_map = dict(likes_result.all())
+
+    comments_result = await db.execute(
+        select(Comment.post_id, func.count())
+        .where(Comment.post_id.in_(post_ids))
+        .group_by(Comment.post_id)
+    )
+    comments_map = dict(comments_result.all())
+
+    liked_ids: set[uuid.UUID] = set()
+    saved_ids: set[uuid.UUID] = set()
+    if current_user_id:
+        liked_result = await db.execute(
+            select(PostLike.post_id).where(
+                PostLike.post_id.in_(post_ids),
+                PostLike.user_id == current_user_id,
+            )
+        )
+        liked_ids = set(liked_result.scalars().all())
+        saved_result = await db.execute(
+            select(SavedPost.post_id).where(
+                SavedPost.post_id.in_(post_ids),
+                SavedPost.user_id == current_user_id,
+            )
+        )
+        saved_ids = set(saved_result.scalars().all())
+
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    users_map = {u.id: u for u in users_result.scalars().all()}
+
+    responses: list[PostResponse] = []
+    for post in posts:
+        author = users_map.get(post.user_id)
+        if not author:
+            continue
+        responses.append(
+            PostResponse(
+                id=post.id,
+                user_id=post.user_id,
+                content=post.content,
+                image_urls=post.image_urls,
+                video_urls=post.video_urls,
+                location=post.location,
+                vehicle_id=post.vehicle_id,
+                hashtags=post.hashtags,
+                created_at=post.created_at,
+                author=user_to_public(author),
+                likes_count=likes_map.get(post.id, 0),
+                comments_count=comments_map.get(post.id, 0),
+                is_liked=post.id in liked_ids,
+                is_saved=post.id in saved_ids,
+            )
+        )
+    return responses
+
+
 async def _post_to_response(db: AsyncSession, post: Post, current_user_id: uuid.UUID | None) -> PostResponse:
     likes_count = await db.scalar(
         select(func.count()).select_from(PostLike).where(PostLike.post_id == post.id)
@@ -73,7 +145,7 @@ async def list_posts(
         query = query.where(Post.hashtags.contains([hashtag.lower()]))
     result = await db.execute(query.offset(skip).limit(limit))
     posts = result.scalars().all()
-    return [await _post_to_response(db, p, current_user.id) for p in posts]
+    return await _batch_post_responses(db, posts, current_user.id)
 
 
 @router.get("/saved", response_model=list[PostResponse])
@@ -85,7 +157,7 @@ async def saved_posts(db: AsyncSession = Depends(get_db), user: User = Depends(g
         .order_by(SavedPost.created_at.desc())
     )
     posts = result.scalars().all()
-    return [await _post_to_response(db, p, user.id) for p in posts]
+    return await _batch_post_responses(db, posts, user.id)
 
 
 @router.post("", response_model=PostResponse)

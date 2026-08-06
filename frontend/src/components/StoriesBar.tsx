@@ -27,7 +27,7 @@ export default function StoriesBar() {
       {stories.map((story) => (
         <Link
           key={story.id}
-          to={`/profile/${story.user_id}`}
+          to={`/stories/${story.id}`}
           className="flex flex-col items-center gap-1 shrink-0"
         >
           <div className={cn("w-16 h-16 rounded-full p-0.5 gradient-primary")}>

@@ -10,13 +10,14 @@ from app.auth.base import AuthProvider, AuthTokens, AuthUser
 from app.config import settings
 from app.models import ProfileSettings, User
 
+_jwks_cache: dict | None = None
+
 
 class CognitoAuthProvider(AuthProvider):
     """AWS Cognito auth provider — activate with AUTH_PROVIDER=cognito."""
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        self._jwks: dict | None = None
 
     @property
     def jwks_url(self) -> str:
@@ -33,12 +34,13 @@ class CognitoAuthProvider(AuthProvider):
         return boto3.client("cognito-idp", region_name=settings.aws_region)
 
     async def _get_jwks(self) -> dict:
-        if self._jwks is None:
+        global _jwks_cache
+        if _jwks_cache is None:
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.jwks_url)
                 response.raise_for_status()
-                self._jwks = response.json()
-        return self._jwks
+                _jwks_cache = response.json()
+        return _jwks_cache
 
     async def _get_or_create_user(self, cognito_sub: str, email: str, username: str, full_name: str) -> User:
         result = await self.db.execute(select(User).where(User.cognito_sub == cognito_sub))
@@ -134,14 +136,20 @@ class CognitoAuthProvider(AuthProvider):
 
         auth_result = response["AuthenticationResult"]
         access_token = auth_result["AccessToken"]
-        auth_user = await self.verify_token(access_token)
+        payload = await self._decode_access_token(access_token)
+        cognito_sub = payload["sub"]
+        token_email = payload.get("email") or email
+        username = payload.get("preferred_username") or payload.get("username") or token_email.split("@")[0]
+        full_name = payload.get("name") or username
+        user = await self._get_or_create_user(cognito_sub, token_email, username, full_name)
+        auth_user = self._to_auth_user(user)
         tokens = AuthTokens(
             access_token=access_token,
             expires_in=auth_result.get("ExpiresIn"),
         )
         return auth_user, tokens
 
-    async def verify_token(self, token: str) -> AuthUser:
+    async def _decode_access_token(self, token: str) -> dict:
         try:
             jwks = await self._get_jwks()
             unverified = jwt.get_unverified_header(token)
@@ -158,15 +166,17 @@ class CognitoAuthProvider(AuthProvider):
                 raise HTTPException(status_code=401, detail="Invalid Cognito token type")
             if payload.get("client_id") != settings.cognito_client_id:
                 raise HTTPException(status_code=401, detail="Invalid Cognito client")
-
-            cognito_sub = payload["sub"]
-            email = payload.get("email") or payload.get("username", "")
-            username = payload.get("preferred_username") or payload.get("username") or email.split("@")[0]
-            full_name = payload.get("name") or username
+            return payload
         except (JWTError, StopIteration, KeyError) as exc:
             raise HTTPException(status_code=401, detail="Invalid Cognito token") from exc
 
-        user = await self._get_or_create_user(cognito_sub, email, username, full_name)
+    async def verify_token(self, token: str) -> AuthUser:
+        payload = await self._decode_access_token(token)
+        cognito_sub = payload["sub"]
+        result = await self.db.execute(select(User).where(User.cognito_sub == cognito_sub))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
         return self._to_auth_user(user)
 
     async def forgot_password(self, email: str) -> None:

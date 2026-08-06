@@ -3,6 +3,7 @@ import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AuthPage from "@/pages/AuthPage";
 import CreateStoryPage from "@/pages/CreateStoryPage";
+import StoryViewerPage from "@/pages/StoryViewerPage";
 import EventsPage from "@/pages/EventsPage";
 import ExplorePage from "@/pages/ExplorePage";
 import FeedPage from "@/pages/FeedPage";
@@ -36,6 +37,7 @@ export default function App() {
         </Route>
 
         <Route element={<ProtectedRoute />}>
+          <Route path="stories/:storyId" element={<StoryViewerPage />} />
           <Route element={<Layout />}>
             <Route index element={<FeedPage />} />
             <Route path="explore" element={<ExplorePage />} />
