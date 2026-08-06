@@ -7,6 +7,7 @@ import EventsPage from "@/pages/EventsPage";
 import ExplorePage from "@/pages/ExplorePage";
 import FeedPage from "@/pages/FeedPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import ForumTopicPage from "@/pages/ForumTopicPage";
 import ForumTopicsPage from "@/pages/ForumTopicsPage";
 import ForumsPage from "@/pages/ForumsPage";
@@ -27,6 +28,7 @@ export default function App() {
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
         <Route element={<Layout />}>
           <Route path="/privacy-policy" element={<LegalPage type="privacy" />} />

@@ -214,6 +214,13 @@ class ApiClient {
     });
   }
 
+  resetPassword(data: { email: string; code: string; new_password: string }) {
+    return this.request<{ message: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
   getPosts(hashtag?: string) {
     const q = hashtag ? `?hashtag=${encodeURIComponent(hashtag)}` : "";
     return this.request<Post[]>(`/posts${q}`);

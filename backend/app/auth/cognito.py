@@ -146,16 +146,23 @@ class CognitoAuthProvider(AuthProvider):
             jwks = await self._get_jwks()
             unverified = jwt.get_unverified_header(token)
             key = next(k for k in jwks["keys"] if k["kid"] == unverified["kid"])
+            issuer = f"https://cognito-idp.{settings.aws_region}.amazonaws.com/{settings.cognito_user_pool_id}"
             payload = jwt.decode(
                 token,
                 key,
                 algorithms=["RS256"],
-                audience=settings.cognito_client_id,
+                issuer=issuer,
+                options={"verify_aud": False},
             )
+            if payload.get("token_use") != "access":
+                raise HTTPException(status_code=401, detail="Invalid Cognito token type")
+            if payload.get("client_id") != settings.cognito_client_id:
+                raise HTTPException(status_code=401, detail="Invalid Cognito client")
+
             cognito_sub = payload["sub"]
-            email = payload.get("email", "")
-            username = payload.get("preferred_username", email.split("@")[0])
-            full_name = payload.get("name", username)
+            email = payload.get("email") or payload.get("username", "")
+            username = payload.get("preferred_username") or payload.get("username") or email.split("@")[0]
+            full_name = payload.get("name") or username
         except (JWTError, StopIteration, KeyError) as exc:
             raise HTTPException(status_code=401, detail="Invalid Cognito token") from exc
 

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  Bell, Calendar, Car, Compass, LogOut, Mail, MessageSquare, Menu, Settings,
+  Bell, Calendar, Car, Compass, LogOut, Mail, MessageSquare, Menu, Plus, Settings,
   ShoppingBag, UserCircle, Users, Warehouse, Wrench, X,
 } from "lucide-react";
 import { useState } from "react";
@@ -70,7 +70,7 @@ export default function Layout() {
           )}
 
           <nav className="hidden xl:flex items-center gap-1">
-            {navItems.slice(0, 6).map(({ to, label, icon: Icon }) => (
+            {user && navItems.slice(0, 6).map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -102,28 +102,39 @@ export default function Layout() {
                 )}
               </Link>
             )}
-            {user ? (
+            {user && (
               <>
-                <Link to="/profile" className="hidden lg:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden md:flex gap-1.5"
+                  onClick={() => setShowCreate(true)}
+                >
+                  <Plus className="w-4 h-4" />
+                  {t("create")}
+                </Button>
+                <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
                   <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold">
                     {user.full_name[0]?.toUpperCase()}
                   </div>
+                  <span className="text-sm font-medium hidden lg:inline">{user.username}</span>
                 </Link>
                 <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
                 <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>
               </>
-            ) : (
+            )}
+            {!user && (
               <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
             )}
-            <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
+            <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => user && setMobileOpen(!mobileOpen)} disabled={!user}>
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
         </div>
 
-        {mobileOpen && (
+        {mobileOpen && user && (
           <nav className="xl:hidden border-t border-border/50 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
-            {user && <div className="pb-3 sm:hidden"><UserSearch /></div>}
+            <div className="pb-3 sm:hidden"><UserSearch /></div>
             {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink key={to} to={to} end={to === "/"} onClick={() => setMobileOpen(false)}
                 className={({ isActive }) => cn("flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium", isActive ? "text-primary bg-primary/10" : "text-muted-foreground")}>

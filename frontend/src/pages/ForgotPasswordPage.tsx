@@ -40,6 +40,9 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="text-center space-y-4">
               <p className="text-muted-foreground">{t("resetEmailSent")}</p>
+              <Link to={`/auth/reset-password?email=${encodeURIComponent(email)}`}>
+                <Button className="w-full">{t("enterResetCode")}</Button>
+              </Link>
               <Link to="/auth">
                 <Button variant="outline" className="w-full">
                   <ArrowRight className="w-4 h-4" />
