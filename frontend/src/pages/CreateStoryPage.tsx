@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 export default function CreateStoryPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
   const handleFile = async (files: FileList | null) => {
@@ -27,6 +28,7 @@ export default function CreateStoryPage() {
       toast.error(err instanceof Error ? err.message : t("error"));
     } finally {
       setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
   };
 
@@ -34,12 +36,22 @@ export default function CreateStoryPage() {
     <div className="max-w-md mx-auto py-12 text-center space-y-6">
       <h1 className="text-2xl font-bold">{t("createStory")}</h1>
       <p className="text-muted-foreground text-sm">{t("storyDesc")}</p>
-      <label className="block">
-        <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleFile(e.target.files)} disabled={uploading} />
-        <Button disabled={uploading} className="cursor-pointer">
-          {uploading ? "..." : t("uploadStory")}
-        </Button>
-      </label>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files)}
+        disabled={uploading}
+      />
+      <Button
+        type="button"
+        disabled={uploading}
+        className="cursor-pointer"
+        onClick={() => fileRef.current?.click()}
+      >
+        {uploading ? "..." : t("uploadStory")}
+      </Button>
     </div>
   );
 }
