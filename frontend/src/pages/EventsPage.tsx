@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 
 export default function EventsPage() {
@@ -24,7 +25,7 @@ export default function EventsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  if (isLoading) return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (isLoading) return <ListPageSkeleton rows={4} />;
 
   return (
     <div className="space-y-4">

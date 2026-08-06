@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { CardGridSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { api, Vehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
@@ -117,7 +118,7 @@ export default function GaragePage() {
       )}
 
       {isLoading ? (
-        <p className="text-center text-muted-foreground py-12">...</p>
+        <CardGridSkeleton count={2} />
       ) : vehicles.length === 0 ? (
         <div className="text-center py-16 space-y-3">
           <Car className="w-16 h-16 text-muted-foreground mx-auto opacity-40" />

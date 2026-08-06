@@ -221,8 +221,15 @@ class ApiClient {
     });
   }
 
-  getPosts(hashtag?: string) {
-    const q = hashtag ? `?hashtag=${encodeURIComponent(hashtag)}` : "";
+  getPosts(hashtagOrOpts?: string | { hashtag?: string; userId?: string }) {
+    const params = new URLSearchParams();
+    if (typeof hashtagOrOpts === "string") {
+      params.set("hashtag", hashtagOrOpts);
+    } else if (hashtagOrOpts) {
+      if (hashtagOrOpts.hashtag) params.set("hashtag", hashtagOrOpts.hashtag);
+      if (hashtagOrOpts.userId) params.set("user_id", hashtagOrOpts.userId);
+    }
+    const q = params.toString() ? `?${params}` : "";
     return this.request<Post[]>(`/posts${q}`);
   }
 

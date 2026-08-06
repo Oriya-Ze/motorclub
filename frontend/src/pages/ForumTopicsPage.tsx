@@ -3,6 +3,7 @@ import { ArrowRight, MessageSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 
 export default function ForumTopicsPage() {
@@ -23,7 +24,7 @@ export default function ForumTopicsPage() {
   });
 
   if (isLoading) {
-    return <div className="text-center py-12 text-muted-foreground">...</div>;
+    return <ListPageSkeleton rows={4} />;
   }
 
   return (

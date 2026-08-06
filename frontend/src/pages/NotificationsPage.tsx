@@ -3,6 +3,7 @@ import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { api, Notification } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,7 @@ export default function NotificationsPage() {
       </div>
 
       {isLoading ? (
-        <p className="text-center text-muted-foreground py-12">...</p>
+        <ListPageSkeleton rows={5} />
       ) : notifications.length === 0 ? (
         <div className="text-center py-16 space-y-3">
           <Bell className="w-12 h-12 text-muted-foreground mx-auto opacity-40" />

@@ -137,12 +137,15 @@ async def list_posts(
     skip: int = 0,
     limit: int = 20,
     hashtag: str | None = None,
+    user_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     query = select(Post).order_by(Post.created_at.desc())
     if hashtag:
         query = query.where(Post.hashtags.contains([hashtag.lower()]))
+    if user_id:
+        query = query.where(Post.user_id == user_id)
     result = await db.execute(query.offset(skip).limit(limit))
     posts = result.scalars().all()
     return await _batch_post_responses(db, posts, current_user.id)

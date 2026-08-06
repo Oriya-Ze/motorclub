@@ -6,6 +6,7 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export default function ForumTopicPage() {
   });
 
   if (isLoading || !topic) {
-    return <div className="text-center py-12 text-muted-foreground">{isLoading ? "..." : t("topicNotFound")}</div>;
+    return isLoading ? <ListPageSkeleton rows={3} /> : <div className="text-center py-12 text-muted-foreground">{t("topicNotFound")}</div>;
   }
 
   return (

@@ -12,29 +12,57 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const USER_CACHE_KEY = "motorclub_cached_user";
+
+function readCachedUser(): User | null {
+  try {
+    const raw = sessionStorage.getItem(USER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheUser(user: User | null) {
+  if (user) sessionStorage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+  else sessionStorage.removeItem(USER_CACHE_KEY);
+}
+
 function applyAuthResponse(res: AuthResponse, setUser: (user: User | null) => void) {
   if (res.access_token) {
     api.setToken(res.access_token);
   }
   if (res.user) {
     setUser(res.user);
+    cacheUser(res.user);
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cachedUser = readCachedUser();
+  const [user, setUser] = useState<User | null>(cachedUser);
+  const [loading, setLoading] = useState(() => Boolean(api.getToken()) && !cachedUser);
 
   useEffect(() => {
     const token = api.getToken();
-    if (token) {
-      api.me()
-        .then(setUser)
-        .catch(() => api.setToken(null))
-        .finally(() => setLoading(false));
-    } else {
+    if (!token) {
+      setUser(null);
+      cacheUser(null);
       setLoading(false);
+      return;
     }
+
+    api.me()
+      .then((u) => {
+        setUser(u);
+        cacheUser(u);
+      })
+      .catch(() => {
+        api.setToken(null);
+        setUser(null);
+        cacheUser(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -54,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     api.setToken(null);
     setUser(null);
+    cacheUser(null);
   };
 
   return (

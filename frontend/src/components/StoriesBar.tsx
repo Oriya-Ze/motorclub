@@ -3,14 +3,19 @@ import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { StoriesBarSkeleton } from "@/components/Skeleton";
 import { cn } from "@/lib/utils";
 
 export default function StoriesBar() {
-  const { data: stories = [] } = useQuery({
+  const { data: stories = [], isLoading, isFetching } = useQuery({
     queryKey: ["stories"],
     queryFn: () => api.getStories(),
     refetchInterval: 60000,
   });
+
+  if ((isLoading || isFetching) && stories.length === 0) {
+    return <StoriesBarSkeleton />;
+  }
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">

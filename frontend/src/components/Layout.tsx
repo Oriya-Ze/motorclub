@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, Calendar, Car, Compass, LogOut, Mail, MessageSquare, Menu, Plus, Settings,
   ShoppingBag, UserCircle, Users, Warehouse, Wrench, X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
@@ -12,6 +12,7 @@ import UserSearch from "@/components/UserSearch";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -30,8 +31,13 @@ export default function Layout() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    if (user) prefetchAppData(queryClient);
+  }, [user, queryClient]);
 
   const { data: unread } = useQuery({
     queryKey: ["unread-count"],
@@ -75,6 +81,7 @@ export default function Layout() {
                 key={to}
                 to={to}
                 end={to === "/"}
+                onMouseEnter={() => prefetchRoute(queryClient, to)}
                 className={({ isActive }) =>
                   cn(
                     "flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-colors",

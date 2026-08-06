@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
+import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,23 +32,13 @@ export default function ProfilePage() {
     enabled: Boolean(profileUserId),
   });
 
-  const { data: postCount = 0 } = useQuery({
-    queryKey: ["user-post-count", profileUserId],
-    queryFn: async () => {
-      const all = await api.getPosts();
-      return all.filter((p) => p.user_id === profileUserId).length;
-    },
+  const { data: posts = [], isLoading: postsLoading } = useQuery({
+    queryKey: ["user-posts", profileUserId],
+    queryFn: () => api.getPosts({ userId: profileUserId! }),
     enabled: Boolean(profileUserId),
   });
 
-  const { data: posts = [], isLoading: postsLoading } = useQuery({
-    queryKey: ["user-posts-full", profileUserId],
-    queryFn: async () => {
-      const all = await api.getPosts();
-      return all.filter((p) => p.user_id === profileUserId);
-    },
-    enabled: Boolean(profileUserId) && tab === "posts",
-  });
+  const postCount = posts.length;
 
   const { data: savedPosts = [], isLoading: savedLoading } = useQuery({
     queryKey: ["saved-posts"],
@@ -97,7 +88,7 @@ export default function ProfilePage() {
 
   if (!authUser && !userId) return null;
   if (!profileUserId) return <div className="text-center py-12 text-muted-foreground">{t("profile.notFound")}</div>;
-  if (profileLoading) return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (profileLoading && !profile) return <ProfileSkeleton />;
   if (profileError || !profile) return <div className="text-center py-12 text-muted-foreground">{t("profile.notFound")}</div>;
 
   const accountTypeLabel = profile.account_type === "business" ? t("profile.businessAccount") : t("profile.personalAccount");
@@ -200,7 +191,10 @@ export default function ProfilePage() {
       </div>
 
       {loading ? (
-        <div className="text-center text-muted-foreground py-12">...</div>
+        <>
+          <PostSkeleton />
+          <PostSkeleton />
+        </>
       ) : tab === "garage" ? (
         garage.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">

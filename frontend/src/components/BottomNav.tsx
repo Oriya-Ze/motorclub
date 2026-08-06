@@ -1,6 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell, Compass, Home, Plus, User } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NavLink } from "react-router-dom";
+import { prefetchRoute } from "@/lib/prefetch";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {
@@ -10,6 +12,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ onCreatePost, unreadCount = 0 }: BottomNavProps) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
   const items = [
     { to: "/", icon: Home, label: t("feed"), end: true },
@@ -42,6 +45,8 @@ export default function BottomNav({ onCreatePost, unreadCount = 0 }: BottomNavPr
               key={to}
               to={to}
               end={end}
+              onMouseEnter={() => prefetchRoute(queryClient, to)}
+              onTouchStart={() => prefetchRoute(queryClient, to)}
               className={({ isActive }) =>
                 cn(
                   "flex flex-col items-center gap-0.5 px-3 py-1 relative",

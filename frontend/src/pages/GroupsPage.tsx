@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 
 export default function GroupsPage() {
@@ -12,7 +13,7 @@ export default function GroupsPage() {
     queryFn: () => api.getGroups(),
   });
 
-  if (isLoading) return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (isLoading) return <ListPageSkeleton rows={4} />;
 
   return (
     <div className="space-y-4">

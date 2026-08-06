@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Phone, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 
 export default function ServicesPage() {
@@ -11,7 +12,7 @@ export default function ServicesPage() {
     queryFn: () => api.getServices(),
   });
 
-  if (isLoading) return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (isLoading) return <ListPageSkeleton rows={3} />;
 
   return (
     <div className="space-y-4">

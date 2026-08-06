@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { SettingsSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
@@ -92,8 +93,12 @@ export default function SettingsPage() {
     updateSettings.mutate({ language });
   };
 
-  if (isLoading || !settings) {
-    return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (isLoading && !settings) {
+    return <SettingsSkeleton />;
+  }
+
+  if (!settings) {
+    return <SettingsSkeleton />;
   }
 
   return (

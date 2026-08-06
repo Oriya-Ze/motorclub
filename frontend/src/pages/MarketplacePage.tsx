@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/Card";
+import { CardGridSkeleton, ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,7 @@ export default function MarketplacePage() {
     queryFn: () => api.getProducts(category || undefined),
   });
 
-  if (isLoading) return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (isLoading) return <CardGridSkeleton count={4} />;
 
   return (
     <div className="space-y-4 pb-20 md:pb-6">

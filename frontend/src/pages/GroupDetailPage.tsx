@@ -6,6 +6,7 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
@@ -58,7 +59,7 @@ export default function GroupDetailPage() {
   });
 
   if (!group) {
-    return <div className="text-center py-12 text-muted-foreground">{isLoading ? "..." : t("groupNotFound")}</div>;
+    return isLoading ? <ListPageSkeleton rows={4} /> : <div className="text-center py-12 text-muted-foreground">{t("groupNotFound")}</div>;
   }
 
   return (

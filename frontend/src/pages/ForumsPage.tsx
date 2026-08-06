@@ -3,6 +3,7 @@ import { HelpCircle, Lightbulb, MessageSquare, ShoppingCart, Star, Wrench } from
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -16,7 +17,7 @@ export default function ForumsPage() {
     queryFn: () => api.getForums(),
   });
 
-  if (isLoading) return <div className="text-center py-12 text-muted-foreground">...</div>;
+  if (isLoading) return <ListPageSkeleton rows={4} />;
 
   return (
     <div className="space-y-4">
