@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException
 
@@ -15,7 +16,13 @@ class S3MediaStorage(MediaStorage):
         if not app_config.settings.s3_media_bucket:
             raise ValueError("S3_MEDIA_BUCKET is required when MEDIA_STORAGE_PROVIDER=s3")
         self._bucket = app_config.settings.s3_media_bucket
-        self._client = boto3.client("s3", region_name=app_config.settings.aws_region)
+        region = app_config.settings.aws_region
+        self._client = boto3.client(
+            "s3",
+            region_name=region,
+            endpoint_url=f"https://s3.{region}.amazonaws.com",
+            config=Config(signature_version="s3v4"),
+        )
 
     async def create_upload_request(
         self,
