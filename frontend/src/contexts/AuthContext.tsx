@@ -11,19 +11,6 @@ interface AuthContextType {
   getOAuthConfig: () => Promise<OAuthConfig>;
   register: (data: { email: string; username: string; full_name: string; password: string }) => Promise<AuthResponse>;
   confirmSignUp: (data: { email: string; code: string; password: string }) => Promise<void>;
-  startPhoneAuth: (data: { phone: string; full_name?: string; username?: string }) => Promise<{
-    needs_registration: boolean;
-    session?: string;
-    phone?: string;
-    message?: string;
-  }>;
-  verifyPhoneAuth: (data: {
-    phone: string;
-    code: string;
-    session: string;
-    full_name?: string;
-    username?: string;
-  }) => Promise<void>;
   logout: () => void;
 }
 
@@ -108,21 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyAuthResponse(res, setUser);
   };
 
-  const startPhoneAuth = async (data: { phone: string; full_name?: string; username?: string }) => {
-    return api.phoneAuthStart(data);
-  };
-
-  const verifyPhoneAuth = async (data: {
-    phone: string;
-    code: string;
-    session: string;
-    full_name?: string;
-    username?: string;
-  }) => {
-    const res = await api.phoneAuthVerify(data);
-    applyAuthResponse(res, setUser);
-  };
-
   const logout = () => {
     api.setToken(null);
     setUser(null);
@@ -140,8 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getOAuthConfig,
         register,
         confirmSignUp,
-        startPhoneAuth,
-        verifyPhoneAuth,
         logout,
       }}
     >

@@ -236,28 +236,6 @@ class ApiClient {
     });
   }
 
-  phoneAuthStart(data: { phone: string; full_name?: string; username?: string }) {
-    return this.request<{
-      needs_registration: boolean;
-      session?: string;
-      phone?: string;
-      message?: string;
-    }>("/auth/phone/start", { method: "POST", body: JSON.stringify(data) });
-  }
-
-  phoneAuthVerify(data: {
-    phone: string;
-    code: string;
-    session: string;
-    full_name?: string;
-    username?: string;
-  }) {
-    return this.request<AuthResponse>("/auth/phone/verify", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
   getPosts(hashtagOrOpts?: string | { hashtag?: string; userId?: string }) {
     const params = new URLSearchParams();
     if (typeof hashtagOrOpts === "string") {

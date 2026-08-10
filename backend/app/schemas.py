@@ -56,27 +56,6 @@ class OAuthConfigResponse(BaseModel):
     region: str | None = None
 
 
-class PhoneAuthStartRequest(BaseModel):
-    phone: str = Field(min_length=9, max_length=20)
-    full_name: str | None = Field(default=None, min_length=2, max_length=255)
-    username: str | None = Field(default=None, min_length=3, max_length=50)
-
-
-class PhoneAuthStartResponse(BaseModel):
-    needs_registration: bool
-    session: str | None = None
-    phone: str | None = None
-    message: str | None = None
-
-
-class PhoneAuthVerifyRequest(BaseModel):
-    phone: str = Field(min_length=9, max_length=20)
-    code: str = Field(min_length=4, max_length=10)
-    session: str = Field(min_length=1)
-    full_name: str | None = Field(default=None, min_length=2, max_length=255)
-    username: str | None = Field(default=None, min_length=3, max_length=50)
-
-
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 

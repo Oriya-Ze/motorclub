@@ -1,7 +1,6 @@
 import uuid
 
 import httpx
-from app.auth.phone_utils import normalize_phone, phone_placeholder_email, random_password
 from fastapi import HTTPException
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -191,31 +190,16 @@ class CognitoAuthProvider(AuthProvider):
         email: str,
         username: str,
         full_name: str,
-        phone_number: str | None = None,
     ) -> User:
         result = await self.db.execute(select(User).where(User.cognito_sub == cognito_sub))
         user = result.scalar_one_or_none()
         if user:
-            if phone_number and not user.phone_number:
-                user.phone_number = phone_number
-                await self.db.commit()
-                await self.db.refresh(user)
             return await self._apply_profile_updates(user, email, username, full_name)
-
-        if phone_number:
-            result = await self.db.execute(select(User).where(User.phone_number == phone_number))
-            user = result.scalar_one_or_none()
-            if user:
-                user.cognito_sub = cognito_sub
-                await self.db.commit()
-                return await self._apply_profile_updates(user, email, username, full_name)
 
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if user:
             user.cognito_sub = cognito_sub
-            if phone_number:
-                user.phone_number = phone_number
             await self.db.commit()
             return await self._apply_profile_updates(user, email, username, full_name)
 
@@ -225,7 +209,6 @@ class CognitoAuthProvider(AuthProvider):
             email=email,
             username=unique_username,
             full_name=full_name,
-            phone_number=phone_number,
         )
         self.db.add(user)
         await self.db.flush()
@@ -445,131 +428,3 @@ class CognitoAuthProvider(AuthProvider):
             hashlib.sha256,
         ).digest()
         return base64.b64encode(dig).decode()
-
-    def _auth_params(self, username: str) -> dict[str, str]:
-        params = {"USERNAME": username}
-        if settings.cognito_client_secret:
-            params["SECRET_HASH"] = self._secret_hash(username)
-        return params
-
-    def _create_cognito_phone_user(
-        self,
-        phone: str,
-        full_name: str,
-        username: str | None = None,
-    ) -> None:
-        client = self._cognito_client()
-        display_name = full_name.strip()
-        preferred = (username or display_name).strip()[:256]
-        client.admin_create_user(
-            UserPoolId=settings.cognito_user_pool_id,
-            Username=phone,
-            MessageAction="SUPPRESS",
-            UserAttributes=[
-                {"Name": "phone_number", "Value": phone},
-                {"Name": "phone_number_verified", "Value": "true"},
-                {"Name": "name", "Value": display_name},
-                {"Name": "preferred_username", "Value": preferred},
-                {"Name": "email", "Value": phone_placeholder_email(phone)},
-                {"Name": "email_verified", "Value": "true"},
-            ],
-        )
-        client.admin_set_user_password(
-            UserPoolId=settings.cognito_user_pool_id,
-            Username=phone,
-            Password=random_password(),
-            Permanent=True,
-        )
-
-    async def phone_auth_start(
-        self,
-        phone: str,
-        full_name: str | None = None,
-        username: str | None = None,
-    ) -> dict:
-        normalized = normalize_phone(phone)
-        client = self._cognito_client()
-        try:
-            client.admin_get_user(UserPoolId=settings.cognito_user_pool_id, Username=normalized)
-        except client.exceptions.UserNotFoundException:
-            if not full_name:
-                return {"needs_registration": True, "phone": normalized}
-            self._create_cognito_phone_user(normalized, full_name, username)
-
-        try:
-            response = client.initiate_auth(
-                ClientId=settings.cognito_client_id,
-                AuthFlow="CUSTOM_AUTH",
-                AuthParameters=self._auth_params(normalized),
-            )
-        except client.exceptions.InvalidParameterException as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-        if response.get("ChallengeName") != "CUSTOM_CHALLENGE":
-            raise HTTPException(status_code=500, detail="Unexpected auth challenge")
-
-        return {
-            "needs_registration": False,
-            "session": response["Session"],
-            "phone": normalized,
-            "message": "SMS code sent",
-        }
-
-    async def phone_auth_verify(
-        self,
-        phone: str,
-        code: str,
-        session: str,
-        full_name: str | None = None,
-        username: str | None = None,
-    ) -> tuple[AuthUser, AuthTokens]:
-        normalized = normalize_phone(phone)
-        client = self._cognito_client()
-        try:
-            client.admin_get_user(UserPoolId=settings.cognito_user_pool_id, Username=normalized)
-        except client.exceptions.UserNotFoundException:
-            if not full_name:
-                raise HTTPException(status_code=400, detail="Registration details required") from None
-            self._create_cognito_phone_user(normalized, full_name, username)
-
-        try:
-            response = client.respond_to_auth_challenge(
-                ClientId=settings.cognito_client_id,
-                ChallengeName="CUSTOM_CHALLENGE",
-                Session=session,
-                ChallengeResponses={
-                    "USERNAME": normalized,
-                    "ANSWER": code.strip(),
-                    **({"SECRET_HASH": self._secret_hash(normalized)} if settings.cognito_client_secret else {}),
-                },
-            )
-        except client.exceptions.NotAuthorizedException:
-            raise HTTPException(status_code=400, detail="Invalid or expired verification code") from None
-
-        auth_result = response.get("AuthenticationResult")
-        if not auth_result:
-            raise HTTPException(status_code=400, detail="Verification failed")
-
-        attrs = self._fetch_cognito_user_attributes(normalized)
-        email = attrs.get("email") or phone_placeholder_email(normalized)
-        display_name = (full_name or attrs.get("name") or normalized).strip()
-        preferred_username = (username or attrs.get("preferred_username") or display_name).strip()
-
-        access_token = auth_result.get("AccessToken") or auth_result.get("access_token")
-        if not access_token:
-            raise HTTPException(status_code=401, detail="Invalid auth response")
-
-        access_payload = await self._decode_access_token(access_token)
-        cognito_sub = access_payload["sub"]
-        user = await self._get_or_create_user(
-            cognito_sub,
-            email,
-            preferred_username,
-            display_name,
-            phone_number=normalized,
-        )
-        tokens = AuthTokens(
-            access_token=access_token,
-            expires_in=auth_result.get("ExpiresIn") or auth_result.get("expires_in"),
-        )
-        return self._to_auth_user(user), tokens
