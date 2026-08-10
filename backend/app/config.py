@@ -30,10 +30,11 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440
-    aws_region: str = "eu-west-1"
+    aws_region: str = "eu-central-1"
     cognito_user_pool_id: str = ""
     cognito_client_id: str = ""
     cognito_client_secret: str = ""
+    cognito_domain: str = ""
     backend_cors_origins: str = ""
     upload_dir: str = "./uploads"
     media_storage_provider: Literal["local", "s3"] = "local"

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { displayName, formatHandle } from "@/lib/utils";
 
 export default function StoryViewerPage() {
   const { t } = useTranslation();
@@ -37,8 +38,8 @@ export default function StoryViewerPage() {
         <div className="flex items-center gap-2 min-w-0">
           {story && (
             <>
-              <span className="font-semibold truncate">{story.author.full_name}</span>
-              <span className="text-white/60 text-sm truncate">@{story.author.username}</span>
+              <span className="font-semibold truncate">{displayName(story.author)}</span>
+              <span className="text-white/60 text-sm truncate">{formatHandle(story.author)}</span>
             </>
           )}
         </div>

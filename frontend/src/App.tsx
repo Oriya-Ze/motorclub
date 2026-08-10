@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AuthPage from "@/pages/AuthPage";
+import OAuthCallbackPage from "@/pages/OAuthCallbackPage";
 import CreateStoryPage from "@/pages/CreateStoryPage";
 import StoryViewerPage from "@/pages/StoryViewerPage";
 import EventsPage from "@/pages/EventsPage";
@@ -19,6 +20,7 @@ import { LegalPage } from "@/pages/LegalPage";
 import MarketplacePage from "@/pages/MarketplacePage";
 import MessagesPage from "@/pages/MessagesPage";
 import NotificationsPage from "@/pages/NotificationsPage";
+import PostPage from "@/pages/PostPage";
 import ProfilePage from "@/pages/ProfilePage";
 import ServicesPage from "@/pages/ServicesPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -28,6 +30,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
@@ -41,6 +44,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<FeedPage />} />
             <Route path="explore" element={<ExplorePage />} />
+            <Route path="posts/:postId" element={<PostPage />} />
             <Route path="garage" element={<GaragePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="stories/create" element={<CreateStoryPage />} />

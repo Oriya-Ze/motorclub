@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { formatHandle } from "@/lib/utils";
 
 export default function ExplorePage() {
   const { t } = useTranslation();
@@ -61,7 +62,7 @@ export default function ExplorePage() {
                 </div>
                 <div>
                   <p className="font-medium text-sm">{u.full_name}</p>
-                  <p className="text-xs text-muted-foreground">@{u.username}</p>
+                  <p className="text-xs text-muted-foreground">{formatHandle(u)}</p>
                 </div>
               </Link>
             ))}
@@ -74,9 +75,9 @@ export default function ExplorePage() {
           <h2 className="font-semibold mb-3">#{tag}</h2>
           <div className="grid grid-cols-3 gap-1">
             {tagPosts.filter((p) => p.image_urls?.[0]).map((p) => (
-              <div key={p.id} className="aspect-square bg-muted rounded-lg overflow-hidden">
+              <Link key={p.id} to={`/posts/${p.id}`} className="aspect-square bg-muted rounded-lg overflow-hidden block">
                 <img src={mediaUrl(p.image_urls![0])} alt="" className="w-full h-full object-cover" />
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -106,9 +107,9 @@ export default function ExplorePage() {
             <h2 className="font-semibold mb-3">{t("explorePhotos")}</h2>
             <div className="grid grid-cols-3 gap-1">
               {explorePosts.filter((p) => p.thumbnail).map((p) => (
-                <div key={p.id} className="aspect-square bg-muted rounded-lg overflow-hidden relative group">
+                <Link key={p.id} to={`/posts/${p.id}`} className="aspect-square bg-muted rounded-lg overflow-hidden relative group block">
                   <img src={mediaUrl(p.thumbnail!)} alt="" className="w-full h-full object-cover" loading="lazy" />
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -130,7 +131,7 @@ export default function ExplorePage() {
                     )}
                     <div>
                       <p className="font-semibold">{v.year} {v.make} {v.model}</p>
-                      {v.owner && <p className="text-xs text-muted-foreground">@{v.owner.username}</p>}
+                      {v.owner && <p className="text-xs text-muted-foreground">{formatHandle(v.owner)}</p>}
                     </div>
                   </Link>
                 ))}

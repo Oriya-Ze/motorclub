@@ -28,6 +28,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255))
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    phone_number: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
     profile_picture_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     account_type: Mapped[str] = mapped_column(String(20), default="personal")
     business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)

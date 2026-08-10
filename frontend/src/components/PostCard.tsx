@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api, Comment, Post } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
-import { cn } from "@/lib/utils";
+import { cn, displayName, formatHandle } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -108,16 +108,21 @@ export default function PostCard({ post }: PostCardProps) {
             {post.author.profile_picture_url ? (
               <img src={mediaUrl(post.author.profile_picture_url)} alt="" className="w-full h-full object-cover" />
             ) : (
-              post.author.full_name[0]?.toUpperCase()
+              displayName(post.author)[0]?.toUpperCase()
             )}
           </div>
         </Link>
         <div className="flex-1 min-w-0">
           <Link to={`/profile/${post.author.id}`} className="font-semibold hover:text-primary transition-colors">
-            {post.author.full_name}
+            {displayName(post.author)}
             {post.author.is_verified && <span className="text-primary mr-1">✓</span>}
           </Link>
-          <p className="text-xs text-muted-foreground">@{post.author.username}</p>
+          <p className="text-xs text-muted-foreground">{formatHandle(post.author)}</p>
+          {post.location && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+              <MapPin className="w-3 h-3 shrink-0" /> {post.location}
+            </p>
+          )}
         </div>
       </div>
 
@@ -150,12 +155,6 @@ export default function PostCard({ post }: PostCardProps) {
             </Link>
           ))}
         </div>
-      )}
-
-      {post.location && (
-        <p className="px-4 pt-2 text-xs text-muted-foreground flex items-center gap-1">
-          <MapPin className="w-3 h-3" /> {post.location}
-        </p>
       )}
 
       <div className="flex items-center gap-4 px-4 py-3">

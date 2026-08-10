@@ -1,12 +1,29 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, type AuthResponse, type User } from "@/lib/api";
+import { api, type AuthResponse, type OAuthConfig, type User } from "@/lib/api";
+import { buildGoogleAuthorizeUrl } from "@/lib/cognitoOAuth";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  completeOAuthLogin: (data: { code: string; redirect_uri: string }) => Promise<void>;
+  getOAuthConfig: () => Promise<OAuthConfig>;
   register: (data: { email: string; username: string; full_name: string; password: string }) => Promise<AuthResponse>;
   confirmSignUp: (data: { email: string; code: string; password: string }) => Promise<void>;
+  startPhoneAuth: (data: { phone: string; full_name?: string; username?: string }) => Promise<{
+    needs_registration: boolean;
+    session?: string;
+    phone?: string;
+    message?: string;
+  }>;
+  verifyPhoneAuth: (data: {
+    phone: string;
+    code: string;
+    session: string;
+    full_name?: string;
+    username?: string;
+  }) => Promise<void>;
   logout: () => void;
 }
 
@@ -70,12 +87,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyAuthResponse(res, setUser);
   };
 
+  const getOAuthConfig = async () => api.getOAuthConfig();
+
+  const loginWithGoogle = async () => {
+    const config = await api.getOAuthConfig();
+    window.location.href = buildGoogleAuthorizeUrl(config);
+  };
+
+  const completeOAuthLogin = async (data: { code: string; redirect_uri: string }) => {
+    const res = await api.oauthCallback(data);
+    applyAuthResponse(res, setUser);
+  };
+
   const register = async (data: { email: string; username: string; full_name: string; password: string }) => {
     return api.register(data);
   };
 
   const confirmSignUp = async (data: { email: string; code: string; password: string }) => {
     const res = await api.confirmSignUp(data);
+    applyAuthResponse(res, setUser);
+  };
+
+  const startPhoneAuth = async (data: { phone: string; full_name?: string; username?: string }) => {
+    return api.phoneAuthStart(data);
+  };
+
+  const verifyPhoneAuth = async (data: {
+    phone: string;
+    code: string;
+    session: string;
+    full_name?: string;
+    username?: string;
+  }) => {
+    const res = await api.phoneAuthVerify(data);
     applyAuthResponse(res, setUser);
   };
 
@@ -86,7 +130,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, confirmSignUp, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        loginWithGoogle,
+        completeOAuthLogin,
+        getOAuthConfig,
+        register,
+        confirmSignUp,
+        startPhoneAuth,
+        verifyPhoneAuth,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

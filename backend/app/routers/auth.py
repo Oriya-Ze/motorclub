@@ -15,6 +15,11 @@ from app.schemas import (
     ConfirmSignUpRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    OAuthCallbackRequest,
+    OAuthConfigResponse,
+    PhoneAuthStartRequest,
+    PhoneAuthStartResponse,
+    PhoneAuthVerifyRequest,
     RegisterRequest,
     ResetPasswordRequest,
     UserPublic,
@@ -72,6 +77,64 @@ async def confirm_sign_up(body: ConfirmSignUpRequest, db: AsyncSession = Depends
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     provider = get_auth_provider(db)
     auth_user, tokens = await provider.login(body.email, body.password)
+
+    result = await db.execute(select(User).where(User.id == auth_user.id))
+    user = result.scalar_one()
+
+    return AuthResponse(
+        user=user_to_public(user),
+        access_token=tokens.access_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
+    )
+
+
+@router.post("/phone/start", response_model=PhoneAuthStartResponse)
+async def phone_auth_start(body: PhoneAuthStartRequest, db: AsyncSession = Depends(get_db)):
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        raise HTTPException(status_code=501, detail="Phone sign-in is only available with Cognito auth")
+    result = await provider.phone_auth_start(body.phone, body.full_name, body.username)
+    return PhoneAuthStartResponse(**result)
+
+
+@router.post("/phone/verify", response_model=AuthResponse)
+async def phone_auth_verify(body: PhoneAuthVerifyRequest, db: AsyncSession = Depends(get_db)):
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        raise HTTPException(status_code=501, detail="Phone sign-in is only available with Cognito auth")
+
+    auth_user, tokens = await provider.phone_auth_verify(
+        body.phone, body.code, body.session, body.full_name, body.username
+    )
+
+    result = await db.execute(select(User).where(User.id == auth_user.id))
+    user = result.scalar_one()
+
+    return AuthResponse(
+        user=user_to_public(user),
+        access_token=tokens.access_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
+    )
+
+
+@router.get("/oauth/config", response_model=OAuthConfigResponse)
+async def oauth_config(db: AsyncSession = Depends(get_db)):
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        return OAuthConfigResponse(google_enabled=False)
+    config = provider.get_oauth_config()
+    return OAuthConfigResponse(**config)
+
+
+@router.post("/oauth/callback", response_model=AuthResponse)
+async def oauth_callback(body: OAuthCallbackRequest, db: AsyncSession = Depends(get_db)):
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        raise HTTPException(status_code=501, detail="OAuth sign-in is only available with Cognito auth")
+
+    auth_user, tokens = await provider.exchange_oauth_code(body.code, body.redirect_uri)
 
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()

@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { StoriesBarSkeleton } from "@/components/Skeleton";
-import { cn } from "@/lib/utils";
+import { cn, displayName, displayUsername } from "@/lib/utils";
 
 export default function StoriesBar() {
   const { data: stories = [], isLoading, isFetching } = useQuery({
@@ -41,12 +41,12 @@ export default function StoriesBar() {
                 <img src={mediaUrl(story.media_url)} alt="" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full gradient-primary flex items-center justify-center text-white text-lg font-bold">
-                  {story.author.full_name[0]}
+                  {displayName(story.author)[0]}
                 </div>
               )}
             </div>
           </div>
-          <span className="text-[10px] max-w-[64px] truncate">{story.author.username}</span>
+          <span className="text-[10px] max-w-[64px] truncate">{displayUsername(story.author)}</span>
         </Link>
       ))}
     </div>

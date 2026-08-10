@@ -8,7 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icon-192.svg", "icon-512.svg"],
+      includeAssets: ["logo.png", "favicon.png", "icon-192.svg", "icon-512.svg"],
       manifest: false,
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],

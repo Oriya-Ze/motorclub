@@ -163,6 +163,18 @@ async def saved_posts(db: AsyncSession = Depends(get_db), user: User = Depends(g
     return await _batch_post_responses(db, posts, user.id)
 
 
+@router.get("/{post_id}", response_model=PostResponse)
+async def get_post(
+    post_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    post = await db.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return await _post_to_response(db, post, current_user.id)
+
+
 @router.post("", response_model=PostResponse)
 async def create_post(
     body: PostCreate,

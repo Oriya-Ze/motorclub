@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatHandle } from "@/lib/utils";
 
 export default function UserSearch() {
   const { t } = useTranslation();
@@ -98,7 +98,7 @@ export default function UserSearch() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{user.full_name}</p>
-                      <p className="text-xs text-muted-foreground truncate">@{user.username}</p>
+                      <p className="text-xs text-muted-foreground truncate">{formatHandle(user)}</p>
                     </div>
                   </button>
                 </li>

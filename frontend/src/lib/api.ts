@@ -26,6 +26,13 @@ export interface AuthResponse {
   message?: string | null;
 }
 
+export interface OAuthConfig {
+  google_enabled: boolean;
+  client_id?: string | null;
+  cognito_domain?: string | null;
+  region?: string | null;
+}
+
 export interface Post {
   id: string;
   user_id: string;
@@ -203,6 +210,14 @@ class ApiClient {
     return this.request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) });
   }
 
+  getOAuthConfig() {
+    return this.request<OAuthConfig>("/auth/oauth/config");
+  }
+
+  oauthCallback(data: { code: string; redirect_uri: string }) {
+    return this.request<AuthResponse>("/auth/oauth/callback", { method: "POST", body: JSON.stringify(data) });
+  }
+
   me() {
     return this.request<User>("/auth/me");
   }
@@ -221,6 +236,28 @@ class ApiClient {
     });
   }
 
+  phoneAuthStart(data: { phone: string; full_name?: string; username?: string }) {
+    return this.request<{
+      needs_registration: boolean;
+      session?: string;
+      phone?: string;
+      message?: string;
+    }>("/auth/phone/start", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  phoneAuthVerify(data: {
+    phone: string;
+    code: string;
+    session: string;
+    full_name?: string;
+    username?: string;
+  }) {
+    return this.request<AuthResponse>("/auth/phone/verify", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
   getPosts(hashtagOrOpts?: string | { hashtag?: string; userId?: string }) {
     const params = new URLSearchParams();
     if (typeof hashtagOrOpts === "string") {
@@ -231,6 +268,10 @@ class ApiClient {
     }
     const q = params.toString() ? `?${params}` : "";
     return this.request<Post[]>(`/posts${q}`);
+  }
+
+  getPost(postId: string) {
+    return this.request<Post>(`/posts/${postId}`);
   }
 
   getSavedPosts() {
@@ -356,6 +397,13 @@ class ApiClient {
 
   getGroups() {
     return this.request<Array<{ id: string; name: string; description?: string; members_count: number }>>("/groups");
+  }
+
+  createGroup(data: { name: string; description?: string; category?: string }) {
+    return this.request<{ id: string; name: string; description?: string; members_count: number }>("/groups", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   getForums() {

@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Post, Vehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
-import { cn } from "@/lib/utils";
+import { cn, displayName, formatHandle } from "@/lib/utils";
 
 type Tab = "posts" | "saved" | "garage";
 
@@ -108,10 +108,10 @@ export default function ProfilePage() {
           <div className="flex flex-col sm:flex-row sm:items-start gap-6">
             <div className="shrink-0 mx-auto sm:mx-0">
               {profile.profile_picture_url ? (
-                <img src={mediaUrl(profile.profile_picture_url)} alt={profile.full_name} className="w-24 h-24 rounded-full object-cover border-2 border-primary/30" />
+                <img src={mediaUrl(profile.profile_picture_url)} alt={displayName(profile)} className="w-24 h-24 rounded-full object-cover border-2 border-primary/30" />
               ) : (
                 <div className="w-24 h-24 rounded-full gradient-primary flex items-center justify-center text-white text-3xl font-bold">
-                  {profile.full_name[0]?.toUpperCase() ?? "?"}
+                  {displayName(profile)[0]?.toUpperCase() ?? "?"}
                 </div>
               )}
             </div>
@@ -119,7 +119,7 @@ export default function ProfilePage() {
             <div className="flex-1 text-center sm:text-start space-y-3">
               <div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h1 className="text-2xl font-bold">{profile.full_name}</h1>
+                  <h1 className="text-2xl font-bold">{displayName(profile)}</h1>
                   {profile.is_verified && (
                     <span className="inline-flex items-center gap-1 text-primary text-sm">
                       <BadgeCheck className="w-5 h-5" />
@@ -127,7 +127,7 @@ export default function ProfilePage() {
                     </span>
                   )}
                 </div>
-                <p className="text-muted-foreground">@{profile.username}</p>
+                <p className="text-muted-foreground">{formatHandle(profile)}</p>
               </div>
 
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-medium">

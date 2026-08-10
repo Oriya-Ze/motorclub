@@ -10,7 +10,7 @@ import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatHandle } from "@/lib/utils";
 
 function formatTime(iso: string, locale: string) {
   return new Date(iso).toLocaleTimeString(locale === "he" ? "he-IL" : "en-US", {
@@ -86,7 +86,7 @@ export default function MessagesPage() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {conv.last_message || `@${conv.other_user.username}`}
+                    {conv.last_message || formatHandle(conv.other_user)}
                   </p>
                 </div>
               </Link>
@@ -105,7 +105,7 @@ export default function MessagesPage() {
                 </div>
                 <div>
                   <p className="font-semibold">{activeConversation.other_user.full_name}</p>
-                  <p className="text-xs text-muted-foreground">@{activeConversation.other_user.username}</p>
+                  <p className="text-xs text-muted-foreground">{formatHandle(activeConversation.other_user)}</p>
                 </div>
               </Link>
             </div>

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
-import { cn } from "@/lib/utils";
+import { cn, displayName, displayUsername } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "feed", icon: Car },
@@ -63,9 +63,7 @@ export default function Layout() {
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 gradient-primary rounded-xl flex items-center justify-center">
-              <Car className="w-5 h-5 text-white" />
-            </div>
+            <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
             <span className="font-bold text-lg hidden sm:block">{t("appName")}</span>
           </Link>
 
@@ -122,9 +120,9 @@ export default function Layout() {
                 </Button>
                 <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
                   <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold">
-                    {user.full_name[0]?.toUpperCase()}
+                    {displayName(user)[0]?.toUpperCase()}
                   </div>
-                  <span className="text-sm font-medium hidden lg:inline">{user.username}</span>
+                  <span className="text-sm font-medium hidden lg:inline">{displayUsername(user)}</span>
                 </Link>
                 <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
                 <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>

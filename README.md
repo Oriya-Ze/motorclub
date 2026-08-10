@@ -38,8 +38,8 @@ Email + password with JWT tokens. No external dependencies.
 
 ```env
 AUTH_PROVIDER=cognito
-AWS_REGION=eu-west-1
-COGNITO_USER_POOL_ID=eu-west-1_XXXXX
+AWS_REGION=eu-central-1
+COGNITO_USER_POOL_ID=eu-central-1_XXXXX
 COGNITO_CLIENT_ID=xxxxxxxx
 COGNITO_CLIENT_SECRET=xxxxxxxx   # optional
 ```
@@ -197,7 +197,7 @@ pytest tests/test_media_validation.py tests/test_media_storage_local.py tests/te
 | `S3_PRESIGNED_URL_EXPIRY_SECONDS` | No | Presigned PUT lifetime. Default: `300` |
 | `MAX_IMAGE_UPLOAD_BYTES` | No | Max image upload size in bytes. Default: `10485760` (10 MB) |
 | `MAX_VIDEO_UPLOAD_BYTES` | No | Max video upload size in bytes. Default: `10485760` (10 MB) |
-| `AWS_REGION` | For Cognito / S3 | Default: `eu-west-1` |
+| `AWS_REGION` | For Cognito / S3 | Default: `eu-central-1` |
 | `COGNITO_USER_POOL_ID` | When `AUTH_PROVIDER=cognito` | Cognito User Pool ID |
 | `COGNITO_CLIENT_ID` | When `AUTH_PROVIDER=cognito` | Cognito app client ID |
 | `COGNITO_CLIENT_SECRET` | Optional | Cognito app client secret |
@@ -326,6 +326,31 @@ Full docs at `/docs` (Swagger UI).
 4. Restart backend: `docker compose restart backend`
 
 User records are synced to PostgreSQL on first login (via `cognito_sub`).
+
+## Google sign-in (Cognito OAuth)
+
+Serverless deployments can enable **Continue with Google** via Terraform:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) create an OAuth 2.0 **Web application** client.
+2. Add this **Authorized redirect URI** (Cognito IdP callback, not your app URL):
+
+   `https://<cognito-domain-prefix>.auth.<aws-region>.amazoncognito.com/oauth2/idpresponse`
+
+   Example: `https://motorclub-serverless.auth.eu-central-1.amazoncognito.com/oauth2/idpresponse`
+
+3. Set in `motorclub-infra/environments/serverless/terraform.tfvars`:
+
+   ```hcl
+   cognito_domain_prefix     = "motorclub-serverless"
+   google_oauth_client_id     = "...apps.googleusercontent.com"
+   google_oauth_client_secret = "..."
+   ```
+
+4. `terraform apply` — Cognito registers Google, enables OAuth on the app client, and adds callback URLs for CloudFront + `http://localhost:5173/auth/callback`.
+
+5. Redeploy Lambda + frontend.
+
+Flow: frontend → Cognito Hosted UI (Google) → `/auth/callback?code=...` → backend `/auth/oauth/callback` → JWT + Neon user sync.
 
 ## Project Structure
 
