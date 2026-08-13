@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, Bookmark, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
+import { Bookmark, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
 import VehicleDetailModal from "@/components/VehicleDetailModal";
+import Avatar from "@/components/Avatar";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -109,22 +112,16 @@ export default function ProfilePage() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row sm:items-start gap-6">
             <div className="shrink-0 mx-auto sm:mx-0">
-              {profile.profile_picture_url ? (
-                <img src={mediaUrl(profile.profile_picture_url)} alt={displayName(profile)} className="w-24 h-24 rounded-full object-cover border-2 border-primary/30" />
-              ) : (
-                <div className="w-24 h-24 rounded-full gradient-primary flex items-center justify-center text-white text-3xl font-bold">
-                  {displayName(profile)[0]?.toUpperCase() ?? "?"}
-                </div>
-              )}
+              <Avatar user={profile} size="2xl" className="border-2 border-primary/30" />
             </div>
 
             <div className="flex-1 text-center sm:text-start space-y-3">
               <div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h1 className="text-2xl font-bold">{displayName(profile)}</h1>
+                  <h1 className="text-2xl font-display tracking-wide">{displayName(profile)}</h1>
                   {profile.is_verified && (
                     <span className="inline-flex items-center gap-1 text-primary text-sm">
-                      <BadgeCheck className="w-5 h-5" />
+                      <VerifiedBadge className="w-5 h-5" />
                       {t("profile.verified")}
                     </span>
                   )}
@@ -219,7 +216,7 @@ export default function ProfilePage() {
                   {v.image_urls?.[0] ? (
                     <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-32 object-cover" />
                   ) : (
-                    <div className="w-full h-32 gradient-primary opacity-20" />
+                    <VehiclePlaceholder className="h-32" />
                   )}
                   <CardContent className="pt-3 pb-4">
                     <p className="font-semibold">{v.year && `${v.year} `}{v.make} {v.model}</p>

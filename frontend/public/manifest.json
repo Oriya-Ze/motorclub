@@ -4,7 +4,7 @@
   "description": "קהילת הרכב הישראלית — שתפו, התחברו וגלו",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#141418",
+  "background_color": "#FAFAFA",
   "theme_color": "#E73838",
   "orientation": "portrait-primary",
   "lang": "he",

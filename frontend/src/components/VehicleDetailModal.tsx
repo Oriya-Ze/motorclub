@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Star, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { api, Vehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
@@ -56,7 +57,7 @@ export default function VehicleDetailModal({ vehicle, onClose, editable = false 
               ))}
             </div>
           ) : (
-            <div className="w-full h-48 rounded-xl gradient-primary opacity-20" />
+            <VehiclePlaceholder className="h-48 rounded-xl" />
           )}
 
           <dl className="grid grid-cols-2 gap-3 text-sm">

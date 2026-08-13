@@ -3,6 +3,8 @@ import { Mail, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
+import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { api, Product } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
@@ -41,10 +43,10 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
           {product.image_urls?.[0] ? (
             <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-56 object-cover rounded-xl" />
           ) : (
-            <div className="w-full h-56 rounded-xl gradient-primary opacity-20" />
+            <VehiclePlaceholder className="h-56 rounded-xl" />
           )}
 
-          <p className="text-2xl font-bold text-primary">₪{product.price.toLocaleString()}</p>
+          <p className="text-3xl font-display tracking-wide text-primary">₪{product.price.toLocaleString()}</p>
 
           {product.description && (
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{product.description}</p>
@@ -56,9 +58,7 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
               className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               onClick={onClose}
             >
-              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold">
-                {product.seller.full_name[0]?.toUpperCase()}
-              </div>
+              <Avatar user={product.seller} size="md" />
               <div>
                 <p className="font-medium text-sm">{product.seller.full_name}</p>
                 <p className="text-xs text-muted-foreground">{formatHandle(product.seller)}</p>

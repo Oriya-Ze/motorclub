@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
 import { cn, formatHandle } from "@/lib/utils";
 
@@ -93,9 +94,7 @@ export default function UserSearch() {
                     onClick={() => handleSelect(user.id)}
                     className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-start"
                   >
-                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold shrink-0">
-                      {user.full_name[0]?.toUpperCase()}
-                    </div>
+                    <Avatar user={user} size="sm" />
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{user.full_name}</p>
                       <p className="text-xs text-muted-foreground truncate">{formatHandle(user)}</p>

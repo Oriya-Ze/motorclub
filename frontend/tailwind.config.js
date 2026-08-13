@@ -38,6 +38,9 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        asphalt: "hsl(var(--asphalt))",
+        chrome: "hsl(var(--chrome))",
+        "surface-elevated": "hsl(var(--surface-elevated))",
       },
       borderRadius: {
         lg: "var(--radius)",

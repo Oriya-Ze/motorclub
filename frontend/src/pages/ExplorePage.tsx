@@ -3,6 +3,8 @@ import { Hash, Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
+import Avatar from "@/components/Avatar";
+import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { formatHandle } from "@/lib/utils";
@@ -43,7 +45,7 @@ export default function ExplorePage() {
   return (
     <div className="space-y-6 pb-20 md:pb-6">
       <div>
-        <h1 className="text-2xl font-bold mb-4">{t("explore")}</h1>
+        <h1 className="text-2xl font-display tracking-wide mb-4">{t("explore")}</h1>
         <div className="relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -57,9 +59,7 @@ export default function ExplorePage() {
           <div className="mt-2 bg-card border border-border rounded-xl overflow-hidden">
             {users.map((u) => (
               <Link key={u.id} to={`/profile/${u.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50">
-                <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-white font-bold text-sm">
-                  {u.full_name[0]}
-                </div>
+                <Avatar user={u} size="sm" />
                 <div>
                   <p className="font-medium text-sm">{u.full_name}</p>
                   <p className="text-xs text-muted-foreground">{formatHandle(u)}</p>
@@ -127,7 +127,7 @@ export default function ExplorePage() {
                     {v.thumbnail ? (
                       <img src={mediaUrl(v.thumbnail)} alt="" className="w-20 h-20 object-cover rounded-lg shrink-0" />
                     ) : (
-                      <div className="w-20 h-20 gradient-primary rounded-lg shrink-0" />
+                      <VehiclePlaceholder className="w-20 h-20 rounded-lg shrink-0" iconClassName="w-8 h-8" />
                     )}
                     <div>
                       <p className="font-semibold">{v.year} {v.make} {v.model}</p>

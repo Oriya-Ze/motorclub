@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -86,7 +87,7 @@ export default function GroupDetailPage() {
       <div className="flex items-center gap-2">
         <Link to="/groups" className="text-muted-foreground hover:text-primary">{t("groups")}</Link>
         <ArrowRight className="w-4 h-4 text-muted-foreground" />
-        <h1 className="text-2xl font-bold">{group.name}</h1>
+        <h1 className="text-2xl font-display tracking-wide">{group.name}</h1>
       </div>
 
       <Card>
@@ -113,12 +114,10 @@ export default function GroupDetailPage() {
               const isMine = msg.user_id === user?.id;
               return (
                 <div key={msg.id} className={cn("flex gap-2", isMine && "flex-row-reverse")}>
-                  <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
-                    {msg.author.full_name[0]?.toUpperCase()}
-                  </div>
+                  <Avatar user={msg.author} size="sm" />
                   <div className={cn("max-w-[75%]", isMine && "text-end")}>
                     <p className="text-xs text-muted-foreground mb-0.5">{msg.author.full_name}</p>
-                    <div className={cn("rounded-2xl px-4 py-2 text-sm inline-block", isMine ? "gradient-primary text-white" : "bg-muted")}>
+                    <div className={cn("rounded-2xl px-4 py-2 text-sm inline-block", isMine ? "bg-primary text-primary-foreground" : "bg-muted")}>
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-0.5">{formatTime(msg.created_at, i18n.language)}</p>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -58,7 +59,7 @@ export default function MessagesPage() {
     <div className="grid md:grid-cols-[280px_1fr] gap-4 h-[calc(100vh-8rem)]">
       <Card className="overflow-hidden flex flex-col">
         <div className="p-4 border-b border-border/50">
-          <h1 className="font-bold text-lg">{t("messages")}</h1>
+          <h1 className="font-display text-2xl tracking-wide">{t("messages")}</h1>
         </div>
         <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
@@ -73,9 +74,7 @@ export default function MessagesPage() {
                   conversationId === conv.id && "bg-primary/10"
                 )}
               >
-                <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shrink-0">
-                  {conv.other_user.full_name[0]?.toUpperCase()}
-                </div>
+                <Avatar user={conv.other_user} size="md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-medium truncate">{conv.other_user.full_name}</p>
@@ -100,9 +99,7 @@ export default function MessagesPage() {
           <>
             <div className="p-4 border-b border-border/50 flex items-center gap-3">
               <Link to={`/profile/${activeConversation.other_user.id}`} className="flex items-center gap-3 hover:opacity-80">
-                <div className="w-9 h-9 rounded-full gradient-primary flex items-center justify-center text-white font-bold">
-                  {activeConversation.other_user.full_name[0]?.toUpperCase()}
-                </div>
+                <Avatar user={activeConversation.other_user} size="sm" />
                 <div>
                   <p className="font-semibold">{activeConversation.other_user.full_name}</p>
                   <p className="text-xs text-muted-foreground">{formatHandle(activeConversation.other_user)}</p>
@@ -121,11 +118,11 @@ export default function MessagesPage() {
                       <div
                         className={cn(
                           "max-w-[75%] rounded-2xl px-4 py-2 text-sm",
-                          isMine ? "gradient-primary text-white" : "bg-muted"
+                          isMine ? "bg-primary text-primary-foreground" : "bg-muted"
                         )}
                       >
                         <p className="whitespace-pre-wrap">{msg.content}</p>
-                        <p className={cn("text-[10px] mt-1", isMine ? "text-white/70" : "text-muted-foreground")}>
+                        <p className={cn("text-[10px] mt-1", isMine ? "text-primary-foreground/70" : "text-muted-foreground")}>
                           {formatTime(msg.created_at, i18n.language)}
                         </p>
                       </div>

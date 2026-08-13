@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -71,11 +72,9 @@ export default function ForumTopicPage() {
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-start gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shrink-0">
-              {topic.author.full_name[0]?.toUpperCase()}
-            </div>
+            <Avatar user={topic.author} size="md" />
             <div>
-              <h1 className="text-xl font-bold">{topic.title}</h1>
+              <h1 className="text-xl font-display tracking-wide">{topic.title}</h1>
               <p className="text-sm text-muted-foreground">
                 {topic.author.full_name} ·{" "}
                 {new Date(topic.created_at).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US")}
@@ -93,9 +92,7 @@ export default function ForumTopicPage() {
             <Card key={r.id} className={cn(r.is_best_answer && "border-primary/50")}>
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {r.author.full_name[0]?.toUpperCase()}
-                  </div>
+                  <Avatar user={r.author} size="sm" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium text-sm">{r.author.full_name}</span>

@@ -6,7 +6,10 @@ const resources = {
     translation: {
       appName: "MotorClub IL",
       appTitle: "קהילת הרכב הישראלית",
-      appSubtitle: "הצטרפו לקהילת אוהבי הרכב הגדולה בישראל",
+      appSubtitle: "המקום שלך לשתף, לגלות ולהתחבר עם קהילת הרכב בישראל",
+      linkedVehicle: "רכב מקושר",
+      noPostsTitle: "הפיד ריק",
+      noPostsDesc: "עקבו אחרי חברים או צרו את הפוסט הראשון שלכם",
       welcome: "ברוכים הבאים",
       login: "התחברות",
       register: "הרשמה",
@@ -222,7 +225,10 @@ const resources = {
     translation: {
       appName: "MotorClub IL",
       appTitle: "Israeli Car Community",
-      appSubtitle: "Join the largest car lovers community in Israel",
+      appSubtitle: "Your place to share, discover, and connect with Israel's car community",
+      linkedVehicle: "Linked vehicle",
+      noPostsTitle: "Feed is empty",
+      noPostsDesc: "Follow friends or create your first post",
       welcome: "Welcome",
       login: "Login",
       register: "Sign Up",

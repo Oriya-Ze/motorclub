@@ -1,7 +1,9 @@
+import { ShoppingBag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import EmptyState from "@/components/EmptyState";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
@@ -26,7 +28,7 @@ export default function MarketplacePage() {
 
   return (
     <div className="space-y-4 pb-20 md:pb-6">
-      <h1 className="text-2xl font-bold">{t("marketplace")}</h1>
+      <h1 className="text-2xl font-display tracking-wide">{t("marketplace")}</h1>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button
@@ -53,11 +55,12 @@ export default function MarketplacePage() {
       </div>
 
       {products.length === 0 ? (
-        <div className="text-center py-12 space-y-4">
-          <p className="text-muted-foreground">{t("noProducts")}</p>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">{t("marketplaceEmptyCta")}</p>
-          <Link to="/explore"><Button variant="outline" size="sm">{t("explore")}</Button></Link>
-        </div>
+        <EmptyState
+          icon={ShoppingBag}
+          title={t("noProducts")}
+          description={t("marketplaceEmptyCta")}
+          action={<Link to="/explore"><Button variant="outline" size="sm">{t("explore")}</Button></Link>}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
@@ -79,7 +82,7 @@ export default function MarketplacePage() {
                   {product.description && (
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
                   )}
-                  <p className="text-primary font-bold text-lg mt-3">₪{product.price.toLocaleString()}</p>
+                  <p className="text-primary font-display text-xl tracking-wide mt-3">₪{product.price.toLocaleString()}</p>
                 </CardContent>
               </Card>
             </button>

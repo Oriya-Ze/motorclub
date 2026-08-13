@@ -3,7 +3,9 @@ import { Car, Plus, Star } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import EmptyState from "@/components/EmptyState";
 import VehicleDetailModal from "@/components/VehicleDetailModal";
+import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
@@ -67,7 +69,7 @@ export default function GaragePage() {
     <div className="space-y-6 pb-20 md:pb-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t("garage.title")}</h1>
+          <h1 className="text-2xl font-display tracking-wide">{t("garage.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("garage.subtitle")}</p>
         </div>
         <Button size="sm" onClick={() => setShowForm(!showForm)}>
@@ -122,10 +124,11 @@ export default function GaragePage() {
       {isLoading ? (
         <CardGridSkeleton count={2} />
       ) : vehicles.length === 0 ? (
-        <div className="text-center py-16 space-y-3">
-          <Car className="w-16 h-16 text-muted-foreground mx-auto opacity-40" />
-          <p className="text-muted-foreground">{t("garage.empty")}</p>
-        </div>
+        <EmptyState
+          icon={Car}
+          title={t("garage.empty")}
+          action={<Button size="sm" onClick={() => setShowForm(true)}>{t("garage.add")}</Button>}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {vehicles.map((v: Vehicle) => (
@@ -139,7 +142,7 @@ export default function GaragePage() {
                 {v.image_urls?.[0] ? (
                   <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-40 object-cover" loading="lazy" />
                 ) : (
-                  <div className="w-full h-40 gradient-primary opacity-20" />
+                  <VehiclePlaceholder className="h-40" />
                 )}
                 <CardContent className="pt-4">
                   <div className="flex items-start justify-between gap-2">

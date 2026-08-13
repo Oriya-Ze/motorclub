@@ -3,15 +3,15 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { SettingsSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { applyTheme, type Theme } from "@/lib/theme";
-import { cn, displayName } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 function Toggle({
   checked,
@@ -144,7 +144,7 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t("settingsTitle")}</h1>
+        <h1 className="text-2xl font-display tracking-wide">{t("settingsTitle")}</h1>
         <p className="text-muted-foreground">{t("settingsSubtitle")}</p>
       </div>
 
@@ -153,13 +153,7 @@ export default function SettingsPage() {
         <CardContent className="pt-6 space-y-4">
           <h3 className="font-semibold">{t("profile.editProfile")}</h3>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center text-white text-xl font-bold overflow-hidden shrink-0">
-              {user.profile_picture_url ? (
-                <img src={mediaUrl(user.profile_picture_url)} alt="" className="w-full h-full object-cover" />
-              ) : (
-                displayName(user)[0]?.toUpperCase()
-              )}
-            </div>
+            <Avatar user={user} size="lg" />
             <label className="cursor-pointer">
               <span className="text-sm text-primary hover:underline">{t("profile.changePhoto")}</span>
               <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto} onChange={(e) => handlePhotoUpload(e.target.files)} />

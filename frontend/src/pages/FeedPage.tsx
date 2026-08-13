@@ -1,6 +1,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
+import { Newspaper } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import EmptyState from "@/components/EmptyState";
+import FeedSidebar from "@/components/FeedSidebar";
 import PostCard from "@/components/PostCard";
 import StoriesBar from "@/components/StoriesBar";
 import { PostSkeleton } from "@/components/Skeleton";
@@ -45,30 +48,35 @@ export default function FeedPage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="feed-scroll max-w-lg mx-auto space-y-4 pb-2">
-      <StoriesBar />
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 justify-center">
+      <div className="w-full lg:w-[min(100%,42rem)] space-y-4 pb-2">
+        <StoriesBar />
 
-      {isLoading ? (
-        <>
-          <PostSkeleton />
-          <PostSkeleton />
-        </>
-      ) : posts.length === 0 ? (
-        <div className="text-center py-16 space-y-3">
-          <p className="text-muted-foreground">{t("noPosts")}</p>
-        </div>
-      ) : (
-        <>
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-          <div ref={loadMoreRef} className="h-8 flex items-center justify-center">
-            {isFetchingNextPage && (
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            )}
-          </div>
-        </>
-      )}
+        {isLoading ? (
+          <>
+            <PostSkeleton />
+            <PostSkeleton />
+          </>
+        ) : posts.length === 0 ? (
+          <EmptyState
+            icon={Newspaper}
+            title={t("noPostsTitle")}
+            description={t("noPostsDesc")}
+          />
+        ) : (
+          <>
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+            <div ref={loadMoreRef} className="h-8 flex items-center justify-center">
+              {isFetchingNextPage && (
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+      <FeedSidebar />
     </div>
   );
 }

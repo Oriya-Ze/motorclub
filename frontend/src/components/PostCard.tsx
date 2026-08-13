@@ -1,10 +1,12 @@
 import { memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, Heart, MapPin, MessageCircle, Share2 } from "lucide-react";
+import { Bookmark, Car, Heart, MapPin, MessageCircle, Share2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { api, Comment, Post } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn, displayName, formatHandle, formatRelativeTime } from "@/lib/utils";
@@ -19,8 +21,8 @@ function ImageCarousel({ urls }: { urls: string[] }) {
   const [idx, setIdx] = useState(0);
   if (!urls.length) return null;
   return (
-    <div className="relative bg-black/20">
-      <img src={mediaUrl(urls[idx])} alt="" className="w-full aspect-square object-cover" loading="lazy" />
+    <div className="relative bg-asphalt">
+      <img src={mediaUrl(urls[idx])} alt="" className="w-full aspect-[4/3] object-cover" loading="lazy" />
       {urls.length > 1 && (
         <>
           <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
@@ -105,18 +107,12 @@ function PostCard({ post }: PostCardProps) {
     <article className="feed-post bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
       <div className="flex items-center gap-3 p-4">
         <Link to={`/profile/${post.author.id}`}>
-          <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold overflow-hidden">
-            {post.author.profile_picture_url ? (
-              <img src={mediaUrl(post.author.profile_picture_url)} alt="" className="w-full h-full object-cover" />
-            ) : (
-              displayName(post.author)[0]?.toUpperCase()
-            )}
-          </div>
+          <Avatar user={post.author} size="md" />
         </Link>
         <div className="flex-1 min-w-0">
-          <Link to={`/profile/${post.author.id}`} className="font-semibold hover:text-primary transition-colors">
+          <Link to={`/profile/${post.author.id}`} className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-1">
             {displayName(post.author)}
-            {post.author.is_verified && <span className="text-primary mr-1">✓</span>}
+            {post.author.is_verified && <VerifiedBadge />}
           </Link>
           <p className="text-xs text-muted-foreground">{formatHandle(post.author)}</p>
           <p className="text-[11px] text-muted-foreground/80">{formatRelativeTime(post.created_at, i18n.language)}</p>
@@ -124,6 +120,15 @@ function PostCard({ post }: PostCardProps) {
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <MapPin className="w-3 h-3 shrink-0" /> {post.location}
             </p>
+          )}
+          {post.vehicle_id && (
+            <Link
+              to="/garage"
+              className="inline-flex items-center gap-1 mt-1 text-xs text-primary hover:underline"
+            >
+              <Car className="w-3 h-3" />
+              {t("linkedVehicle")}
+            </Link>
           )}
         </div>
       </div>
@@ -191,9 +196,7 @@ function PostCard({ post }: PostCardProps) {
           ) : (
             comments.map((c) => (
               <div key={c.id} className="flex gap-2">
-                <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
-                  {c.author.full_name[0]}
-                </div>
+                <Avatar user={c.author} size="xs" />
                 <div className="flex-1 bg-muted/50 rounded-xl px-3 py-2">
                   <p className="text-xs font-medium">{c.author.full_name}</p>
                   <p className="text-sm">{c.content}</p>

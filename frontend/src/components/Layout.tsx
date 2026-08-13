@@ -11,11 +11,12 @@ import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
 import ThemeSync from "@/components/ThemeSync";
 import UserSearch from "@/components/UserSearch";
+import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
-import { cn, displayName, displayUsername } from "@/lib/utils";
+import { cn, displayUsername } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "feed", icon: Home },
@@ -56,11 +57,11 @@ export default function Layout() {
   return (
     <div className="min-h-screen gradient-bg">
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-3 min-w-0">
             <Link to="/" className="flex items-center gap-2 shrink-0">
               <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
-              <span className="font-bold text-lg hidden sm:block">{t("appName")}</span>
+              <span className="font-bold text-lg hidden sm:block font-display tracking-wide">{t("appName")}</span>
             </Link>
 
             {user && (
@@ -93,9 +94,7 @@ export default function Layout() {
                     <span className="hidden lg:inline">{t("create")}</span>
                   </Button>
                   <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
-                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold">
-                      {displayName(user)[0]?.toUpperCase()}
-                    </div>
+                    <Avatar user={user} size="sm" />
                     <span className="text-sm font-medium hidden xl:inline">{displayUsername(user)}</span>
                   </Link>
                   <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
@@ -121,8 +120,8 @@ export default function Layout() {
                   onMouseEnter={() => prefetchRoute(queryClient, to)}
                   className={({ isActive }) =>
                     cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 transition-colors",
-                      isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      "nav-link",
+                      isActive ? "nav-link-active text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     )
                   }
                 >
@@ -151,7 +150,7 @@ export default function Layout() {
         )}
       </header>
 
-      <main className={cn("feed-scroll max-w-6xl mx-auto px-4 py-4 md:py-6", user && "pb-24 md:pb-6")}>
+      <main className={cn("feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter", user && "pb-24 md:pb-6")}>
         <Outlet />
       </main>
 

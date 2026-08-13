@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
+import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { StoriesBarSkeleton } from "@/components/Skeleton";
-import { cn, displayName, displayUsername } from "@/lib/utils";
+import { cn, displayUsername } from "@/lib/utils";
 
 export default function StoriesBar() {
   const { data: stories = [], isLoading, isFetching } = useQuery({
@@ -40,9 +41,7 @@ export default function StoriesBar() {
               {story.media_type === "image" ? (
                 <img src={mediaUrl(story.media_url)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full gradient-primary flex items-center justify-center text-white text-lg font-bold">
-                  {displayName(story.author)[0]}
-                </div>
+                <Avatar user={story.author} size="lg" className="w-full h-full !rounded-full" />
               )}
             </div>
           </div>

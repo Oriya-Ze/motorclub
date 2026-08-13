@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { ArrowRight, Car } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -28,17 +28,17 @@ export default function ResetPasswordPage() {
   });
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 relative">
+    <div className="min-h-screen auth-screen flex items-center justify-center p-4 relative">
       <div className="absolute top-4 end-4">
         <LanguageToggle />
       </div>
       <Card className="w-full max-w-md shadow-glow">
         <CardHeader className="text-center space-y-4 pb-2">
-          <div className="mx-auto w-16 h-16 gradient-primary rounded-2xl flex items-center justify-center shadow-glow">
-            <Car className="w-8 h-8 text-white" />
+          <div className="mx-auto w-16 h-16 rounded-2xl overflow-hidden shadow-glow">
+            <img src="/logo.png" alt="" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{t("resetPassword")}</h1>
+            <h1 className="text-3xl font-display tracking-wide text-primary">{t("resetPassword")}</h1>
             <p className="text-muted-foreground mt-2 text-sm">{t("resetPasswordDesc")}</p>
           </div>
         </CardHeader>

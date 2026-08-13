@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import Avatar from "@/components/Avatar";
+import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -58,7 +60,7 @@ export default function ForumTopicsPage() {
             {t("forums")}
           </Link>
           <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-          <h1 className="text-2xl font-bold truncate">{forum?.name ?? t("topics")}</h1>
+          <h1 className="text-2xl font-display tracking-wide truncate">{forum?.name ?? t("topics")}</h1>
         </div>
         <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
@@ -71,10 +73,11 @@ export default function ForumTopicsPage() {
       )}
 
       {topics.length === 0 ? (
-        <div className="text-center py-12 space-y-4">
-          <p className="text-muted-foreground">{t("noTopics")}</p>
-          <Button onClick={() => setShowCreate(true)}>{t("createTopic")}</Button>
-        </div>
+        <EmptyState
+          icon={MessageSquare}
+          title={t("noTopics")}
+          action={<Button onClick={() => setShowCreate(true)}>{t("createTopic")}</Button>}
+        />
       ) : (
         <div className="space-y-3">
           {topics.map((topic) => (
@@ -82,9 +85,7 @@ export default function ForumTopicsPage() {
               <Card className="hover:shadow-glow transition-shadow">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shrink-0">
-                      {topic.author.full_name[0]?.toUpperCase()}
-                    </div>
+                    <Avatar user={topic.author} size="md" />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold">{topic.title}</h3>
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{topic.content}</p>

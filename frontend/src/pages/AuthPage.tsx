@@ -109,7 +109,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 relative">
+    <div className="min-h-screen auth-screen flex items-center justify-center p-4 relative">
       <div className="absolute top-4 end-4">
         <LanguageToggle />
       </div>
@@ -119,7 +119,7 @@ export default function AuthPage() {
             <img src="/logo.png" alt={t("appName")} className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-primary">
+            <h1 className="text-4xl font-display tracking-wide text-primary">
               {mode === "confirm" ? t("confirmAccount") : t("welcome")}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
