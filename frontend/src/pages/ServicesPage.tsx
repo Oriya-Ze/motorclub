@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Phone, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
@@ -18,7 +20,12 @@ export default function ServicesPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t("services")}</h1>
       {services.length === 0 ? (
-        <p className="text-muted-foreground text-center py-12">{t("noServices")}</p>
+        <div className="text-center py-12 space-y-4">
+          <Wrench className="w-12 h-12 mx-auto text-muted-foreground opacity-40" />
+          <p className="text-muted-foreground">{t("noServices")}</p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">{t("servicesEmptyCta")}</p>
+          <Link to="/settings"><Button variant="outline" size="sm">{t("businessUpgrade")}</Button></Link>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {services.map((service) => (

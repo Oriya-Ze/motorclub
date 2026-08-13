@@ -1,9 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+import ProductDetailModal from "@/components/ProductDetailModal";
 import { Card, CardContent } from "@/components/ui/Card";
-import { CardGridSkeleton, ListPageSkeleton } from "@/components/Skeleton";
-import { api } from "@/lib/api";
+import { CardGridSkeleton } from "@/components/Skeleton";
+import { Button } from "@/components/ui/Button";
+import { api, Product } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +15,7 @@ const CATEGORIES = ["vehicles", "spareParts", "accessories", "services", "other"
 export default function MarketplacePage() {
   const { t } = useTranslation();
   const [category, setCategory] = useState<string>("");
+  const [selected, setSelected] = useState<Product | null>(null);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", category],
@@ -49,28 +53,41 @@ export default function MarketplacePage() {
       </div>
 
       {products.length === 0 ? (
-        <p className="text-muted-foreground text-center py-12">{t("noProducts")}</p>
+        <div className="text-center py-12 space-y-4">
+          <p className="text-muted-foreground">{t("noProducts")}</p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">{t("marketplaceEmptyCta")}</p>
+          <Link to="/explore"><Button variant="outline" size="sm">{t("explore")}</Button></Link>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <Card key={product.id}>
-              {product.image_urls?.[0] && (
-                <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-40 object-cover rounded-t-2xl" />
-              )}
-              <CardContent className="pt-6">
-                <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
-                  {t(`categories.${product.category as typeof CATEGORIES[number]}`)}
-                </span>
-                <h3 className="font-semibold mt-3">{product.name}</h3>
-                {product.description && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => setSelected(product)}
+              className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
+                {product.image_urls?.[0] && (
+                  <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-40 object-cover" />
                 )}
-                <p className="text-primary font-bold text-lg mt-3">₪{product.price.toLocaleString()}</p>
-              </CardContent>
-            </Card>
+                <CardContent className="pt-6">
+                  <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+                    {t(`categories.${product.category as typeof CATEGORIES[number]}`)}
+                  </span>
+                  <h3 className="font-semibold mt-3">{product.name}</h3>
+                  {product.description && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
+                  )}
+                  <p className="text-primary font-bold text-lg mt-3">₪{product.price.toLocaleString()}</p>
+                </CardContent>
+              </Card>
+            </button>
           ))}
         </div>
       )}
+
+      {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

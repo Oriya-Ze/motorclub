@@ -60,7 +60,14 @@ export default function GroupsPage() {
             <Link key={group.id} to={`/groups/${group.id}`}>
               <Card className="hover:shadow-glow transition-shadow h-full">
                 <CardContent className="pt-6">
-                  <h3 className="font-semibold text-lg mb-2">{group.name}</h3>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-lg">{group.name}</h3>
+                    {group.is_member && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
+                        {t("groupMember")}
+                      </span>
+                    )}
+                  </div>
                   {group.description && (
                     <p className="text-muted-foreground text-sm mb-4">{group.description}</p>
                   )}

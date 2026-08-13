@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+type GroupListItem = Awaited<ReturnType<typeof api.getGroups>>[number];
+
 function formatTime(iso: string, locale: string) {
   return new Date(iso).toLocaleTimeString(locale === "he" ? "he-IL" : "en-US", {
     hour: "2-digit",
@@ -26,27 +28,40 @@ export default function GroupDetailPage() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
 
-  const { data: groups = [] } = useQuery({
+  const { data: groups = [], isLoading: groupsLoading } = useQuery({
     queryKey: ["groups"],
     queryFn: () => api.getGroups(),
   });
 
   const group = groups.find((g) => g.id === groupId);
 
-  const { data: messages = [], isLoading } = useQuery({
+  const { data: messages = [] } = useQuery({
     queryKey: ["group-messages", groupId],
     queryFn: () => api.getGroupMessages(groupId!),
-    enabled: Boolean(groupId),
-    refetchInterval: 5000,
+    enabled: Boolean(groupId && group?.is_member),
+    refetchInterval: group?.is_member ? 5000 : false,
   });
 
   const joinGroup = useMutation({
     mutationFn: () => api.joinGroup(groupId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["groups"] });
+      const previous = queryClient.getQueryData<GroupListItem[]>(["groups"]);
+      queryClient.setQueryData<GroupListItem[]>(["groups"], (old) =>
+        old?.map((g) =>
+          g.id === groupId ? { ...g, is_member: true, members_count: g.members_count + 1 } : g
+        ) ?? []
+      );
+      return { previous };
+    },
+    onError: (err: Error, _, context) => {
+      if (context?.previous) queryClient.setQueryData(["groups"], context.previous);
+      toast.error(err.message);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       toast.success(t("joinedGroup"));
     },
-    onError: (err: Error) => toast.error(err.message),
   });
 
   const sendMessage = useMutation({
@@ -58,12 +73,16 @@ export default function GroupDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  if (groupsLoading) {
+    return <ListPageSkeleton rows={4} />;
+  }
+
   if (!group) {
-    return isLoading ? <ListPageSkeleton rows={4} /> : <div className="text-center py-12 text-muted-foreground">{t("groupNotFound")}</div>;
+    return <div className="text-center py-12 text-muted-foreground">{t("groupNotFound")}</div>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4 pb-20 md:pb-6">
       <div className="flex items-center gap-2">
         <Link to="/groups" className="text-muted-foreground hover:text-primary">{t("groups")}</Link>
         <ArrowRight className="w-4 h-4 text-muted-foreground" />
@@ -78,8 +97,8 @@ export default function GroupDetailPage() {
               <Users className="w-4 h-4" />
               {group.members_count} {t("members")}
             </div>
-            <Button size="sm" variant="outline" onClick={() => joinGroup.mutate()} disabled={joinGroup.isPending}>
-              {t("joinGroup")}
+            <Button size="sm" variant="outline" onClick={() => joinGroup.mutate()} disabled={joinGroup.isPending || group.is_member}>
+              {group.is_member ? t("groupMember") : t("joinGroup")}
             </Button>
           </div>
         </CardContent>
@@ -120,10 +139,11 @@ export default function GroupDetailPage() {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={t("typeMessage")}
+            placeholder={group.is_member ? t("typeMessage") : t("joinGroup")}
             className="h-10"
+            disabled={!group.is_member}
           />
-          <Button type="submit" size="icon" disabled={!message.trim() || sendMessage.isPending}>
+          <Button type="submit" size="icon" disabled={!group.is_member || !message.trim() || sendMessage.isPending}>
             <Send className="w-4 h-4" />
           </Button>
         </form>

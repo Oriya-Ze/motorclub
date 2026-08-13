@@ -53,6 +53,11 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     min-height: 100vh;
+    overscroll-behavior-y: none;
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -83,5 +88,14 @@
 
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .feed-post {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 480px;
+  }
+
+  .feed-scroll {
+    -webkit-overflow-scrolling: touch;
   }
 }

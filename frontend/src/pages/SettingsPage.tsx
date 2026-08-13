@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -7,7 +9,9 @@ import { SettingsSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/lib/media";
+import { applyTheme, type Theme } from "@/lib/theme";
+import { cn, displayName } from "@/lib/utils";
 
 function Toggle({
   checked,
@@ -44,8 +48,18 @@ function Toggle({
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.full_name ?? "");
+      setUsername(user.username ?? "");
+    }
+  }, [user]);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
@@ -77,12 +91,38 @@ export default function SettingsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const updateProfile = useMutation({
+    mutationFn: () => api.updateProfile({ full_name: fullName.trim(), username: username.trim() }),
+    onSuccess: async () => {
+      await refreshUser();
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      toast.success(t("profile.updated"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handlePhotoUpload = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const result = await api.uploadMedia(file, "avatar");
+      await api.updateProfile({ profile_picture_url: result.reference });
+      await refreshUser();
+      toast.success(t("profile.updated"));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("error"));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const handleToggle = (key: string, value: boolean) => {
     updateSettings.mutate({ [key]: value });
   };
 
-  const handleTheme = (theme: string) => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
+  const handleTheme = (theme: Theme) => {
+    applyTheme(theme);
     updateSettings.mutate({ theme });
   };
 
@@ -107,6 +147,36 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">{t("settingsTitle")}</h1>
         <p className="text-muted-foreground">{t("settingsSubtitle")}</p>
       </div>
+
+      {user && (
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <h3 className="font-semibold">{t("profile.editProfile")}</h3>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center text-white text-xl font-bold overflow-hidden shrink-0">
+              {user.profile_picture_url ? (
+                <img src={mediaUrl(user.profile_picture_url)} alt="" className="w-full h-full object-cover" />
+              ) : (
+                displayName(user)[0]?.toUpperCase()
+              )}
+            </div>
+            <label className="cursor-pointer">
+              <span className="text-sm text-primary hover:underline">{t("profile.changePhoto")}</span>
+              <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto} onChange={(e) => handlePhotoUpload(e.target.files)} />
+            </label>
+          </div>
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t("fullName")} />
+          <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t("username")} dir="ltr" />
+          <Button
+            size="sm"
+            disabled={!fullName.trim() || !username.trim() || updateProfile.isPending}
+            onClick={() => updateProfile.mutate()}
+          >
+            {t("profile.saveChanges")}
+          </Button>
+        </CardContent>
+      </Card>
+      )}
 
       <Card>
         <CardContent className="pt-6 space-y-1">
@@ -211,6 +281,11 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       )}
+
+      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground pb-8">
+        <Link to="/privacy-policy" className="hover:text-primary hover:underline">{t("privacyPolicy")}</Link>
+        <Link to="/terms-of-service" className="hover:text-primary hover:underline">{t("termsOfService")}</Link>
+      </div>
     </div>
   );
 }

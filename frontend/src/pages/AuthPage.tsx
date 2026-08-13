@@ -75,7 +75,7 @@ export default function AuthPage() {
       }
 
       if (!form.agree) {
-        toast.error(t("error"));
+        toast.error(t("agreeTermsRequired"));
         return;
       }
 
@@ -202,7 +202,7 @@ export default function AuthPage() {
                 <label className="text-sm font-medium">{t("email")}</label>
                 <Input
                   type="email"
-                  placeholder="yourEmail@email.com"
+                  placeholder={t("emailPlaceholder")}
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required

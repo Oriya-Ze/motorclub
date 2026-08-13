@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell, Calendar, Car, Compass, LogOut, Mail, MessageSquare, Menu, Plus, Settings,
+  Bell, Calendar, Compass, Home, LogOut, Mail, MessageSquare, Menu, Plus, Settings,
   ShoppingBag, UserCircle, Users, Warehouse, Wrench, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
+import ThemeSync from "@/components/ThemeSync";
 import UserSearch from "@/components/UserSearch";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +18,7 @@ import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
 import { cn, displayName, displayUsername } from "@/lib/utils";
 
 const navItems = [
-  { to: "/", label: "feed", icon: Car },
+  { to: "/", label: "feed", icon: Home },
   { to: "/explore", label: "explore", icon: Compass },
   { to: "/garage", label: "garage.nav", icon: Warehouse },
   { to: "/groups", label: "groups", icon: Users },
@@ -55,78 +56,82 @@ export default function Layout() {
   return (
     <div className="min-h-screen gradient-bg">
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
-            <span className="font-bold text-lg hidden sm:block">{t("appName")}</span>
-          </Link>
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="h-16 flex items-center justify-between gap-3 min-w-0">
+            <Link to="/" className="flex items-center gap-2 shrink-0">
+              <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
+              <span className="font-bold text-lg hidden sm:block">{t("appName")}</span>
+            </Link>
+
+            {user && (
+              <div className="hidden md:block flex-1 min-w-0 max-w-sm lg:max-w-md mx-2">
+                <UserSearch />
+              </div>
+            )}
+
+            <div className="flex items-center gap-1 shrink-0">
+              <LanguageToggle />
+              {user && (
+                <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-muted/50">
+                  <Bell className="w-5 h-5" />
+                  {(unread?.count ?? 0) > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
+                      {unread!.count > 9 ? "9+" : unread!.count}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {user && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="hidden md:flex gap-1.5"
+                    onClick={() => setShowCreate(true)}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden lg:inline">{t("create")}</span>
+                  </Button>
+                  <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
+                    <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold">
+                      {displayName(user)[0]?.toUpperCase()}
+                    </div>
+                    <span className="text-sm font-medium hidden xl:inline">{displayUsername(user)}</span>
+                  </Link>
+                  <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
+                  <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>
+                </>
+              )}
+              {!user && (
+                <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
+              )}
+              <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => user && setMobileOpen(!mobileOpen)} disabled={!user}>
+                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
+            </div>
+          </div>
 
           {user && (
-            <div className="hidden sm:block flex-1 max-w-md">
-              <UserSearch />
-            </div>
-          )}
-
-          <nav className="hidden xl:flex items-center gap-1">
-            {user && navItems.slice(0, 6).map(({ to, label, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={to === "/"}
-                onMouseEnter={() => prefetchRoute(queryClient, to)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-sm font-medium transition-colors",
-                    isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )
-                }
-              >
-                <Icon className="w-4 h-4" />
-                {t(label)}
-              </NavLink>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-1">
-            <LanguageToggle />
-            {user && (
-              <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-muted/50">
-                <Bell className="w-5 h-5" />
-                {(unread?.count ?? 0) > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
-                    {unread!.count > 9 ? "9+" : unread!.count}
-                  </span>
-                )}
-              </Link>
-            )}
-            {user && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="hidden md:flex gap-1.5"
-                  onClick={() => setShowCreate(true)}
+            <nav className="hidden xl:flex flex-wrap items-center gap-1 pb-3 pt-0.5 border-t border-border/40">
+              {navItems.map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/"}
+                  onMouseEnter={() => prefetchRoute(queryClient, to)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap shrink-0 transition-colors",
+                      isActive ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    )
+                  }
                 >
-                  <Plus className="w-4 h-4" />
-                  {t("create")}
-                </Button>
-                <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
-                  <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-white text-sm font-bold">
-                    {displayName(user)[0]?.toUpperCase()}
-                  </div>
-                  <span className="text-sm font-medium hidden lg:inline">{displayUsername(user)}</span>
-                </Link>
-                <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
-                <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>
-              </>
-            )}
-            {!user && (
-              <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
-            )}
-            <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => user && setMobileOpen(!mobileOpen)} disabled={!user}>
-              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
-          </div>
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {t(label)}
+                </NavLink>
+              ))}
+            </nav>
+          )}
         </div>
 
         {mobileOpen && user && (
@@ -146,12 +151,13 @@ export default function Layout() {
         )}
       </header>
 
-      <main className={cn("max-w-6xl mx-auto px-4 py-4 md:py-6", user && "pb-24 md:pb-6")}>
+      <main className={cn("feed-scroll max-w-6xl mx-auto px-4 py-4 md:py-6", user && "pb-24 md:pb-6")}>
         <Outlet />
       </main>
 
       {user && (
         <>
+          <ThemeSync />
           <BottomNav onCreatePost={() => setShowCreate(true)} unreadCount={unread?.count} />
           <CreatePostModal open={showCreate} onClose={() => setShowCreate(false)} />
         </>

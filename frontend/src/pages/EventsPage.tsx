@@ -65,10 +65,12 @@ export default function EventsPage() {
                     </span>
                   )}
                 </div>
-                {!event.is_joined && (
+                {!event.is_joined ? (
                   <Button size="sm" onClick={() => joinEvent.mutate(event.id)} disabled={joinEvent.isPending}>
                     {t("joinEvent")}
                   </Button>
+                ) : (
+                  <span className="inline-flex items-center text-sm text-primary font-medium">{t("eventJoined")}</span>
                 )}
               </CardContent>
             </Card>

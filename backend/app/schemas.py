@@ -127,6 +127,7 @@ class GroupResponse(BaseModel):
     category: str | None
     creator_id: UUID
     members_count: int = 0
+    is_member: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

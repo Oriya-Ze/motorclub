@@ -56,6 +56,18 @@ export interface UserPost {
   created_at: string;
 }
 
+export interface Product {
+  id: string;
+  business_id: string;
+  name: string;
+  description?: string | null;
+  price: number;
+  category: string;
+  image_urls?: string[] | null;
+  created_at: string;
+  seller?: User | null;
+}
+
 export interface Comment {
   id: string;
   post_id: string;
@@ -236,13 +248,15 @@ class ApiClient {
     });
   }
 
-  getPosts(hashtagOrOpts?: string | { hashtag?: string; userId?: string }) {
+  getPosts(opts?: string | { hashtag?: string; userId?: string; skip?: number; limit?: number }) {
     const params = new URLSearchParams();
-    if (typeof hashtagOrOpts === "string") {
-      params.set("hashtag", hashtagOrOpts);
-    } else if (hashtagOrOpts) {
-      if (hashtagOrOpts.hashtag) params.set("hashtag", hashtagOrOpts.hashtag);
-      if (hashtagOrOpts.userId) params.set("user_id", hashtagOrOpts.userId);
+    if (typeof opts === "string") {
+      params.set("hashtag", opts);
+    } else if (opts) {
+      if (opts.hashtag) params.set("hashtag", opts.hashtag);
+      if (opts.userId) params.set("user_id", opts.userId);
+      if (opts.skip != null) params.set("skip", String(opts.skip));
+      if (opts.limit != null) params.set("limit", String(opts.limit));
     }
     const q = params.toString() ? `?${params}` : "";
     return this.request<Post[]>(`/posts${q}`);
@@ -319,6 +333,10 @@ class ApiClient {
     return this.request<{ deleted: boolean }>(`/garage/${id}`, { method: "DELETE" });
   }
 
+  updateVehicle(id: string, data: Partial<Vehicle>) {
+    return this.request<Vehicle>(`/garage/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+
   // Notifications
   getNotifications() {
     return this.request<Notification[]>("/notifications");
@@ -374,11 +392,11 @@ class ApiClient {
   }
 
   getGroups() {
-    return this.request<Array<{ id: string; name: string; description?: string; members_count: number }>>("/groups");
+    return this.request<Array<{ id: string; name: string; description?: string; members_count: number; is_member: boolean }>>("/groups");
   }
 
   createGroup(data: { name: string; description?: string; category?: string }) {
-    return this.request<{ id: string; name: string; description?: string; members_count: number }>("/groups", {
+    return this.request<{ id: string; name: string; description?: string; members_count: number; is_member: boolean }>("/groups", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -400,6 +418,13 @@ class ApiClient {
     return this.request<ForumReply>(`/forums/topics/${topicId}/replies`, {
       method: "POST",
       body: JSON.stringify({ content }),
+    });
+  }
+
+  createTopic(forumId: string, title: string, content: string) {
+    return this.request<ForumTopic>("/forums/topics", {
+      method: "POST",
+      body: JSON.stringify({ forum_id: forumId, title, content }),
     });
   }
 
@@ -465,10 +490,7 @@ class ApiClient {
 
   getProducts(category?: string) {
     const q = category ? `?category=${encodeURIComponent(category)}` : "";
-    return this.request<Array<{
-      id: string; name: string; description?: string; price: number;
-      category: string; image_urls?: string[];
-    }>>(`/marketplace${q}`);
+    return this.request<Product[]>(`/marketplace${q}`);
   }
 
   getServices(businessType?: string) {
@@ -477,6 +499,10 @@ class ApiClient {
       id: string; full_name: string; business_type?: string;
       business_description?: string; business_phone?: string; business_address?: string;
     }>>(`/services${q}`);
+  }
+
+  updateProfile(data: { full_name?: string; username?: string; profile_picture_url?: string }) {
+    return this.request<User>("/users/me", { method: "PATCH", body: JSON.stringify(data) });
   }
 
   getSettings() {

@@ -23,29 +23,40 @@ groups_router = APIRouter(prefix="/groups", tags=["groups"])
 forums_router = APIRouter(prefix="/forums", tags=["forums"])
 
 
+async def _group_membership(db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID) -> GroupMember | None:
+    return await db.scalar(
+        select(GroupMember).where(
+            GroupMember.group_id == group_id,
+            GroupMember.user_id == user_id,
+            GroupMember.status == "approved",
+        )
+    )
+
+
+async def _group_response(db: AsyncSession, group: Group, user_id: uuid.UUID) -> GroupResponse:
+    count = await db.scalar(
+        select(func.count()).select_from(GroupMember).where(
+            GroupMember.group_id == group.id, GroupMember.status == "approved"
+        )
+    )
+    is_member = await _group_membership(db, group.id, user_id) is not None
+    return GroupResponse(
+        id=group.id,
+        name=group.name,
+        description=group.description,
+        category=group.category,
+        creator_id=group.creator_id,
+        members_count=count or 0,
+        is_member=is_member,
+        created_at=group.created_at,
+    )
+
+
 @groups_router.get("", response_model=list[GroupResponse])
-async def list_groups(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_groups(db: AsyncSession = Depends(get_db), user: User = Depends(get_user_model)):
     result = await db.execute(select(Group).order_by(Group.created_at.desc()))
     groups = result.scalars().all()
-    responses = []
-    for g in groups:
-        count = await db.scalar(
-            select(func.count()).select_from(GroupMember).where(
-                GroupMember.group_id == g.id, GroupMember.status == "approved"
-            )
-        )
-        responses.append(
-            GroupResponse(
-                id=g.id,
-                name=g.name,
-                description=g.description,
-                category=g.category,
-                creator_id=g.creator_id,
-                members_count=count or 0,
-                created_at=g.created_at,
-            )
-        )
-    return responses
+    return [await _group_response(db, g, user.id) for g in groups]
 
 
 @groups_router.post("", response_model=GroupResponse)
@@ -60,15 +71,7 @@ async def create_group(
     db.add(GroupMember(group_id=group.id, user_id=user.id, status="approved", role="owner"))
     await db.commit()
     await db.refresh(group)
-    return GroupResponse(
-        id=group.id,
-        name=group.name,
-        description=group.description,
-        category=group.category,
-        creator_id=group.creator_id,
-        members_count=1,
-        created_at=group.created_at,
-    )
+    return await _group_response(db, group, user.id)
 
 
 @groups_router.post("/{group_id}/join")
@@ -97,8 +100,10 @@ async def join_group(
 async def list_group_messages(
     group_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    user: User = Depends(get_user_model),
 ):
+    if not await _group_membership(db, group_id, user.id):
+        raise HTTPException(status_code=403, detail="Join the group to view messages")
     result = await db.execute(
         select(GroupMessage).where(GroupMessage.group_id == group_id).order_by(GroupMessage.created_at.asc())
     )
@@ -128,6 +133,8 @@ async def send_group_message(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
+    if not await _group_membership(db, group_id, user.id):
+        raise HTTPException(status_code=403, detail="Join the group to send messages")
     message = GroupMessage(
         group_id=group_id,
         user_id=user.id,

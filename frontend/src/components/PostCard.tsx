@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Heart, MapPin, MessageCircle, Share2 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -6,7 +7,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api, Comment, Post } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
-import { cn, displayName, formatHandle } from "@/lib/utils";
+import { cn, displayName, formatHandle, formatRelativeTime } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -43,8 +44,8 @@ function ImageCarousel({ urls }: { urls: string[] }) {
   );
 }
 
-export default function PostCard({ post }: PostCardProps) {
-  const { t } = useTranslation();
+function PostCard({ post }: PostCardProps) {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState("");
@@ -101,7 +102,7 @@ export default function PostCard({ post }: PostCardProps) {
   const images = post.image_urls || [];
 
   return (
-    <article className="bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
+    <article className="feed-post bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
       <div className="flex items-center gap-3 p-4">
         <Link to={`/profile/${post.author.id}`}>
           <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold overflow-hidden">
@@ -118,6 +119,7 @@ export default function PostCard({ post }: PostCardProps) {
             {post.author.is_verified && <span className="text-primary mr-1">✓</span>}
           </Link>
           <p className="text-xs text-muted-foreground">{formatHandle(post.author)}</p>
+          <p className="text-[11px] text-muted-foreground/80">{formatRelativeTime(post.created_at, i18n.language)}</p>
           {post.location && (
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
               <MapPin className="w-3 h-3 shrink-0" /> {post.location}
@@ -175,7 +177,7 @@ export default function PostCard({ post }: PostCardProps) {
         >
           <Bookmark className={cn("w-5 h-5", post.is_saved && "fill-current")} />
         </button>
-        <button onClick={() => { navigator.clipboard.writeText(window.location.origin); toast.success(t("linkCopied")); }} className="text-muted-foreground hover:text-primary">
+        <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`); toast.success(t("linkCopied")); }} className="text-muted-foreground hover:text-primary">
           <Share2 className="w-5 h-5" />
         </button>
       </div>
@@ -208,3 +210,5 @@ export default function PostCard({ post }: PostCardProps) {
     </article>
   );
 }
+
+export default memo(PostCard);

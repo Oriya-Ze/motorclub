@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
+import VehicleDetailModal from "@/components/VehicleDetailModal";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -22,6 +23,7 @@ export default function ProfilePage() {
   const { user: authUser } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("posts");
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   const profileUserId = userId ?? authUser?.id;
   const isOwnProfile = Boolean(authUser && profileUserId === authUser.id);
@@ -207,17 +209,24 @@ export default function ProfilePage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {garage.map((v: Vehicle) => (
-              <Card key={v.id} className="overflow-hidden">
-                {v.image_urls?.[0] ? (
-                  <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-32 object-cover" />
-                ) : (
-                  <div className="w-full h-32 gradient-primary opacity-20" />
-                )}
-                <CardContent className="pt-3 pb-4">
-                  <p className="font-semibold">{v.year && `${v.year} `}{v.make} {v.model}</p>
-                  {v.engine && <p className="text-xs text-muted-foreground">{v.engine}</p>}
-                </CardContent>
-              </Card>
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setSelectedVehicle(v)}
+                className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              >
+                <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
+                  {v.image_urls?.[0] ? (
+                    <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-32 object-cover" />
+                  ) : (
+                    <div className="w-full h-32 gradient-primary opacity-20" />
+                  )}
+                  <CardContent className="pt-3 pb-4">
+                    <p className="font-semibold">{v.year && `${v.year} `}{v.make} {v.model}</p>
+                    {v.engine && <p className="text-xs text-muted-foreground">{v.engine}</p>}
+                  </CardContent>
+                </Card>
+              </button>
             ))}
           </div>
         )
@@ -231,6 +240,14 @@ export default function ProfilePage() {
         <div className="text-center py-12 text-muted-foreground">{t("profile.noPosts")}</div>
       ) : (
         posts.map((post: Post) => <PostCard key={post.id} post={post} />)
+      )}
+
+      {selectedVehicle && (
+        <VehicleDetailModal
+          vehicle={selectedVehicle}
+          onClose={() => setSelectedVehicle(null)}
+          editable={isOwnProfile}
+        />
       )}
     </div>
   );

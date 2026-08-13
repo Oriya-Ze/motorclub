@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Car, Plus, Star, Trash2 } from "lucide-react";
+import { Car, Plus, Star } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import VehicleDetailModal from "@/components/VehicleDetailModal";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
@@ -14,6 +15,7 @@ export default function GaragePage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState<Vehicle | null>(null);
   const [form, setForm] = useState({
     make: "", model: "", year: "", color: "", engine: "", description: "", mods: "",
   });
@@ -45,14 +47,7 @@ export default function GaragePage() {
       setImages([]);
       toast.success(t("garage.added"));
     },
-    // TODO(orphan-cleanup): Uploaded vehicle images that never reach createVehicle success
-    // remain unreferenced until a future cleanup worker removes them.
     onError: (err: Error) => toast.error(err.message),
-  });
-
-  const deleteVehicle = useMutation({
-    mutationFn: (id: string) => api.deleteVehicle(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["garage"] }),
   });
 
   const handleImageUpload = async (files: FileList | null) => {
@@ -98,6 +93,13 @@ export default function GaragePage() {
               rows={2}
               className="w-full bg-muted/30 border border-border rounded-xl px-4 py-2 text-sm resize-none"
             />
+            <textarea
+              placeholder={t("garage.mods")}
+              value={form.mods}
+              onChange={(e) => setForm({ ...form, mods: e.target.value })}
+              rows={2}
+              className="w-full bg-muted/30 border border-border rounded-xl px-4 py-2 text-sm resize-none"
+            />
             <Input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e.target.files)} className="text-sm" disabled={uploading} />
             {images.length > 0 && (
               <div className="flex gap-2">
@@ -127,31 +129,41 @@ export default function GaragePage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {vehicles.map((v: Vehicle) => (
-            <Card key={v.id} className="overflow-hidden">
-              {v.image_urls?.[0] ? (
-                <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-40 object-cover" />
-              ) : (
-                <div className="w-full h-40 gradient-primary opacity-20" />
-              )}
-              <CardContent className="pt-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg">
-                      {v.year && `${v.year} `}{v.make} {v.model}
-                      {v.is_primary && <Star className="w-4 h-4 inline text-primary mr-1 fill-primary" />}
-                    </h3>
-                    {v.trim && <p className="text-sm text-muted-foreground">{v.trim}</p>}
-                    {v.engine && <p className="text-xs text-muted-foreground mt-1">{v.engine}</p>}
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => setSelected(v)}
+              className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
+                {v.image_urls?.[0] ? (
+                  <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-40 object-cover" loading="lazy" />
+                ) : (
+                  <div className="w-full h-40 gradient-primary opacity-20" />
+                )}
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="font-bold text-lg">
+                        {v.year && `${v.year} `}{v.make} {v.model}
+                        {v.is_primary && <Star className="w-4 h-4 inline text-primary mr-1 fill-primary" />}
+                      </h3>
+                      {v.color && <p className="text-sm text-muted-foreground">{v.color}</p>}
+                    </div>
                   </div>
-                  <button onClick={() => deleteVehicle.mutate(v.id)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                {v.mods && <p className="text-sm mt-2 text-muted-foreground">{v.mods}</p>}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </button>
           ))}
         </div>
+      )}
+
+      {selected && (
+        <VehicleDetailModal
+          vehicle={selected}
+          onClose={() => setSelected(null)}
+          editable
+        />
       )}
     </div>
   );

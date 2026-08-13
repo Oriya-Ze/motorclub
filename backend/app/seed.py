@@ -60,7 +60,7 @@ async def seed_database(db: AsyncSession) -> None:
     demo_groups = [
         Group(
             name="חובבי JDM",
-            description="קבוצה לחובבי רכבי JDM יapanese",
+            description="קבוצה לחובבי רכבי JDM יפניים",
             category="jdm",
             creator_id=admin.id,
         ),
