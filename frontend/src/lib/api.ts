@@ -248,13 +248,14 @@ class ApiClient {
     });
   }
 
-  getPosts(opts?: string | { hashtag?: string; userId?: string; skip?: number; limit?: number }) {
+  getPosts(opts?: string | { hashtag?: string; userId?: string; vehicleId?: string; skip?: number; limit?: number }) {
     const params = new URLSearchParams();
     if (typeof opts === "string") {
       params.set("hashtag", opts);
     } else if (opts) {
       if (opts.hashtag) params.set("hashtag", opts.hashtag);
       if (opts.userId) params.set("user_id", opts.userId);
+      if (opts.vehicleId) params.set("vehicle_id", opts.vehicleId);
       if (opts.skip != null) params.set("skip", String(opts.skip));
       if (opts.limit != null) params.set("limit", String(opts.limit));
     }

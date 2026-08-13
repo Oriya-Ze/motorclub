@@ -124,6 +124,7 @@ function PostCard({ post }: PostCardProps) {
           {post.vehicle_id && (
             <Link
               to="/garage"
+              state={{ vehicleId: post.vehicle_id }}
               className="inline-flex items-center gap-1 mt-1 text-xs text-primary hover:underline"
             >
               <Car className="w-3 h-3" />

@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
@@ -34,9 +34,19 @@ export default function Layout() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [createVehicleId, setCreateVehicleId] = useState<string | undefined>();
+
+  useEffect(() => {
+    const state = location.state as { openCreatePost?: boolean; vehicleId?: string } | null;
+    if (!state?.openCreatePost) return;
+    setShowCreate(true);
+    setCreateVehicleId(state.vehicleId);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     if (user) prefetchAppData(queryClient);
@@ -158,7 +168,14 @@ export default function Layout() {
         <>
           <ThemeSync />
           <BottomNav onCreatePost={() => setShowCreate(true)} unreadCount={unread?.count} />
-          <CreatePostModal open={showCreate} onClose={() => setShowCreate(false)} />
+          <CreatePostModal
+            open={showCreate}
+            onClose={() => {
+              setShowCreate(false);
+              setCreateVehicleId(undefined);
+            }}
+            initialVehicleId={createVehicleId}
+          />
         </>
       )}
     </div>

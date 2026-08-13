@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, MapPin, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -11,9 +11,10 @@ import { mediaUrl } from "@/lib/media";
 interface CreatePostModalProps {
   open: boolean;
   onClose: () => void;
+  initialVehicleId?: string;
 }
 
-export default function CreatePostModal({ open, onClose }: CreatePostModalProps) {
+export default function CreatePostModal({ open, onClose, initialVehicleId }: CreatePostModalProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -28,6 +29,10 @@ export default function CreatePostModal({ open, onClose }: CreatePostModalProps)
     queryFn: () => api.getMyGarage(),
     enabled: open,
   });
+
+  useEffect(() => {
+    if (open && initialVehicleId) setVehicleId(initialVehicleId);
+  }, [open, initialVehicleId]);
 
   const createPost = useMutation({
     mutationFn: () =>

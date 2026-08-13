@@ -138,6 +138,7 @@ async def list_posts(
     limit: int = 20,
     hashtag: str | None = None,
     user_id: uuid.UUID | None = None,
+    vehicle_id: uuid.UUID | None = None,
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -146,6 +147,8 @@ async def list_posts(
         query = query.where(Post.hashtags.contains([hashtag.lower()]))
     if user_id:
         query = query.where(Post.user_id == user_id)
+    if vehicle_id:
+        query = query.where(Post.vehicle_id == vehicle_id)
     result = await db.execute(query.offset(skip).limit(limit))
     posts = result.scalars().all()
     return await _batch_post_responses(db, posts, current_user.id)
