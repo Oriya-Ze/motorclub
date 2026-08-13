@@ -123,7 +123,7 @@ async def me(user: User = Depends(get_user_model)):
 async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     provider = get_auth_provider(db)
     await provider.forgot_password(body.email)
-    return {"message": "If the email exists, a reset link was sent"}
+    return {"message": "If the email exists, a verification code was sent to your email"}
 
 
 @router.post("/reset-password")

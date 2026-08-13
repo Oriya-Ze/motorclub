@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import LanguageToggle from "@/components/LanguageToggle";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { oauthRedirectUri } from "@/lib/cognitoOAuth";
@@ -40,7 +41,10 @@ export default function OAuthCallbackPage() {
   }, [completeOAuthLogin, navigate, params, t]);
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 end-4">
+        <LanguageToggle />
+      </div>
       <Card className="w-full max-w-md shadow-glow">
         <CardContent className="pt-8 pb-8 text-center space-y-4">
           {!error ? (

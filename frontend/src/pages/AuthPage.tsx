@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import LanguageToggle from "@/components/LanguageToggle";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -108,7 +109,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+    <div className="min-h-screen gradient-bg flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 end-4">
+        <LanguageToggle />
+      </div>
       <Card className="w-full max-w-md shadow-glow">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="mx-auto w-16 h-16 rounded-2xl overflow-hidden shadow-glow">

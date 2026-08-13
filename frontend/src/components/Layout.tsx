@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
+import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
 import UserSearch from "@/components/UserSearch";
 import { Button } from "@/components/ui/Button";
@@ -28,7 +29,7 @@ const navItems = [
 ];
 
 export default function Layout() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -49,13 +50,6 @@ export default function Layout() {
   const handleLogout = () => {
     logout();
     navigate("/auth");
-  };
-
-  const toggleLang = () => {
-    const next = i18n.language === "he" ? "en" : "he";
-    i18n.changeLanguage(next);
-    document.documentElement.lang = next;
-    document.documentElement.dir = next === "he" ? "rtl" : "ltr";
   };
 
   return (
@@ -94,9 +88,7 @@ export default function Layout() {
           </nav>
 
           <div className="flex items-center gap-1">
-            <button onClick={toggleLang} className="text-xs px-2 py-1 rounded-lg border border-border hover:bg-muted transition-colors">
-              {i18n.language === "he" ? "EN" : "עב"}
-            </button>
+            <LanguageToggle />
             {user && (
               <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-muted/50">
                 <Bell className="w-5 h-5" />
