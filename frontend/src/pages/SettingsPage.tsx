@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { SettingsSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useImageCropUpload } from "@/hooks/useImageCropUpload";
 import { api } from "@/lib/api";
 import { applyTheme, type Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -52,7 +53,21 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const avatarUpload = useImageCropUpload({
+    purpose: "avatar",
+    onUploaded: async (result) => {
+      try {
+        await api.updateProfile({ profile_picture_url: result.reference });
+        await refreshUser();
+        queryClient.invalidateQueries({ queryKey: ["user"] });
+        toast.success(t("profile.updated"));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("error"));
+      }
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   useEffect(() => {
     if (user) {
@@ -101,20 +116,8 @@ export default function SettingsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const handlePhotoUpload = async (files: FileList | null) => {
-    const file = files?.[0];
-    if (!file) return;
-    setUploadingPhoto(true);
-    try {
-      const result = await api.uploadMedia(file, "avatar");
-      await api.updateProfile({ profile_picture_url: result.reference });
-      await refreshUser();
-      toast.success(t("profile.updated"));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    } finally {
-      setUploadingPhoto(false);
-    }
+  const handlePhotoUpload = (files: FileList | null) => {
+    avatarUpload.handleSelect(files);
   };
 
   const handleToggle = (key: string, value: boolean) => {
@@ -142,7 +145,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <>
+      {avatarUpload.cropModal}
+      <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-display tracking-wide">{t("settingsTitle")}</h1>
         <p className="text-muted-foreground">{t("settingsSubtitle")}</p>
@@ -156,7 +161,13 @@ export default function SettingsPage() {
             <Avatar user={user} size="lg" />
             <label className="cursor-pointer">
               <span className="text-sm text-primary hover:underline">{t("profile.changePhoto")}</span>
-              <input type="file" accept="image/*" className="hidden" disabled={uploadingPhoto} onChange={(e) => handlePhotoUpload(e.target.files)} />
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={avatarUpload.uploading}
+                onChange={(e) => handlePhotoUpload(e.target.files)}
+              />
             </label>
           </div>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t("fullName")} />
@@ -280,6 +291,7 @@ export default function SettingsPage() {
         <Link to="/privacy-policy" className="hover:text-primary hover:underline">{t("privacyPolicy")}</Link>
         <Link to="/terms-of-service" className="hover:text-primary hover:underline">{t("termsOfService")}</Link>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

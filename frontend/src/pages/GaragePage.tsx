@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
+import { useImageCropUpload } from "@/hooks/useImageCropUpload";
 import { api, Vehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,13 @@ export default function GaragePage() {
     make: "", model: "", year: "", trim: "", color: "", engine: "", description: "", mods: "",
   });
   const [images, setImages] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
+
+  const imageUpload = useImageCropUpload({
+    purpose: "vehicle",
+    multiple: true,
+    onUploaded: (result) => setImages((prev) => [...prev, result.reference]),
+    onError: (err) => toast.error(err.message),
+  });
 
   const { data: vehicles = [], isLoading } = useQuery({
     queryKey: ["garage"],
@@ -68,17 +75,8 @@ export default function GaragePage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleImageUpload = async (files: FileList | null) => {
-    if (!files?.length) return;
-    setUploading(true);
-    try {
-      const results = await api.uploadMediaFiles(Array.from(files), "vehicle");
-      setImages((prev) => [...prev, ...results.map((r) => r.reference)]);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    } finally {
-      setUploading(false);
-    }
+  const handleImageUpload = (files: FileList | null) => {
+    imageUpload.handleSelect(files);
   };
 
   const handleCreatePost = (vehicleId: string) => {
@@ -143,7 +141,9 @@ export default function GaragePage() {
   );
 
   return (
-    <div className="space-y-6 pb-20 md:pb-6 max-w-4xl mx-auto">
+    <>
+      {imageUpload.cropModal}
+      <div className="space-y-6 pb-20 md:pb-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-display tracking-wide">{t("garage.title")}</h1>
@@ -183,7 +183,15 @@ export default function GaragePage() {
               rows={2}
               className="w-full bg-muted/30 border border-border rounded-xl px-4 py-2 text-sm resize-none"
             />
-            <Input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e.target.files)} className="text-sm" disabled={uploading} />
+            <input
+              ref={imageUpload.inputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(e) => handleImageUpload(e.target.files)}
+              className="text-sm"
+              disabled={imageUpload.uploading}
+            />
             {images.length > 0 && (
               <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
                 {images.map((url, i) => (
@@ -193,7 +201,7 @@ export default function GaragePage() {
             )}
             <Button
               className="w-full"
-              disabled={!form.make || !form.model || createVehicle.isPending || uploading}
+              disabled={!form.make || !form.model || createVehicle.isPending || imageUpload.uploading}
               onClick={() => createVehicle.mutate()}
             >
               {t("garage.save")}
@@ -237,6 +245,7 @@ export default function GaragePage() {
           onCreatePost={handleCreatePost}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
