@@ -53,7 +53,7 @@ export default function FeedPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 justify-center">
-      <div className="feed-column w-full lg:w-[min(100%,42rem)] space-y-5 pb-2">
+      <div className="w-full lg:w-[min(100%,42rem)] space-y-5 pb-2">
         <StoriesBar />
 
         {isLoading ? (

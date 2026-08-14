@@ -26,6 +26,9 @@
     --surface-elevated: 0 0% 100%;
     --chrome: 0 0% 97%;
     --asphalt: 240 6% 93%;
+    --ambient-brand: 0 92% 56%;
+    --ambient-slate: 220 28% 52%;
+    --ambient-amber: 38 88% 58%;
   }
 
   .dark {
@@ -50,6 +53,9 @@
     --surface-elevated: 240 8% 14%;
     --chrome: 240 10% 10%;
     --asphalt: 240 8% 16%;
+    --ambient-brand: 0 92% 56%;
+    --ambient-slate: 220 32% 42%;
+    --ambient-amber: 38 80% 52%;
   }
 
   * {
@@ -74,66 +80,45 @@
 
   .gradient-bg {
     background:
-      radial-gradient(ellipse at top right, hsl(0 92% 56% / 0.16) 0%, transparent 58%),
-      radial-gradient(ellipse at bottom left, hsl(0 90% 58% / 0.12) 0%, transparent 58%),
-      radial-gradient(circle at 50% 120%, hsl(0 92% 56% / 0.06) 0%, transparent 45%),
+      radial-gradient(ellipse at 88% 6%, hsl(var(--ambient-brand) / 0.055) 0%, transparent 52%),
+      radial-gradient(ellipse at 8% 88%, hsl(var(--ambient-slate) / 0.07) 0%, transparent 55%),
+      radial-gradient(ellipse at 52% 108%, hsl(var(--ambient-amber) / 0.045) 0%, transparent 48%),
       hsl(var(--background));
   }
 
   .dark .gradient-bg {
     background:
-      radial-gradient(ellipse at top right, hsl(0 92% 56% / 0.22) 0%, transparent 52%),
-      radial-gradient(ellipse at bottom left, hsl(0 90% 58% / 0.16) 0%, transparent 52%),
+      radial-gradient(ellipse at 88% 6%, hsl(var(--ambient-brand) / 0.1) 0%, transparent 50%),
+      radial-gradient(ellipse at 8% 88%, hsl(var(--ambient-slate) / 0.14) 0%, transparent 52%),
+      radial-gradient(ellipse at 52% 108%, hsl(var(--ambient-amber) / 0.08) 0%, transparent 46%),
       hsl(var(--background));
   }
 
   .auth-screen {
     background:
-      linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%),
+      radial-gradient(ellipse at 90% 0%, hsl(var(--ambient-slate) / 0.05) 0%, transparent 50%),
       repeating-linear-gradient(
         -45deg,
         transparent,
         transparent 40px,
-        hsl(var(--primary) / 0.03) 40px,
-        hsl(var(--primary) / 0.03) 41px
-      );
-  }
-
-  .dark .auth-screen {
-    background:
-      radial-gradient(ellipse at 50% 0%, hsl(0 92% 56% / 0.12) 0%, transparent 60%),
-      repeating-linear-gradient(
-        -45deg,
-        transparent,
-        transparent 40px,
-        hsl(var(--primary) / 0.04) 40px,
-        hsl(var(--primary) / 0.04) 41px
+        hsl(var(--foreground) / 0.025) 40px,
+        hsl(var(--foreground) / 0.025) 41px
       ),
       hsl(var(--background));
   }
 
-  .feed-column {
-    position: relative;
-    isolation: isolate;
-  }
-
-  .feed-column::before {
-    content: "";
-    position: absolute;
-    inset: -0.5rem -1rem;
-    border-radius: 1.75rem;
+  .dark .auth-screen {
     background:
-      radial-gradient(circle at 15% 8%, hsl(0 92% 56% / 0.18) 0%, transparent 42%),
-      radial-gradient(circle at 88% 72%, hsl(0 90% 58% / 0.14) 0%, transparent 45%),
-      radial-gradient(circle at 50% 100%, hsl(0 92% 56% / 0.08) 0%, transparent 50%);
-    pointer-events: none;
-    z-index: -1;
-  }
-
-  .dark .feed-column::before {
-    background:
-      radial-gradient(circle at 15% 8%, hsl(0 92% 56% / 0.28) 0%, transparent 42%),
-      radial-gradient(circle at 88% 72%, hsl(0 90% 58% / 0.22) 0%, transparent 45%);
+      radial-gradient(ellipse at 80% 0%, hsl(var(--ambient-brand) / 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 10% 100%, hsl(var(--ambient-slate) / 0.1) 0%, transparent 55%),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 40px,
+        hsl(var(--foreground) / 0.03) 40px,
+        hsl(var(--foreground) / 0.03) 41px
+      ),
+      hsl(var(--background));
   }
 
   .glass-card {
@@ -157,45 +142,44 @@
   .feed-post-card {
     overflow: hidden;
     border-radius: 1rem;
-    border: 1px solid hsl(0 0% 100% / 0.72);
+    border: 1px solid hsl(0 0% 100% / 0.68);
     background: linear-gradient(
-      145deg,
-      hsl(0 0% 100% / 0.44) 0%,
-      hsl(0 92% 56% / 0.07) 55%,
-      hsl(0 0% 100% / 0.38) 100%
+      155deg,
+      hsl(0 0% 100% / 0.5) 0%,
+      hsl(220 14% 96% / 0.42) 50%,
+      hsl(0 0% 100% / 0.4) 100%
     );
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
     box-shadow:
-      0 10px 40px hsl(var(--foreground) / 0.09),
+      0 10px 36px hsl(var(--foreground) / 0.08),
       0 1px 0 hsl(0 0% 100% / 0.55) inset;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   .dark .feed-post-card {
-    border-color: hsl(var(--border) / 0.7);
+    border-color: hsl(var(--border) / 0.65);
     background: linear-gradient(
-      145deg,
-      hsl(var(--card) / 0.42) 0%,
-      hsl(0 92% 56% / 0.12) 55%,
-      hsl(var(--card) / 0.36) 100%
+      155deg,
+      hsl(var(--card) / 0.48) 0%,
+      hsl(220 12% 16% / 0.42) 50%,
+      hsl(var(--card) / 0.38) 100%
     );
     box-shadow:
-      0 10px 40px hsl(0 0% 0% / 0.38),
-      0 1px 0 hsl(0 0% 100% / 0.08) inset;
+      0 10px 36px hsl(0 0% 0% / 0.34),
+      0 1px 0 hsl(0 0% 100% / 0.07) inset;
   }
 
   .feed-post-card:hover {
-    border-color: hsl(var(--primary) / 0.35);
+    border-color: hsl(var(--border) / 0.85);
     box-shadow:
-      0 14px 44px hsl(var(--foreground) / 0.12),
-      0 0 0 1px hsl(var(--primary) / 0.08),
+      0 14px 40px hsl(var(--foreground) / 0.11),
       0 1px 0 hsl(0 0% 100% / 0.6) inset;
     transform: translateY(-1px);
   }
 
   .dark .feed-post-card:hover {
-    border-color: hsl(var(--primary) / 0.45);
+    border-color: hsl(var(--border) / 0.9);
   }
 
   .bg-surface-elevated {
@@ -279,8 +263,8 @@
         -45deg,
         transparent,
         transparent 24px,
-        hsl(var(--primary) / 0.04) 24px,
-        hsl(var(--primary) / 0.04) 25px
+        hsl(var(--foreground) / 0.025) 24px,
+        hsl(var(--foreground) / 0.025) 25px
       );
     border: 1px solid hsl(var(--border) / 0.6);
   }
