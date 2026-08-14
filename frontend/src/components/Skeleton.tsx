@@ -70,6 +70,33 @@ export function CardGridSkeleton({ count = 4 }: { count?: number }) {
   );
 }
 
+export function ExplorePhotoGridSkeleton({ count = 9 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="aspect-square rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
+export function HashtagRowSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 rounded-xl" />
+        ))}
+      </div>
+      <div className="flex gap-2 overflow-hidden">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-24 rounded-full shrink-0" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ProfileSkeleton() {
   return (
     <div className="max-w-lg mx-auto space-y-6">

@@ -24,6 +24,8 @@ const routePrefetch: Record<string, (qc: QueryClient) => void> = {
   },
   "/explore": (qc) => {
     void qc.prefetchQuery({ queryKey: ["explore-posts"], queryFn: () => api.explorePosts() });
+    void qc.prefetchQuery({ queryKey: ["explore-vehicles"], queryFn: () => api.exploreVehicles() });
+    void qc.prefetchQuery({ queryKey: ["trending-hashtags"], queryFn: () => api.trendingHashtags() });
   },
   "/garage": (qc) => {
     void qc.prefetchQuery({ queryKey: ["garage"], queryFn: () => api.getMyGarage() });
