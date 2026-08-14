@@ -65,6 +65,29 @@ export default function GroupDetailPage() {
     },
   });
 
+  const leaveGroup = useMutation({
+    mutationFn: () => api.leaveGroup(groupId!),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["groups"] });
+      const previous = queryClient.getQueryData<GroupListItem[]>(["groups"]);
+      queryClient.setQueryData<GroupListItem[]>(["groups"], (old) =>
+        old?.map((g) =>
+          g.id === groupId ? { ...g, is_member: false, members_count: Math.max(0, g.members_count - 1) } : g
+        ) ?? []
+      );
+      return { previous };
+    },
+    onError: (err: Error, _, context) => {
+      if (context?.previous) queryClient.setQueryData(["groups"], context.previous);
+      toast.error(err.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.removeQueries({ queryKey: ["group-messages", groupId] });
+      toast.success(t("leftGroup"));
+    },
+  });
+
   const sendMessage = useMutation({
     mutationFn: (content: string) => api.sendGroupMessage(groupId!, content),
     onSuccess: () => {
@@ -98,9 +121,20 @@ export default function GroupDetailPage() {
               <Users className="w-4 h-4" />
               {group.members_count} {t("members")}
             </div>
-            <Button size="sm" variant="outline" onClick={() => joinGroup.mutate()} disabled={joinGroup.isPending || group.is_member}>
-              {group.is_member ? t("groupMember") : t("joinGroup")}
-            </Button>
+            {group.is_member ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => leaveGroup.mutate()}
+                disabled={leaveGroup.isPending}
+              >
+                {t("leaveGroup")}
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => joinGroup.mutate()} disabled={joinGroup.isPending}>
+                {t("joinGroup")}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

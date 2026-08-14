@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,7 @@ from app.auth.local import LocalAuthProvider, _create_access_token
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import User
+from app.rate_limit import enforce_rate_limit
 from app.schemas import (
     AuthResponse,
     ChangePasswordRequest,
@@ -27,7 +28,8 @@ security = HTTPBearer(auto_error=False)
 
 
 @router.post("/register", response_model=AuthResponse)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(body: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await enforce_rate_limit(request, "auth:register", limit=5, window_seconds=3600)
     provider = get_auth_provider(db)
 
     if isinstance(provider, CognitoAuthProvider):
@@ -52,7 +54,8 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/confirm", response_model=AuthResponse)
-async def confirm_sign_up(body: ConfirmSignUpRequest, db: AsyncSession = Depends(get_db)):
+async def confirm_sign_up(body: ConfirmSignUpRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await enforce_rate_limit(request, "auth:confirm", limit=10, window_seconds=3600)
     provider = get_auth_provider(db)
     if not isinstance(provider, CognitoAuthProvider):
         raise HTTPException(status_code=501, detail="Account confirmation is only available with Cognito auth")
@@ -120,7 +123,15 @@ async def me(user: User = Depends(get_user_model)):
 
 
 @router.post("/forgot-password")
-async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+async def forgot_password(body: ForgotPasswordRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await enforce_rate_limit(request, "auth:forgot", limit=3, window_seconds=3600)
+    await enforce_rate_limit(
+        request,
+        "auth:forgot:email",
+        identifier=body.email,
+        limit=5,
+        window_seconds=3600,
+    )
     provider = get_auth_provider(db)
     await provider.forgot_password(body.email)
     return {"message": "If the email exists, a verification code was sent to your email"}

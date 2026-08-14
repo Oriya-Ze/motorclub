@@ -433,6 +433,10 @@ class ApiClient {
     return this.request<{ status: string }>(`/groups/${groupId}/join`, { method: "POST" });
   }
 
+  leaveGroup(groupId: string) {
+    return this.request<{ status: string }>(`/groups/${groupId}/leave`, { method: "POST" });
+  }
+
   getGroupMessages(groupId: string) {
     return this.request<GroupMessage[]>(`/groups/${groupId}/messages`);
   }
@@ -487,6 +491,10 @@ class ApiClient {
 
   joinEvent(eventId: string) {
     return this.request<{ joined: boolean }>(`/events/${eventId}/join`, { method: "POST" });
+  }
+
+  leaveEvent(eventId: string) {
+    return this.request<{ joined: boolean }>(`/events/${eventId}/leave`, { method: "POST" });
   }
 
   getProducts(category?: string) {

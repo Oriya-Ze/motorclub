@@ -25,6 +25,15 @@ export default function EventsPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const leaveEvent = useMutation({
+    mutationFn: (id: string) => api.leaveEvent(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+      toast.success(t("leftEvent"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (isLoading) return <ListPageSkeleton rows={4} />;
 
   return (
@@ -65,12 +74,19 @@ export default function EventsPage() {
                     </span>
                   )}
                 </div>
-                {!event.is_joined ? (
+                {event.is_joined ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => leaveEvent.mutate(event.id)}
+                    disabled={leaveEvent.isPending}
+                  >
+                    {t("leaveEvent")}
+                  </Button>
+                ) : (
                   <Button size="sm" onClick={() => joinEvent.mutate(event.id)} disabled={joinEvent.isPending}>
                     {t("joinEvent")}
                   </Button>
-                ) : (
-                  <span className="inline-flex items-center text-sm text-primary font-medium">{t("eventJoined")}</span>
                 )}
               </CardContent>
             </Card>

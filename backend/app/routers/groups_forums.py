@@ -96,6 +96,30 @@ async def join_group(
     return {"status": "approved"}
 
 
+@groups_router.post("/{group_id}/leave")
+async def leave_group(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    membership = await db.scalar(
+        select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user.id)
+    )
+    if not membership or membership.status != "approved":
+        raise HTTPException(status_code=400, detail="You are not a member of this group")
+
+    if membership.role == "owner":
+        raise HTTPException(status_code=400, detail="Group owners cannot leave. Delete the group instead.")
+
+    await db.delete(membership)
+    await db.commit()
+    return {"status": "left"}
+
+
 @groups_router.get("/{group_id}/messages", response_model=list[GroupMessageResponse])
 async def list_group_messages(
     group_id: uuid.UUID,

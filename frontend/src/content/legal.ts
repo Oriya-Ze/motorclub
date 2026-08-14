@@ -33,7 +33,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "כיצד אנו משתמשים במידע",
           paragraphs: [
             "להפעלת החשבון והצגת התוכן בקהילה.",
-            "לשליחת הודעות מערכת (אימות חשבון, איפוס סיסמה) מכתובת noreply@motorclub.co.il.",
+            "לשליחת הודעות מערכת (אימות חשבון, איפוס סיסמה) מכתובת accounts@motorclub.co.il.",
             "לשמירה על אבטחה, מניעת שימוש לרעה, וטיפול בתקלות.",
             "לשיפור חוויית המשתמש ופיתוח פיצ'רים חדשים.",
           ],
@@ -150,7 +150,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "How we use information",
           paragraphs: [
             "To operate your account and display community content.",
-            "To send system emails (verification, password reset) from noreply@motorclub.co.il.",
+            "To send system emails (verification, password reset) from accounts@motorclub.co.il.",
             "To maintain security, prevent abuse, and troubleshoot issues.",
             "To improve user experience and develop new features.",
           ],

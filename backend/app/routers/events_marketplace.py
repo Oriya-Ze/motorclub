@@ -118,6 +118,30 @@ async def join_event(
     return {"joined": True}
 
 
+@events_router.post("/{event_id}/leave")
+async def leave_event(
+    event_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    event = await db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    participation = await db.scalar(
+        select(EventParticipant).where(
+            EventParticipant.event_id == event_id,
+            EventParticipant.user_id == user.id,
+        )
+    )
+    if not participation:
+        raise HTTPException(status_code=400, detail="You are not registered for this event")
+
+    await db.delete(participation)
+    await db.commit()
+    return {"joined": False}
+
+
 @marketplace_router.get("", response_model=list[ProductResponse])
 async def list_products(
     category: str | None = None,
