@@ -147,6 +147,28 @@ export interface Vehicle {
   created_at: string;
 }
 
+export interface VehicleCatalogMake {
+  id: number;
+  name: string;
+}
+
+export interface VehicleCatalogModel {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export interface VehicleCatalogVariant {
+  id: string;
+  trim: string;
+  engine: string;
+  fuel?: string | null;
+  engine_cc?: number | null;
+  horsepower?: number | null;
+  year_from?: number | null;
+  year_to?: number | null;
+}
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -336,6 +358,20 @@ class ApiClient {
 
   updateVehicle(id: string, data: Partial<Vehicle>) {
     return this.request<Vehicle>(`/garage/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+  }
+
+  getVehicleCatalogMakes() {
+    return this.request<VehicleCatalogMake[]>("/vehicle-catalog/makes");
+  }
+
+  getVehicleCatalogModels(makeId: number) {
+    return this.request<VehicleCatalogModel[]>(`/vehicle-catalog/makes/${makeId}/models`);
+  }
+
+  getVehicleCatalogVariants(makeId: number, modelId: number) {
+    return this.request<VehicleCatalogVariant[]>(
+      `/vehicle-catalog/makes/${makeId}/models/${modelId}/variants`
+    );
   }
 
   // Notifications

@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { useImageCropUpload } from "@/hooks/useImageCropUpload";
-import { api, Vehicle } from "@/lib/api";
+import { api, Vehicle, VehicleCatalogVariant } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,17 @@ export default function GaragePage() {
   const [showForm, setShowForm] = useState(false);
   const [selected, setSelected] = useState<Vehicle | null>(null);
   const [form, setForm] = useState({
-    make: "", model: "", year: "", trim: "", color: "", engine: "", description: "", mods: "",
+    makeId: "",
+    modelId: "",
+    variantId: "",
+    make: "",
+    model: "",
+    year: "",
+    trim: "",
+    color: "",
+    engine: "",
+    description: "",
+    mods: "",
   });
   const [images, setImages] = useState<string[]>([]);
 
@@ -39,6 +50,59 @@ export default function GaragePage() {
     queryKey: ["garage"],
     queryFn: () => api.getMyGarage(),
   });
+
+  const { data: catalogMakes = [], isLoading: makesLoading } = useQuery({
+    queryKey: ["vehicle-catalog-makes"],
+    queryFn: () => api.getVehicleCatalogMakes(),
+    enabled: showForm,
+    staleTime: 86_400_000,
+  });
+
+  const makeIdNum = form.makeId ? Number(form.makeId) : null;
+
+  const { data: catalogModels = [], isLoading: modelsLoading } = useQuery({
+    queryKey: ["vehicle-catalog-models", makeIdNum],
+    queryFn: () => api.getVehicleCatalogModels(makeIdNum!),
+    enabled: showForm && makeIdNum !== null,
+    staleTime: 86_400_000,
+  });
+
+  const modelIdNum = form.modelId ? Number(form.modelId) : null;
+
+  const { data: catalogVariants = [], isLoading: variantsLoading } = useQuery({
+    queryKey: ["vehicle-catalog-variants", makeIdNum, modelIdNum],
+    queryFn: () => api.getVehicleCatalogVariants(makeIdNum!, modelIdNum!),
+    enabled: showForm && makeIdNum !== null && modelIdNum !== null,
+    staleTime: 86_400_000,
+  });
+
+  const applyVariant = (variant: VehicleCatalogVariant) => {
+    const year =
+      variant.year_from && variant.year_to && variant.year_from !== variant.year_to
+        ? String(variant.year_to)
+        : variant.year_to
+          ? String(variant.year_to)
+          : variant.year_from
+            ? String(variant.year_from)
+            : "";
+    setForm((prev) => ({
+      ...prev,
+      variantId: variant.id,
+      trim: variant.trim,
+      engine: variant.engine,
+      year,
+    }));
+  };
+
+  const variantLabel = (variant: VehicleCatalogVariant) => {
+    const years =
+      variant.year_from && variant.year_to
+        ? variant.year_from === variant.year_to
+          ? String(variant.year_from)
+          : `${variant.year_from}–${variant.year_to}`
+        : "";
+    return years ? `${variant.trim} (${years})` : variant.trim;
+  };
 
   useEffect(() => {
     const state = location.state as { vehicleId?: string } | null;
@@ -68,7 +132,19 @@ export default function GaragePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["garage"] });
       setShowForm(false);
-      setForm({ make: "", model: "", year: "", trim: "", color: "", engine: "", description: "", mods: "" });
+      setForm({
+        makeId: "",
+        modelId: "",
+        variantId: "",
+        make: "",
+        model: "",
+        year: "",
+        trim: "",
+        color: "",
+        engine: "",
+        description: "",
+        mods: "",
+      });
       setImages([]);
       toast.success(t("garage.added"));
     },
@@ -161,13 +237,107 @@ export default function GaragePage() {
       {showForm && (
         <Card>
           <CardContent className="pt-6 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder={t("garage.make")} value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} />
-              <Input placeholder={t("garage.model")} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} />
-              <Input placeholder={t("garage.year")} value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} dir="ltr" />
-              <Input placeholder={t("garage.trim")} value={form.trim} onChange={(e) => setForm({ ...form, trim: e.target.value })} />
-              <Input placeholder={t("garage.color")} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
-              <Input placeholder={t("garage.engine")} value={form.engine} onChange={(e) => setForm({ ...form, engine: e.target.value })} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Select
+                value={form.makeId}
+                disabled={makesLoading}
+                onChange={(e) => {
+                  const makeId = e.target.value;
+                  const make = catalogMakes.find((m) => String(m.id) === makeId)?.name ?? "";
+                  setForm({
+                    ...form,
+                    makeId,
+                    make,
+                    modelId: "",
+                    variantId: "",
+                    model: "",
+                    trim: "",
+                    engine: "",
+                    year: "",
+                  });
+                }}
+              >
+                <option value="">{makesLoading ? t("garage.loadingCatalog") : t("garage.selectMake")}</option>
+                {catalogMakes.map((make) => (
+                  <option key={make.id} value={make.id}>
+                    {make.name}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                value={form.modelId}
+                disabled={!form.makeId || modelsLoading}
+                onChange={(e) => {
+                  const modelId = e.target.value;
+                  const model = catalogModels.find((m) => String(m.id) === modelId)?.name ?? "";
+                  setForm({
+                    ...form,
+                    modelId,
+                    model,
+                    variantId: "",
+                    trim: "",
+                    engine: "",
+                    year: "",
+                  });
+                }}
+              >
+                <option value="">
+                  {!form.makeId
+                    ? t("garage.selectMakeFirst")
+                    : modelsLoading
+                      ? t("garage.loadingCatalog")
+                      : t("garage.selectModel")}
+                </option>
+                {catalogModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.name}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                value={form.variantId}
+                disabled={!form.modelId || variantsLoading}
+                className="sm:col-span-2"
+                onChange={(e) => {
+                  const variant = catalogVariants.find((v) => v.id === e.target.value);
+                  if (variant) applyVariant(variant);
+                }}
+              >
+                <option value="">
+                  {!form.modelId
+                    ? t("garage.selectModelFirst")
+                    : variantsLoading
+                      ? t("garage.loadingCatalog")
+                      : t("garage.selectVariant")}
+                </option>
+                {catalogVariants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {variantLabel(variant)}
+                    {variant.engine ? ` — ${variant.engine}` : ""}
+                  </option>
+                ))}
+              </Select>
+
+              <Input
+                placeholder={t("garage.year")}
+                value={form.year}
+                onChange={(e) => setForm({ ...form, year: e.target.value })}
+                dir="ltr"
+              />
+              <Input
+                placeholder={t("garage.color")}
+                value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })}
+              />
+              <Input
+                placeholder={t("garage.engine")}
+                value={form.engine}
+                readOnly
+                className="sm:col-span-2 bg-muted/40"
+                title={t("garage.engineFromVariant")}
+              />
             </div>
             <textarea
               placeholder={t("garage.description")}
@@ -201,7 +371,13 @@ export default function GaragePage() {
             )}
             <Button
               className="w-full"
-              disabled={!form.make || !form.model || createVehicle.isPending || imageUpload.uploading}
+              disabled={
+                !form.make ||
+                !form.model ||
+                !form.variantId ||
+                createVehicle.isPending ||
+                imageUpload.uploading
+              }
               onClick={() => createVehicle.mutate()}
             >
               {t("garage.save")}

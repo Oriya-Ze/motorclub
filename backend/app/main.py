@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import check_db_connection, close_db
 from app.logging_config import setup_logging
 from app.middleware import RequestLoggingMiddleware
-from app.routers import auth, events_marketplace, garage, groups_forums, media, messages, posts, social, uploads, users
+from app.routers import auth, events_marketplace, garage, groups_forums, media, messages, posts, social, uploads, users, vehicle_catalog
 
 setup_logging(settings.log_level)
 
@@ -48,6 +48,7 @@ app.include_router(messages.router, prefix="/api/v1")
 app.include_router(media.router, prefix="/api/v1")
 app.include_router(uploads.router, prefix="/api/v1")
 app.include_router(garage.router, prefix="/api/v1")
+app.include_router(vehicle_catalog.router, prefix="/api/v1")
 app.include_router(social.notifications_router, prefix="/api/v1")
 app.include_router(social.stories_router, prefix="/api/v1")
 app.include_router(social.explore_router, prefix="/api/v1")

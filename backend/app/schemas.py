@@ -338,6 +338,28 @@ class VehicleUpdate(BaseModel):
     is_primary: bool | None = None
 
 
+class VehicleCatalogMake(BaseModel):
+    id: int
+    name: str
+
+
+class VehicleCatalogModel(BaseModel):
+    id: int
+    name: str
+    code: str
+
+
+class VehicleCatalogVariant(BaseModel):
+    id: str
+    trim: str
+    engine: str
+    fuel: str | None = None
+    engine_cc: int | None = None
+    horsepower: int | None = None
+    year_from: int | None = None
+    year_to: int | None = None
+
+
 class VehicleResponse(BaseModel):
     id: UUID
     user_id: UUID
