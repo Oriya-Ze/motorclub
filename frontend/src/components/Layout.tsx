@@ -167,7 +167,7 @@ export default function Layout() {
           </main>
           <ThemeSync />
           <MessagesSideButton />
-          <BottomNav onCreatePost={() => setShowCreate(true)} unreadCount={unread?.count} />
+          <BottomNav onCreatePost={() => setShowCreate(true)} />
           <CreatePostModal
             open={showCreate}
             onClose={() => {

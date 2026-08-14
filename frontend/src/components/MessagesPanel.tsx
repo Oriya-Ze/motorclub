@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Mail, MessageSquare, Send, X } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -75,28 +76,26 @@ export function MessagesSideButton() {
 
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
-  return (
+  return createPortal(
     <button
       type="button"
       onClick={() => openMessages()}
       className={cn(
-        "fixed top-1/2 -translate-y-1/2 start-0 z-40",
-        "flex flex-col items-center gap-1 py-3 px-2 sm:px-2.5",
-        "bg-card/95 backdrop-blur-md border border-border/60 border-s-0",
-        "rounded-e-2xl shadow-glow hover:bg-muted/50 transition-colors"
+        "max-md:hidden fixed top-20 xl:top-32 start-0 z-[55]",
+        "flex items-center justify-center w-10 h-10",
+        "bg-card/95 backdrop-blur-sm border border-border/50 border-s-0",
+        "rounded-e-xl shadow-sm hover:bg-muted/60 transition-colors"
       )}
       aria-label={t("messages")}
     >
-      <Mail className="w-5 h-5 text-primary" />
-      <span className="text-[9px] font-medium text-muted-foreground hidden sm:block [writing-mode:vertical-rl] rotate-180">
-        {t("messages")}
-      </span>
+      <Mail className="w-[18px] h-[18px] text-foreground/80" />
       {unreadTotal > 0 && (
-        <span className="absolute -top-1 -end-1 min-w-[1.125rem] h-[1.125rem] px-1 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+        <span className="absolute top-1 end-1 min-w-[1rem] h-4 px-0.5 bg-primary text-white text-[9px] font-semibold rounded-full flex items-center justify-center">
           {unreadTotal > 9 ? "9+" : unreadTotal}
         </span>
       )}
-    </button>
+    </button>,
+    document.body
   );
 }
 
