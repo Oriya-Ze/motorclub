@@ -148,12 +148,12 @@ export interface Vehicle {
 }
 
 export interface VehicleCatalogMake {
-  id: number;
+  id: string;
   name: string;
 }
 
 export interface VehicleCatalogModel {
-  id: number;
+  id: string;
   name: string;
   code: string;
 }
@@ -364,11 +364,11 @@ class ApiClient {
     return this.request<VehicleCatalogMake[]>("/vehicle-catalog/makes");
   }
 
-  getVehicleCatalogModels(makeId: number) {
+  getVehicleCatalogModels(makeId: string) {
     return this.request<VehicleCatalogModel[]>(`/vehicle-catalog/makes/${makeId}/models`);
   }
 
-  getVehicleCatalogVariants(makeId: number, modelId: number) {
+  getVehicleCatalogVariants(makeId: string, modelId: string) {
     return this.request<VehicleCatalogVariant[]>(
       `/vehicle-catalog/makes/${makeId}/models/${modelId}/variants`
     );

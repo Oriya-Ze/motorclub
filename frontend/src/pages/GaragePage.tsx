@@ -58,21 +58,21 @@ export default function GaragePage() {
     staleTime: 86_400_000,
   });
 
-  const makeIdNum = form.makeId ? Number(form.makeId) : null;
+  const makeId = form.makeId || null;
 
   const { data: catalogModels = [], isLoading: modelsLoading } = useQuery({
-    queryKey: ["vehicle-catalog-models", makeIdNum],
-    queryFn: () => api.getVehicleCatalogModels(makeIdNum!),
-    enabled: showForm && makeIdNum !== null,
+    queryKey: ["vehicle-catalog-models", makeId],
+    queryFn: () => api.getVehicleCatalogModels(makeId!),
+    enabled: showForm && Boolean(makeId),
     staleTime: 86_400_000,
   });
 
-  const modelIdNum = form.modelId ? Number(form.modelId) : null;
+  const modelId = form.modelId || null;
 
   const { data: catalogVariants = [], isLoading: variantsLoading } = useQuery({
-    queryKey: ["vehicle-catalog-variants", makeIdNum, modelIdNum],
-    queryFn: () => api.getVehicleCatalogVariants(makeIdNum!, modelIdNum!),
-    enabled: showForm && makeIdNum !== null && modelIdNum !== null,
+    queryKey: ["vehicle-catalog-variants", makeId, modelId],
+    queryFn: () => api.getVehicleCatalogVariants(makeId!, modelId!),
+    enabled: showForm && Boolean(makeId) && Boolean(modelId),
     staleTime: 86_400_000,
   });
 
@@ -243,7 +243,7 @@ export default function GaragePage() {
                 disabled={makesLoading}
                 onChange={(e) => {
                   const makeId = e.target.value;
-                  const make = catalogMakes.find((m) => String(m.id) === makeId)?.name ?? "";
+                  const make = catalogMakes.find((m) => m.id === makeId)?.name ?? "";
                   setForm({
                     ...form,
                     makeId,
@@ -270,7 +270,7 @@ export default function GaragePage() {
                 disabled={!form.makeId || modelsLoading}
                 onChange={(e) => {
                   const modelId = e.target.value;
-                  const model = catalogModels.find((m) => String(m.id) === modelId)?.name ?? "";
+                  const model = catalogModels.find((m) => m.id === modelId)?.name ?? "";
                   setForm({
                     ...form,
                     modelId,

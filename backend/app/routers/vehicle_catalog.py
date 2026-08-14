@@ -16,7 +16,7 @@ async def get_makes():
 
 
 @router.get("/makes/{make_id}/models", response_model=list[VehicleCatalogModel])
-async def get_models(make_id: int):
+async def get_models(make_id: str):
     try:
         models = await catalog.list_models(make_id)
     except Exception as exc:
@@ -25,7 +25,7 @@ async def get_models(make_id: int):
 
 
 @router.get("/makes/{make_id}/models/{model_id}/variants", response_model=list[VehicleCatalogVariant])
-async def get_variants(make_id: int, model_id: int):
+async def get_variants(make_id: str, model_id: str):
     try:
         variants = await catalog.list_variants(make_id, model_id)
     except Exception as exc:

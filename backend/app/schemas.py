@@ -339,12 +339,12 @@ class VehicleUpdate(BaseModel):
 
 
 class VehicleCatalogMake(BaseModel):
-    id: int
+    id: str
     name: str
 
 
 class VehicleCatalogModel(BaseModel):
-    id: int
+    id: str
     name: str
     code: str
 
