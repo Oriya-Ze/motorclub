@@ -74,15 +74,16 @@
 
   .gradient-bg {
     background:
-      radial-gradient(ellipse at top right, hsl(0 92% 56% / 0.08) 0%, transparent 55%),
-      radial-gradient(ellipse at bottom left, hsl(0 90% 58% / 0.05) 0%, transparent 55%),
+      radial-gradient(ellipse at top right, hsl(0 92% 56% / 0.16) 0%, transparent 58%),
+      radial-gradient(ellipse at bottom left, hsl(0 90% 58% / 0.12) 0%, transparent 58%),
+      radial-gradient(circle at 50% 120%, hsl(0 92% 56% / 0.06) 0%, transparent 45%),
       hsl(var(--background));
   }
 
   .dark .gradient-bg {
     background:
-      radial-gradient(ellipse at top right, hsl(0 92% 56% / 0.15) 0%, transparent 50%),
-      radial-gradient(ellipse at bottom left, hsl(0 90% 58% / 0.1) 0%, transparent 50%),
+      radial-gradient(ellipse at top right, hsl(0 92% 56% / 0.22) 0%, transparent 52%),
+      radial-gradient(ellipse at bottom left, hsl(0 90% 58% / 0.16) 0%, transparent 52%),
       hsl(var(--background));
   }
 
@@ -112,20 +113,37 @@
   }
 
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
+    border: 1px solid hsl(var(--border) / 0.55);
+    background: hsl(var(--card) / 0.58);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    box-shadow:
+      0 8px 32px hsl(var(--foreground) / 0.07),
+      inset 0 1px 0 hsl(0 0% 100% / 0.45);
+  }
+
+  .dark .glass-card {
+    background: hsl(var(--card) / 0.5);
+    border-color: hsl(var(--border) / 0.65);
+    box-shadow:
+      0 8px 32px hsl(0 0% 0% / 0.35),
+      inset 0 1px 0 hsl(0 0% 100% / 0.07);
   }
 
   .feed-post-card {
-    @apply bg-card/85 backdrop-blur-xl border border-border/50 rounded-2xl overflow-hidden shadow-sm;
-    @apply transition-[border-color,box-shadow] duration-200;
+    @apply glass-card rounded-2xl overflow-hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
   .feed-post-card:hover {
-    @apply border-border/70 shadow-md;
+    border-color: hsl(var(--primary) / 0.22);
+    box-shadow:
+      0 12px 36px hsl(var(--foreground) / 0.1),
+      inset 0 1px 0 hsl(0 0% 100% / 0.5);
   }
 
-  .dark .feed-post-card {
-    @apply bg-card/75 border-border/60;
+  .dark .feed-post-card:hover {
+    border-color: hsl(var(--primary) / 0.35);
   }
 
   .bg-surface-elevated {
