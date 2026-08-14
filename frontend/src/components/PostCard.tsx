@@ -134,7 +134,7 @@ function PostCard({ post, onDeleted }: PostCardProps) {
 
   return (
     <>
-      <article className="feed-post bg-card border border-border/40 rounded-2xl overflow-hidden shadow-sm">
+      <article className="feed-post feed-post-card">
         <div className="flex items-center gap-3 p-4">
           <Link to={`/profile/${post.author.id}`}>
             <Avatar user={post.author} size="md" />
@@ -170,7 +170,7 @@ function PostCard({ post, onDeleted }: PostCardProps) {
                 <MoreHorizontal className="w-5 h-5" />
               </button>
               {showMenu && (
-                <div className="absolute end-0 top-full mt-1 z-20 min-w-[160px] bg-card border border-border rounded-xl shadow-lg py-1">
+                <div className="absolute end-0 top-full mt-1 z-20 min-w-[160px] glass-card rounded-xl py-1">
                   <button
                     type="button"
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted/50"

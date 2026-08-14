@@ -6,7 +6,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function PostSkeleton() {
   return (
-    <div className="bg-card border border-border/40 rounded-2xl overflow-hidden">
+    <div className="feed-post-card">
       <div className="flex items-center gap-3 p-4">
         <Skeleton className="w-10 h-10 rounded-full" />
         <div className="space-y-2 flex-1">

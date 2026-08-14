@@ -115,6 +115,19 @@
     @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg;
   }
 
+  .feed-post-card {
+    @apply bg-card/85 backdrop-blur-xl border border-border/50 rounded-2xl overflow-hidden shadow-sm;
+    @apply transition-[border-color,box-shadow] duration-200;
+  }
+
+  .feed-post-card:hover {
+    @apply border-border/70 shadow-md;
+  }
+
+  .dark .feed-post-card {
+    @apply bg-card/75 border-border/60;
+  }
+
   .bg-surface-elevated {
     background-color: hsl(var(--surface-elevated));
   }
