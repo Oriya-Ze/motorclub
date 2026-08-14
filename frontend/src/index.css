@@ -202,4 +202,34 @@
       );
     border: 1px solid hsl(var(--border) / 0.6);
   }
+
+  @keyframes messagesPanelIn {
+    from {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  [dir="rtl"] .messages-panel-enter {
+    animation: messagesPanelInRtl 0.28s ease-out;
+  }
+
+  .messages-panel-enter {
+    animation: messagesPanelIn 0.28s ease-out;
+  }
+
+  @keyframes messagesPanelInRtl {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 }

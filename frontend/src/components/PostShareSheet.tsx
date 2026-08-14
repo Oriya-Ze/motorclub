@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Copy, MessageCircle, Share2, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -30,7 +30,7 @@ function shareText(post: Post, t: (key: string) => string) {
 
 export default function PostShareSheet({ post, open, onClose }: PostShareSheetProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const messagesPanel = useMessagesPanelOptional();
   const [search, setSearch] = useState("");
   const url = postUrl(post.id);
   const text = shareText(post, t);
@@ -56,7 +56,7 @@ export default function PostShareSheet({ post, open, onClose }: PostShareSheetPr
     onSuccess: (conversationId) => {
       toast.success(t("postSharedToUser"));
       onClose();
-      navigate(`/messages/${conversationId}`);
+      messagesPanel?.openMessages(conversationId);
     },
     onError: (err: Error) => toast.error(err.message),
   });

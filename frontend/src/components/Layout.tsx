@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell, Calendar, Compass, Home, LogOut, Mail, MessageSquare, Menu, Plus, Settings,
+  Bell, Calendar, Compass, Home, LogOut, MessageSquare, Menu, Plus, Settings,
   ShoppingBag, UserCircle, Users, Warehouse, Wrench, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import BottomNav from "@/components/BottomNav";
 import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
+import { MessagesPanelProvider, MessagesSideButton } from "@/components/MessagesPanel";
 import ThemeSync from "@/components/ThemeSync";
 import UserSearch from "@/components/UserSearch";
 import Avatar from "@/components/Avatar";
@@ -26,7 +27,6 @@ const navItems = [
   { to: "/events", label: "events", icon: Calendar },
   { to: "/marketplace", label: "marketplace", icon: ShoppingBag },
   { to: "/forums", label: "forums", icon: MessageSquare },
-  { to: "/messages", label: "messages", icon: Mail },
   { to: "/services", label: "services", icon: Wrench },
 ];
 
@@ -160,13 +160,13 @@ export default function Layout() {
         )}
       </header>
 
-      <main className={cn("feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter", user && "pb-24 md:pb-6")}>
-        <Outlet />
-      </main>
-
-      {user && (
-        <>
+      {user ? (
+        <MessagesPanelProvider>
+          <main className={cn("feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter pb-24 md:pb-6")}>
+            <Outlet />
+          </main>
           <ThemeSync />
+          <MessagesSideButton />
           <BottomNav onCreatePost={() => setShowCreate(true)} unreadCount={unread?.count} />
           <CreatePostModal
             open={showCreate}
@@ -176,7 +176,11 @@ export default function Layout() {
             }}
             initialVehicleId={createVehicleId}
           />
-        </>
+        </MessagesPanelProvider>
+      ) : (
+        <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">
+          <Outlet />
+        </main>
       )}
     </div>
   );

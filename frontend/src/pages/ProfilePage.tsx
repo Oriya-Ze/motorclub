@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
 import VehicleDetailModal from "@/components/VehicleDetailModal";
@@ -22,7 +23,7 @@ type Tab = "posts" | "saved" | "garage";
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { userId } = useParams();
-  const navigate = useNavigate();
+  const messagesPanel = useMessagesPanelOptional();
   const { user: authUser } = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("posts");
@@ -87,7 +88,7 @@ export default function ProfilePage() {
 
   const messageMutation = useMutation({
     mutationFn: () => api.startConversation(profileUserId!),
-    onSuccess: (conv) => navigate(`/messages/${conv.id}`),
+    onSuccess: (conv) => messagesPanel?.openMessages(conv.id),
     onError: (err: Error) => toast.error(err.message),
   });
 

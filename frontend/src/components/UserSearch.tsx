@@ -7,7 +7,13 @@ import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
 import { cn, formatHandle } from "@/lib/utils";
 
-export default function UserSearch() {
+interface UserSearchProps {
+  /** Override default profile navigation */
+  onUserSelect?: (userId: string) => void;
+  className?: string;
+}
+
+export default function UserSearch({ onUserSelect, className }: UserSearchProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -40,13 +46,17 @@ export default function UserSearch() {
     setQuery("");
     setDebouncedQuery("");
     setOpen(false);
+    if (onUserSelect) {
+      onUserSelect(userId);
+      return;
+    }
     navigate(`/profile/${userId}`);
   };
 
   const showDropdown = open && debouncedQuery.length >= 1;
 
   return (
-    <div ref={containerRef} className="relative flex-1 max-w-md w-full">
+    <div ref={containerRef} className={cn("relative flex-1 max-w-md w-full", className)}>
       <div className="relative">
         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <input

@@ -1,7 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { Mail, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
@@ -17,13 +18,13 @@ interface ProductDetailModalProps {
 
 export default function ProductDetailModal({ product, onClose }: ProductDetailModalProps) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const messagesPanel = useMessagesPanelOptional();
 
   const contactSeller = useMutation({
     mutationFn: () => api.startConversation(product.business_id),
     onSuccess: (conv) => {
       onClose();
-      navigate(`/messages/${conv.id}`);
+      messagesPanel?.openMessages(conv.id);
     },
     onError: (err: Error) => toast.error(err.message),
   });

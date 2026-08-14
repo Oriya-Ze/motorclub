@@ -18,7 +18,7 @@ import GroupDetailPage from "@/pages/GroupDetailPage";
 import GroupsPage from "@/pages/GroupsPage";
 import { LegalPage } from "@/pages/LegalPage";
 import MarketplacePage from "@/pages/MarketplacePage";
-import MessagesPage from "@/pages/MessagesPage";
+import MessagesRedirect from "@/pages/MessagesRedirect";
 import NotificationsPage from "@/pages/NotificationsPage";
 import PostPage from "@/pages/PostPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -53,8 +53,8 @@ export default function App() {
             <Route path="forums" element={<ForumsPage />} />
             <Route path="forums/:forumId" element={<ForumTopicsPage />} />
             <Route path="forums/topic/:topicId" element={<ForumTopicPage />} />
-            <Route path="messages" element={<MessagesPage />} />
-            <Route path="messages/:conversationId" element={<MessagesPage />} />
+            <Route path="messages" element={<MessagesRedirect />} />
+            <Route path="messages/:conversationId" element={<MessagesRedirect />} />
             <Route path="events" element={<EventsPage />} />
             <Route path="marketplace" element={<MarketplacePage />} />
             <Route path="services" element={<ServicesPage />} />
