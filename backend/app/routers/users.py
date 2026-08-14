@@ -46,7 +46,12 @@ async def update_profile(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    for field, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "username" in data:
+        if data["username"] != user.username:
+            raise HTTPException(status_code=400, detail="Username cannot be changed")
+        del data["username"]
+    for field, value in data.items():
         setattr(user, field, value)
     await db.commit()
     await db.refresh(user)
