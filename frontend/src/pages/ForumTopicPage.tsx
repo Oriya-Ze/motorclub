@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
+import { forumName } from "@/lib/forum";
 import { cn } from "@/lib/utils";
 
 export default function ForumTopicPage() {
@@ -62,7 +63,9 @@ export default function ForumTopicPage() {
         <ArrowRight className="w-4 h-4 text-muted-foreground" />
         {forum && (
           <>
-            <Link to={`/forums/${forum.id}`} className="text-muted-foreground hover:text-primary">{forum.name}</Link>
+            <Link to={`/forums/${forum.id}`} className="text-muted-foreground hover:text-primary">
+              {forumName(forum, i18n.language)}
+            </Link>
             <ArrowRight className="w-4 h-4 text-muted-foreground" />
           </>
         )}

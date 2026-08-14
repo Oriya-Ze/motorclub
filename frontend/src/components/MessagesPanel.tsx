@@ -81,19 +81,26 @@ export function MessagesSideButton() {
       type="button"
       onClick={() => openMessages()}
       className={cn(
-        "max-md:hidden fixed top-20 xl:top-32 start-0 z-[55]",
-        "flex items-center justify-center w-10 h-10",
-        "bg-card/95 backdrop-blur-sm border border-border/50 border-s-0",
-        "rounded-e-xl shadow-sm hover:bg-muted/60 transition-colors"
+        "max-md:hidden fixed top-24 xl:top-36 start-0 z-[55] group",
+        "flex flex-col items-center justify-center gap-1.5 py-3 px-2.5 min-w-[3rem]",
+        "bg-card/95 backdrop-blur-md border border-primary/25 border-s-0",
+        "rounded-e-2xl shadow-glow",
+        "hover:border-primary/50 hover:bg-primary/5 transition-all duration-200",
+        unreadTotal > 0 && "border-primary/45"
       )}
       aria-label={t("messages")}
     >
-      <Mail className="w-[18px] h-[18px] text-foreground/80" />
-      {unreadTotal > 0 && (
-        <span className="absolute top-1 end-1 min-w-[1rem] h-4 px-0.5 bg-primary text-white text-[9px] font-semibold rounded-full flex items-center justify-center">
-          {unreadTotal > 9 ? "9+" : unreadTotal}
-        </span>
-      )}
+      <span className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 group-hover:bg-primary/15 transition-colors">
+        <Mail className="w-[18px] h-[18px] text-primary" />
+        {unreadTotal > 0 && (
+          <span className="absolute -top-1 -end-1 min-w-[1.125rem] h-[1.125rem] px-0.5 bg-primary text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-card">
+            {unreadTotal > 9 ? "9+" : unreadTotal}
+          </span>
+        )}
+      </span>
+      <span className="text-[10px] font-semibold text-primary tracking-wide [writing-mode:vertical-rl] rotate-180">
+        {t("messages")}
+      </span>
     </button>,
     document.body
   );

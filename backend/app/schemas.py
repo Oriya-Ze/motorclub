@@ -170,7 +170,9 @@ class GroupMessageResponse(BaseModel):
 class ForumResponse(BaseModel):
     id: UUID
     name: str
+    name_en: str | None = None
     description: str | None
+    description_en: str | None = None
     icon: str | None
     topics_count: int
 

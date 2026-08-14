@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
+import { forumDescription, forumName } from "@/lib/forum";
 
 export default function ForumTopicsPage() {
   const { t, i18n } = useTranslation();
@@ -60,7 +61,9 @@ export default function ForumTopicsPage() {
             {t("forums")}
           </Link>
           <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-          <h1 className="text-2xl font-display tracking-wide truncate">{forum?.name ?? t("topics")}</h1>
+          <h1 className="text-2xl font-display tracking-wide truncate">
+            {forum ? forumName(forum, i18n.language) : t("topics")}
+          </h1>
         </div>
         <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
@@ -68,8 +71,8 @@ export default function ForumTopicsPage() {
         </Button>
       </div>
 
-      {forum?.description && (
-        <p className="text-muted-foreground">{forum.description}</p>
+      {forum && forumDescription(forum, i18n.language) && (
+        <p className="text-muted-foreground">{forumDescription(forum, i18n.language)}</p>
       )}
 
       {topics.length === 0 ? (

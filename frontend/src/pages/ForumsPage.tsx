@@ -6,13 +6,14 @@ import PageHeading from "@/components/PageHeading";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
+import { forumDescription, forumName } from "@/lib/forum";
 
 const iconMap: Record<string, React.ElementType> = {
   HelpCircle, MessageSquare, ShoppingCart, Lightbulb, Star, Wrench,
 };
 
 export default function ForumsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { data: forums = [], isLoading } = useQuery({
     queryKey: ["forums"],
     queryFn: () => api.getForums(),
@@ -34,9 +35,9 @@ export default function ForumsPage() {
                   <Icon className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">{forum.name}</h3>
-                  {forum.description && (
-                    <p className="text-sm text-muted-foreground mt-1">{forum.description}</p>
+                  <h3 className="font-semibold">{forumName(forum, i18n.language)}</h3>
+                  {forumDescription(forum, i18n.language) && (
+                    <p className="text-sm text-muted-foreground mt-1">{forumDescription(forum, i18n.language)}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-2">
                     {forum.topics_count} {t("topics")}

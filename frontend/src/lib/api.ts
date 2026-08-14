@@ -458,7 +458,7 @@ class ApiClient {
   }
 
   getForums() {
-    return this.request<Array<{ id: string; name: string; description?: string; icon?: string; topics_count: number }>>("/forums");
+    return this.request<Array<{ id: string; name: string; name_en?: string | null; description?: string | null; description_en?: string | null; icon?: string; topics_count: number }>>("/forums");
   }
 
   getForumTopics(forumId: string) {

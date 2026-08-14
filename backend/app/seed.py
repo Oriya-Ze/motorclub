@@ -15,12 +15,12 @@ async def seed_database(db: AsyncSession) -> None:
         return
 
     forums = [
-        Forum(name="שאלות ותשובות", description="שאלות טכניות ופתרונות לבעיות ברכב", icon="HelpCircle"),
-        Forum(name="דיונים כלליים", description="שיחות כלליות על רכבים ותחבורה", icon="MessageSquare"),
-        Forum(name="קניה ומכירה", description="עצות לקניה ומכירה של רכבים", icon="ShoppingCart"),
-        Forum(name="טיפים והמלצות", description="טיפים לתחזוקה, שדרוגים והמלצות", icon="Lightbulb"),
-        Forum(name="רכבי אספנות", description="דיונים על רכבי אספנות וקלאסיקות", icon="Star"),
-        Forum(name="טuning ושדרוגים", description="שדרוגים, tuning ומראה", icon="Wrench"),
+        Forum(name="שאלות ותשובות", name_en="Q&A", description="שאלות טכניות ופתרונות לבעיות ברכב", description_en="Technical questions and car troubleshooting", icon="HelpCircle"),
+        Forum(name="דיונים כלליים", name_en="General Discussion", description="שיחות כלליות על רכבים ותחבורה", description_en="General conversations about cars and driving", icon="MessageSquare"),
+        Forum(name="קניה ומכירה", name_en="Buying & Selling", description="עצות לקניה ומכירה של רכבים", description_en="Advice on buying and selling vehicles", icon="ShoppingCart"),
+        Forum(name="טיפים והמלצות", name_en="Tips & Recommendations", description="טיפים לתחזוקה, שדרוגים והמלצות", description_en="Maintenance tips, upgrades, and recommendations", icon="Lightbulb"),
+        Forum(name="רכבי אספנות", name_en="Collector Cars", description="דיונים על רכבי אספנות וקלאסיקות", description_en="Discussions about collector and classic cars", icon="Star"),
+        Forum(name="טיונינג ושדרוגים", name_en="Tuning & Mods", description="שדרוגים, טיונינג ומראה", description_en="Performance upgrades, tuning, and styling", icon="Wrench"),
     ]
     db.add_all(forums)
 
