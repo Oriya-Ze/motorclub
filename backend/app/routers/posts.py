@@ -300,3 +300,20 @@ async def create_comment(
         created_at=comment.created_at,
         author=user_to_public(user),
     )
+
+
+@router.delete("/{post_id}")
+async def delete_post(
+    post_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    post = await db.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.user_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own posts")
+
+    await db.delete(post)
+    await db.commit()
+    return {"deleted": True}

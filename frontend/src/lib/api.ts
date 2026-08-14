@@ -388,12 +388,30 @@ class ApiClient {
     });
   }
 
+  deletePost(postId: string) {
+    return this.request<{ deleted: boolean }>(`/posts/${postId}`, { method: "DELETE" });
+  }
+
   searchUsers(q: string) {
     return this.request<User[]>(`/users/search?q=${encodeURIComponent(q)}`);
   }
 
   getGroups() {
-    return this.request<Array<{ id: string; name: string; description?: string; members_count: number; is_member: boolean }>>("/groups");
+    return this.request<Array<{
+      id: string; name: string; description?: string; members_count: number;
+      is_member: boolean; my_role?: string | null; can_manage?: boolean; creator_id: string;
+    }>>("/groups");
+  }
+
+  getGroup(groupId: string) {
+    return this.request<{
+      id: string; name: string; description?: string; members_count: number;
+      is_member: boolean; my_role?: string | null; can_manage?: boolean; creator_id: string;
+    }>(`/groups/${groupId}`);
+  }
+
+  getGroupMembers(groupId: string) {
+    return this.request<Array<{ user_id: string; role: string; joined_at: string; user: User }>>(`/groups/${groupId}/members`);
   }
 
   createGroup(data: { name: string; description?: string; category?: string }) {
@@ -435,6 +453,21 @@ class ApiClient {
 
   leaveGroup(groupId: string) {
     return this.request<{ status: string }>(`/groups/${groupId}/leave`, { method: "POST" });
+  }
+
+  deleteGroup(groupId: string) {
+    return this.request<{ deleted: boolean }>(`/groups/${groupId}`, { method: "DELETE" });
+  }
+
+  removeGroupMember(groupId: string, userId: string) {
+    return this.request<{ removed: boolean }>(`/groups/${groupId}/members/${userId}`, { method: "DELETE" });
+  }
+
+  updateGroupMemberRole(groupId: string, userId: string, role: "member" | "admin") {
+    return this.request<{ user_id: string; role: string }>(`/groups/${groupId}/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
   }
 
   getGroupMessages(groupId: string) {

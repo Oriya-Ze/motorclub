@@ -14,6 +14,8 @@ from app.schemas import (
     ForumTopicCreate,
     ForumTopicResponse,
     GroupCreate,
+    GroupMemberResponse,
+    GroupMemberRoleUpdate,
     GroupMessageCreate,
     GroupMessageResponse,
     GroupResponse,
@@ -33,13 +35,18 @@ async def _group_membership(db: AsyncSession, group_id: uuid.UUID, user_id: uuid
     )
 
 
+def _is_manager(role: str | None) -> bool:
+    return role in ("owner", "admin")
+
+
 async def _group_response(db: AsyncSession, group: Group, user_id: uuid.UUID) -> GroupResponse:
     count = await db.scalar(
         select(func.count()).select_from(GroupMember).where(
             GroupMember.group_id == group.id, GroupMember.status == "approved"
         )
     )
-    is_member = await _group_membership(db, group.id, user_id) is not None
+    membership = await _group_membership(db, group.id, user_id)
+    my_role = membership.role if membership else None
     return GroupResponse(
         id=group.id,
         name=group.name,
@@ -47,7 +54,9 @@ async def _group_response(db: AsyncSession, group: Group, user_id: uuid.UUID) ->
         category=group.category,
         creator_id=group.creator_id,
         members_count=count or 0,
-        is_member=is_member,
+        is_member=membership is not None,
+        my_role=my_role,
+        can_manage=_is_manager(my_role),
         created_at=group.created_at,
     )
 
@@ -72,6 +81,49 @@ async def create_group(
     await db.commit()
     await db.refresh(group)
     return await _group_response(db, group, user.id)
+
+
+@groups_router.get("/{group_id}", response_model=GroupResponse)
+async def get_group(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return await _group_response(db, group, user.id)
+
+
+@groups_router.get("/{group_id}/members", response_model=list[GroupMemberResponse])
+async def list_group_members(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    if not await _group_membership(db, group_id, user.id):
+        raise HTTPException(status_code=403, detail="Join the group to view members")
+
+    result = await db.execute(
+        select(GroupMember)
+        .where(GroupMember.group_id == group_id, GroupMember.status == "approved")
+        .order_by(GroupMember.joined_at.asc())
+    )
+    members = result.scalars().all()
+    responses: list[GroupMemberResponse] = []
+    for member in members:
+        member_user = await db.get(User, member.user_id)
+        if not member_user:
+            continue
+        responses.append(
+            GroupMemberResponse(
+                user_id=member.user_id,
+                role=member.role,
+                joined_at=member.joined_at,
+                user=user_to_public(member_user),
+            )
+        )
+    return responses
 
 
 @groups_router.post("/{group_id}/join")
@@ -118,6 +170,101 @@ async def leave_group(
     await db.delete(membership)
     await db.commit()
     return {"status": "left"}
+
+
+@groups_router.delete("/{group_id}")
+async def delete_group(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    membership = await _group_membership(db, group_id, user.id)
+    if not membership or membership.role != "owner":
+        raise HTTPException(status_code=403, detail="Only the group owner can delete the group")
+
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    await db.delete(group)
+    await db.commit()
+    return {"deleted": True}
+
+
+@groups_router.delete("/{group_id}/members/{member_user_id}")
+async def remove_group_member(
+    group_id: uuid.UUID,
+    member_user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    actor = await _group_membership(db, group_id, user.id)
+    if not actor or not _is_manager(actor.role):
+        raise HTTPException(status_code=403, detail="Only group managers can remove members")
+
+    if member_user_id == user.id:
+        raise HTTPException(status_code=400, detail="Use the leave endpoint to leave the group")
+
+    target = await db.scalar(
+        select(GroupMember).where(
+            GroupMember.group_id == group_id,
+            GroupMember.user_id == member_user_id,
+            GroupMember.status == "approved",
+        )
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    if target.role == "owner":
+        raise HTTPException(status_code=400, detail="Cannot remove the group owner")
+
+    if actor.role == "admin" and target.role != "member":
+        raise HTTPException(status_code=403, detail="Admins can only remove regular members")
+
+    await db.delete(target)
+    await db.commit()
+    return {"removed": True}
+
+
+@groups_router.patch("/{group_id}/members/{member_user_id}", response_model=GroupMemberResponse)
+async def update_group_member_role(
+    group_id: uuid.UUID,
+    member_user_id: uuid.UUID,
+    body: GroupMemberRoleUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    actor = await _group_membership(db, group_id, user.id)
+    if not actor or actor.role != "owner":
+        raise HTTPException(status_code=403, detail="Only the group owner can change member roles")
+
+    target = await db.scalar(
+        select(GroupMember).where(
+            GroupMember.group_id == group_id,
+            GroupMember.user_id == member_user_id,
+            GroupMember.status == "approved",
+        )
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    if target.role == "owner":
+        raise HTTPException(status_code=400, detail="Cannot change the owner's role")
+
+    if body.role not in ("member", "admin"):
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    target.role = body.role
+    await db.commit()
+    await db.refresh(target)
+
+    member_user = await db.get(User, target.user_id)
+    return GroupMemberResponse(
+        user_id=target.user_id,
+        role=target.role,
+        joined_at=target.joined_at,
+        user=user_to_public(member_user),
+    )
 
 
 @groups_router.get("/{group_id}/messages", response_model=list[GroupMessageResponse])

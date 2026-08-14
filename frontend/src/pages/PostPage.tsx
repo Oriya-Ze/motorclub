@@ -40,7 +40,7 @@ export default function PostPage() {
         <ArrowRight className="w-4 h-4" />
         {t("back")}
       </button>
-      <PostCard post={post} />
+      <PostCard post={post} onDeleted={() => navigate("/explore")} />
     </div>
   );
 }

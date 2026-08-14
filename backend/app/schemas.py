@@ -128,9 +128,24 @@ class GroupResponse(BaseModel):
     creator_id: UUID
     members_count: int = 0
     is_member: bool = False
+    my_role: str | None = None
+    can_manage: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class GroupMemberResponse(BaseModel):
+    user_id: UUID
+    role: str
+    joined_at: datetime
+    user: UserPublic
+
+    model_config = {"from_attributes": True}
+
+
+class GroupMemberRoleUpdate(BaseModel):
+    role: str = Field(pattern="^(member|admin)$")
 
 
 class GroupMessageCreate(BaseModel):
