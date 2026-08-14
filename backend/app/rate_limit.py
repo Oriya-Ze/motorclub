@@ -8,7 +8,7 @@ import boto3
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, Request
 
-from app.config import get_settings
+from app.config import settings
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
@@ -16,7 +16,6 @@ logger = get_logger(__name__)
 
 @lru_cache
 def _table():
-    settings = get_settings()
     if not settings.rate_limit_table:
         return None
     dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
