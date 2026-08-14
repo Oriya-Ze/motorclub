@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { HelpCircle, Lightbulb, MessageSquare, ShoppingCart, Star, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import PageHeading from "@/components/PageHeading";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
@@ -21,7 +22,7 @@ export default function ForumsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">{t("forums")}</h1>
+      <PageHeading subtitle={t("forumsSubtitle")}>{t("forums")}</PageHeading>
       <div className="grid gap-4 sm:grid-cols-2">
         {forums.map((forum) => {
           const Icon = iconMap[forum.icon || "MessageSquare"] || MessageSquare;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import EmptyState from "@/components/EmptyState";
+import PageHeading from "@/components/PageHeading";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
@@ -28,7 +29,7 @@ export default function MarketplacePage() {
 
   return (
     <div className="space-y-4 pb-20 md:pb-6">
-      <h1 className="text-2xl font-display tracking-wide">{t("marketplace")}</h1>
+      <PageHeading>{t("marketplace")}</PageHeading>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button

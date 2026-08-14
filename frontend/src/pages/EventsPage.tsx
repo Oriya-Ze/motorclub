@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, MapPin, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import PageHeading from "@/components/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -38,7 +39,7 @@ export default function EventsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">{t("events")}</h1>
+      <PageHeading subtitle={t("eventsSubtitle")}>{t("events")}</PageHeading>
       {events.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">{t("noEvents")}</p>
       ) : (

@@ -189,4 +189,17 @@
   .feed-scroll {
     -webkit-overflow-scrolling: touch;
   }
+
+  .identity-panel {
+    background:
+      linear-gradient(135deg, hsl(var(--asphalt) / 0.9) 0%, hsl(var(--card)) 100%),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 24px,
+        hsl(var(--primary) / 0.04) 24px,
+        hsl(var(--primary) / 0.04) 25px
+      );
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
 }

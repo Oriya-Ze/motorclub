@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import PageHeading from "@/components/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -40,8 +41,8 @@ export default function GroupsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{t("groups")}</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <PageHeading className="mb-0" subtitle={t("groupsSubtitle")}>{t("groups")}</PageHeading>
         <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
           {t("createGroup")}

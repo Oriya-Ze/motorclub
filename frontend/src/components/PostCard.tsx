@@ -1,11 +1,12 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, Car, Heart, MapPin, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
+import { Bookmark, Heart, MapPin, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import PostShareSheet from "@/components/PostShareSheet";
+import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { api, Comment, Post } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
@@ -150,17 +151,14 @@ function PostCard({ post, onDeleted }: PostCardProps) {
                 <MapPin className="w-3 h-3 shrink-0" /> {post.location}
               </p>
             )}
-            {post.vehicle_id && (
-              <Link
-                to="/garage"
-                state={{ vehicleId: post.vehicle_id }}
-                className="inline-flex items-center gap-1 mt-1 text-xs text-primary hover:underline"
-              >
-                <Car className="w-3 h-3" />
-                {t("linkedVehicle")}
-              </Link>
-            )}
-          </div>
+          {post.vehicle_id && (
+            <VehicleBadge
+              label={t("linkedVehicle")}
+              vehicleId={post.vehicle_id}
+              className="mt-1.5"
+            />
+          )}
+        </div>
           {isAuthor && (
             <div className="relative" ref={menuRef}>
               <button
@@ -190,10 +188,13 @@ function PostCard({ post, onDeleted }: PostCardProps) {
           )}
         </div>
 
-        <div className="relative" onClick={handleDoubleTap}>
-          {images.length > 0 ? (
-            <ImageCarousel urls={images} />
-          ) : post.content ? (
+      <div
+        className={cn("relative", post.vehicle_id && images.length > 0 && "ring-2 ring-[#F5D033]/50 ring-inset")}
+        onClick={handleDoubleTap}
+      >
+        {images.length > 0 ? (
+          <ImageCarousel urls={images} />
+        ) : post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
               <p className="whitespace-pre-wrap">{post.content}</p>
             </div>

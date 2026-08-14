@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Hash, Search } from "lucide-react";
+import { Hash, Search, Warehouse } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
 import Avatar from "@/components/Avatar";
+import PageHeading from "@/components/PageHeading";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
@@ -44,8 +45,9 @@ export default function ExplorePage() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-6">
+      <PageHeading subtitle={t("exploreSubtitle")}>{t("explore")}</PageHeading>
+
       <div>
-        <h1 className="text-2xl font-display tracking-wide mb-4">{t("explore")}</h1>
         <div className="relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
@@ -72,10 +74,10 @@ export default function ExplorePage() {
 
       {tag ? (
         <div>
-          <h2 className="font-semibold mb-3">#{tag}</h2>
-          <div className="grid grid-cols-3 gap-1">
+          <h2 className="font-display text-xl tracking-wide mb-3">#{tag}</h2>
+          <div className="grid grid-cols-3 gap-1.5">
             {tagPosts.filter((p) => p.image_urls?.[0]).map((p) => (
-              <Link key={p.id} to={`/posts/${p.id}`} className="aspect-square bg-muted rounded-lg overflow-hidden block">
+              <Link key={p.id} to={`/posts/${p.id}`} className="aspect-square bg-asphalt rounded-xl overflow-hidden block ring-1 ring-border/40">
                 <img src={mediaUrl(p.image_urls![0])} alt="" className="w-full h-full object-cover" />
               </Link>
             ))}
@@ -83,10 +85,38 @@ export default function ExplorePage() {
         </div>
       ) : (
         <>
+          {vehicles.length > 0 && (
+            <section className="identity-panel rounded-2xl p-4 sm:p-5 space-y-3">
+              <h2 className="font-display text-xl tracking-wide flex items-center gap-2">
+                <Warehouse className="w-5 h-5 text-primary" />
+                {t("exploreGarages")}
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {vehicles.map((v) => (
+                  <Link
+                    key={v.id}
+                    to={v.owner ? `/profile/${v.owner.id}` : "#"}
+                    className="flex gap-3 bg-card/90 border border-border/40 rounded-xl p-3 hover:shadow-glow transition-shadow"
+                  >
+                    {v.thumbnail ? (
+                      <img src={mediaUrl(v.thumbnail)} alt="" className="w-20 h-20 object-cover rounded-lg shrink-0 ring-2 ring-[#F5D033]/30" />
+                    ) : (
+                      <VehiclePlaceholder className="w-20 h-20 rounded-lg shrink-0" iconClassName="w-8 h-8" />
+                    )}
+                    <div>
+                      <p className="font-semibold">{v.year} {v.make} {v.model}</p>
+                      {v.owner && <p className="text-xs text-muted-foreground">{formatHandle(v.owner)}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {hashtags.length > 0 && (
             <div>
-              <h2 className="font-semibold mb-3 flex items-center gap-2">
-                <Hash className="w-4 h-4 text-primary" />
+              <h2 className="font-display text-xl tracking-wide mb-3 flex items-center gap-2">
+                <Hash className="w-5 h-5 text-primary" />
                 {t("trendingHashtags")}
               </h2>
               <div className="flex flex-wrap gap-2">
@@ -104,40 +134,15 @@ export default function ExplorePage() {
           )}
 
           <div>
-            <h2 className="font-semibold mb-3">{t("explorePhotos")}</h2>
-            <div className="grid grid-cols-3 gap-1">
+            <h2 className="font-display text-xl tracking-wide mb-3">{t("explorePhotos")}</h2>
+            <div className="grid grid-cols-3 gap-1.5">
               {explorePosts.filter((p) => p.thumbnail).map((p) => (
-                <Link key={p.id} to={`/posts/${p.id}`} className="aspect-square bg-muted rounded-lg overflow-hidden relative group block">
+                <Link key={p.id} to={`/posts/${p.id}`} className="aspect-square bg-asphalt rounded-xl overflow-hidden block ring-1 ring-border/40">
                   <img src={mediaUrl(p.thumbnail!)} alt="" className="w-full h-full object-cover" loading="lazy" />
                 </Link>
               ))}
             </div>
           </div>
-
-          {vehicles.length > 0 && (
-            <div>
-              <h2 className="font-semibold mb-3">{t("garage.title")}</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {vehicles.map((v) => (
-                  <Link
-                    key={v.id}
-                    to={v.owner ? `/profile/${v.owner.id}` : "#"}
-                    className="flex gap-3 bg-card border border-border/40 rounded-xl p-3 hover:shadow-glow transition-shadow"
-                  >
-                    {v.thumbnail ? (
-                      <img src={mediaUrl(v.thumbnail)} alt="" className="w-20 h-20 object-cover rounded-lg shrink-0" />
-                    ) : (
-                      <VehiclePlaceholder className="w-20 h-20 rounded-lg shrink-0" iconClassName="w-8 h-8" />
-                    )}
-                    <div>
-                      <p className="font-semibold">{v.year} {v.make} {v.model}</p>
-                      {v.owner && <p className="text-xs text-muted-foreground">{formatHandle(v.owner)}</p>}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

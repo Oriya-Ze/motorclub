@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import PageHeading from "@/components/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api, Notification } from "@/lib/api";
@@ -30,8 +31,8 @@ export default function NotificationsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 pb-20 md:pb-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{t("notifications.title")}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <PageHeading className="mb-0">{t("notifications.title")}</PageHeading>
         {notifications.some((n) => !n.is_read) && (
           <Button variant="ghost" size="sm" onClick={() => markAllRead.mutate()}>
             {t("notifications.markAllRead")}

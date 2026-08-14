@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ImageCropModal from "@/components/ImageCropModal";
+import PageHeading from "@/components/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { isImageFile } from "@/lib/cropImage";
@@ -68,8 +69,9 @@ export default function CreateStoryPage() {
         />
       )}
       <div className="max-w-md mx-auto py-12 text-center space-y-6">
-        <h1 className="text-2xl font-bold">{t("createStory")}</h1>
-        <p className="text-muted-foreground text-sm">{t("storyDesc")}</p>
+        <PageHeading className="text-center [&_.gradient-primary]:mx-auto" subtitle={t("storyDesc")}>
+          {t("createStory")}
+        </PageHeading>
         <input
           ref={fileRef}
           type="file"

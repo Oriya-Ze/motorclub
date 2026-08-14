@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
@@ -8,6 +9,7 @@ import { StoriesBarSkeleton } from "@/components/Skeleton";
 import { cn, displayUsername } from "@/lib/utils";
 
 export default function StoriesBar() {
+  const { t } = useTranslation();
   const { data: stories = [], isLoading, isFetching } = useQuery({
     queryKey: ["stories"],
     queryFn: () => api.getStories(),
@@ -27,7 +29,7 @@ export default function StoriesBar() {
         <div className="w-16 h-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center bg-muted/30">
           <Plus className="w-6 h-6 text-primary" />
         </div>
-        <span className="text-[10px] text-muted-foreground">Story</span>
+        <span className="text-[10px] text-muted-foreground max-w-[64px] truncate">{t("addStoryRing")}</span>
       </Link>
 
       {stories.map((story) => (

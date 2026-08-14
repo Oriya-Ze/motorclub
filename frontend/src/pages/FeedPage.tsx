@@ -1,18 +1,22 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Newspaper } from "lucide-react";
+import { Car } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import BrandedSpinner from "@/components/BrandedSpinner";
 import EmptyState from "@/components/EmptyState";
 import FeedSidebar from "@/components/FeedSidebar";
 import PostCard from "@/components/PostCard";
 import StoriesBar from "@/components/StoriesBar";
 import { PostSkeleton } from "@/components/Skeleton";
+import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 
 const PAGE_SIZE = 10;
 
 export default function FeedPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -59,9 +63,19 @@ export default function FeedPage() {
           </>
         ) : posts.length === 0 ? (
           <EmptyState
-            icon={Newspaper}
+            icon={Car}
             title={t("noPostsTitle")}
             description={t("noPostsDesc")}
+            action={
+              <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
+                <Button onClick={() => navigate("/", { state: { openCreatePost: true } })}>
+                  {t("emptyFeedCtaPost")}
+                </Button>
+                <Button variant="outline" onClick={() => navigate("/garage")}>
+                  {t("emptyFeedCtaGarage")}
+                </Button>
+              </div>
+            }
           />
         ) : (
           <>
@@ -69,9 +83,7 @@ export default function FeedPage() {
               <PostCard key={post.id} post={post} />
             ))}
             <div ref={loadMoreRef} className="h-8 flex items-center justify-center">
-              {isFetchingNextPage && (
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              )}
+              {isFetchingNextPage && <BrandedSpinner size="sm" />}
             </div>
           </>
         )}
