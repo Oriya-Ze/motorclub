@@ -10,6 +10,7 @@ import PostShareSheet from "@/components/PostShareSheet";
 import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { api, Comment, Post } from "@/lib/api";
+import { postHasMedia, postMediaFromPost } from "@/lib/postMedia";
 import { cn, displayName, formatHandle, formatRelativeTime } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -119,7 +120,8 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
     queryClient.invalidateQueries({ queryKey: ["post", post.id] });
   };
 
-  const images = post.image_urls || [];
+  const mediaItems = postMediaFromPost(post);
+  const hasMedia = postHasMedia(post);
 
   return (
     <>
@@ -202,9 +204,9 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           )}
         </div>
 
-        <div className={cn("relative", post.vehicle_id && images.length > 0 && "ring-2 ring-[#F5D033]/50 ring-inset")}>
-          {images.length > 0 ? (
-            <PostMediaCarousel urls={images} mode={isDetail ? "detail" : "feed"} />
+        <div className={cn("relative", post.vehicle_id && hasMedia && "ring-2 ring-[#F5D033]/50 ring-inset")}>
+          {hasMedia ? (
+            <PostMediaCarousel items={mediaItems} mode={isDetail ? "detail" : "feed"} />
           ) : post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
               <p className="whitespace-pre-wrap">{post.content}</p>
@@ -212,7 +214,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           ) : null}
         </div>
 
-        {images.length > 0 && post.content && (
+        {hasMedia && post.content && (
           <div className="px-4 pt-3">
             <p className="whitespace-pre-wrap text-sm">{post.content}</p>
           </div>
