@@ -31,12 +31,12 @@ export default function PostPage() {
   }
 
   return (
-    <div className="pb-20 md:pb-6 md:max-w-2xl md:mx-auto">
-      <div className="sticky top-16 z-40 flex items-center gap-2 px-4 py-2 md:px-0 bg-background/80 backdrop-blur-md border-b border-border/40 md:border-0 md:bg-transparent md:backdrop-blur-none md:static">
+    <div className="pb-20 md:pb-8 w-full md:max-w-2xl md:mx-auto">
+      <div className="sticky top-16 z-40 flex items-center gap-2 px-4 py-2.5 md:px-0 bg-background/85 backdrop-blur-md border-b border-border/40 md:static md:bg-transparent md:backdrop-blur-none md:border-0 md:mb-3">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground rounded-lg px-1 py-0.5"
         >
           <ArrowRight className="w-4 h-4 rtl:rotate-180" />
           {t("back")}

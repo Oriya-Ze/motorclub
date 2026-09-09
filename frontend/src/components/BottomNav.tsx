@@ -11,6 +11,57 @@ interface BottomNavProps {
   onCreatePost: () => void;
 }
 
+type NavItem = {
+  to: string;
+  icon: typeof Home;
+  label: string;
+  end?: boolean;
+  badge?: number;
+  matchPrefix?: string;
+};
+
+function NavItemButton({
+  item,
+  queryClient,
+  location,
+}: {
+  item: NavItem;
+  queryClient: ReturnType<typeof useQueryClient>;
+  location: ReturnType<typeof useLocation>;
+}) {
+  const { to, icon: Icon, label, end, badge, matchPrefix } = item;
+
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onMouseEnter={() => prefetchRoute(queryClient, to)}
+      onTouchStart={() => prefetchRoute(queryClient, to)}
+      className={({ isActive }) => {
+        const active =
+          isActive ||
+          (matchPrefix != null &&
+            (location.pathname === matchPrefix ||
+              location.pathname.startsWith(`${matchPrefix}/`) ||
+              (matchPrefix === "/community" &&
+                (location.pathname.startsWith("/groups") || location.pathname.startsWith("/forums")))));
+        return cn(
+          "flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 py-1 relative rounded-xl transition-colors",
+          active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+        );
+      }}
+    >
+      <Icon className="w-5 h-5 shrink-0" />
+      <span className="text-[10px] font-medium truncate max-w-[4rem] leading-tight">{label}</span>
+      {badge ? (
+        <span className="absolute top-0 end-1 min-w-[1rem] h-4 px-0.5 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      ) : null}
+    </NavLink>
+  );
+}
+
 export default function BottomNav({ onCreatePost }: BottomNavProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -25,86 +76,67 @@ export default function BottomNav({ onCreatePost }: BottomNavProps) {
 
   const messagesUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
-  const items = [
+  const leftItems: NavItem[] = [
     { to: "/", icon: Home, label: t("feed"), end: true },
     { to: "/explore", icon: Compass, label: t("explore") },
-    { action: onCreatePost, icon: Plus, label: t("create"), primary: true },
+  ];
+
+  const rightItems: NavItem[] = [
     { to: "/community", icon: Users, label: t("community"), matchPrefix: "/community" },
-    { action: () => openMessages(), icon: Mail, label: t("messages"), badge: messagesUnread },
     { to: "/profile", icon: User, label: t("profile.nav") },
   ];
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 glass-card border-t border-border/50 pb-safe">
-      <div className="flex items-center justify-around h-16 px-1">
-        {items.map((item, i) => {
-          if ("action" in item && item.action) {
-            if ("primary" in item && item.primary) {
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={item.action}
-                  className="w-12 h-12 -mt-5 gradient-primary rounded-2xl flex items-center justify-center shadow-glow"
-                >
-                  <Plus className="w-6 h-6 text-white" />
-                </button>
-              );
-            }
-            const { action, icon: Icon, label, badge } = item as {
-              action: () => void; icon: typeof Home; label: string; badge?: number;
-            };
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={action}
-                className="flex flex-col items-center gap-0.5 px-3 py-1 relative text-muted-foreground"
-              >
-                <Icon className="w-5 h-5" />
-                <span className="text-[9px] font-medium truncate max-w-[3.25rem]">{label}</span>
-                {badge ? (
-                  <span className="absolute top-0 right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
-                    {badge > 9 ? "9+" : badge}
-                  </span>
-                ) : null}
-              </button>
-            );
-          }
-          const { to, icon: Icon, label, end, badge, matchPrefix } = item as {
-            to: string; icon: typeof Home; label: string; end?: boolean; badge?: number; matchPrefix?: string;
-          };
-          return (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              onMouseEnter={() => prefetchRoute(queryClient, to)}
-              onTouchStart={() => prefetchRoute(queryClient, to)}
-              className={({ isActive }) => {
-                const active =
-                  isActive ||
-                  (matchPrefix != null &&
-                    (location.pathname === matchPrefix ||
-                      location.pathname.startsWith(`${matchPrefix}/`) ||
-                      (matchPrefix === "/community" &&
-                        (location.pathname.startsWith("/groups") || location.pathname.startsWith("/forums")))));
-                return cn(
-                  "flex flex-col items-center gap-0.5 px-2 py-1 relative min-w-0",
-                  active ? "text-primary" : "text-muted-foreground",
-                );
-              }}
+    <nav
+      className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border/50 bg-background/90 backdrop-blur-xl pb-safe"
+      aria-label={t("mainNav")}
+    >
+      <div className="relative mx-auto max-w-lg h-[3.75rem]">
+        <div className="grid grid-cols-[1fr_4.5rem_1fr] h-full items-end px-1">
+          <div className="flex items-end justify-evenly gap-0.5 pb-1.5">
+            {leftItems.map((item) => (
+              <NavItemButton key={item.to} item={item} queryClient={queryClient} location={location} />
+            ))}
+          </div>
+
+          <div className="flex items-end justify-center pb-1.5" aria-hidden />
+
+          <div className="flex items-end justify-evenly gap-0.5 pb-1.5">
+            {rightItems.map((item) => (
+              <NavItemButton key={item.to} item={item} queryClient={queryClient} location={location} />
+            ))}
+            <button
+              type="button"
+              onClick={() => openMessages()}
+              className="flex flex-col items-center justify-center gap-0.5 min-w-0 flex-1 py-1 relative rounded-xl text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={t("messages")}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[9px] font-medium truncate max-w-[3.25rem]">{label}</span>
-              {badge ? (
-                <span className="absolute top-0 right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
-                  {badge > 9 ? "9+" : badge}
+              <Mail className="w-5 h-5 shrink-0" />
+              <span className="text-[10px] font-medium truncate max-w-[4rem] leading-tight">{t("messages")}</span>
+              {messagesUnread > 0 && (
+                <span className="absolute top-0 end-1 min-w-[1rem] h-4 px-0.5 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
+                  {messagesUnread > 9 ? "9+" : messagesUnread}
                 </span>
-              ) : null}
-            </NavLink>
-          );
-        })}
+              )}
+            </button>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onCreatePost}
+          aria-label={t("createPost")}
+          className={cn(
+            "absolute left-1/2 -translate-x-1/2 bottom-[calc(0.75rem+env(safe-area-inset-bottom,0px))]",
+            "flex h-14 w-14 items-center justify-center rounded-2xl",
+            "gradient-primary text-white shadow-glow",
+            "ring-4 ring-background",
+            "transition-transform active:scale-95 hover:scale-105",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          )}
+        >
+          <Plus className="w-7 h-7" strokeWidth={2.5} />
+        </button>
       </div>
     </nav>
   );

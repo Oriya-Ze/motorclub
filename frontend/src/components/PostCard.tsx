@@ -100,6 +100,8 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
     setTimeout(() => setLikeAnim(false), 800);
   };
 
+  const postUrl = `/posts/${post.id}`;
+
   const handleMediaInteract = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
@@ -114,7 +116,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
     lastTap.current = now;
     if (!isDetail) {
       openPostTimer.current = setTimeout(() => {
-        navigate(`/posts/${post.id}`);
+        navigate(postUrl);
       }, 280);
     }
   };
@@ -205,21 +207,41 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
         <div className={cn("relative", post.vehicle_id && images.length > 0 && "ring-2 ring-[#F5D033]/50 ring-inset")}>
           {images.length > 0 ? (
-            <PostMediaCarousel
-              urls={images}
-              mode={isDetail ? "detail" : "feed"}
-              onInteract={handleMediaInteract}
-            />
+            <>
+              <Link to={postUrl} className="hidden md:block relative group/media outline-none">
+                <PostMediaCarousel urls={images} mode={isDetail ? "detail" : "feed"} />
+                {!isDetail && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/15 group-focus-visible/media:bg-black/15 transition-colors">
+                    <span className="opacity-0 group-hover/media:opacity-100 group-focus-visible/media:opacity-100 transition-opacity text-white text-sm font-medium px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm">
+                      {t("viewPost")}
+                    </span>
+                  </span>
+                )}
+              </Link>
+              <div className="md:hidden relative">
+                <PostMediaCarousel
+                  urls={images}
+                  mode={isDetail ? "detail" : "feed"}
+                  onInteract={!isDetail ? handleMediaInteract : undefined}
+                />
+                {likeAnim && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <Heart className="w-20 h-20 text-white fill-primary drop-shadow-lg animate-ping" />
+                  </div>
+                )}
+              </div>
+            </>
           ) : post.content ? (
-            <div className="px-4 pb-2 min-h-[60px]">
-              <p className="whitespace-pre-wrap">{post.content}</p>
-            </div>
+            !isDetail ? (
+              <Link to={postUrl} className="block px-4 pb-2 min-h-[60px] hover:bg-muted/30 transition-colors md:mx-2 md:rounded-xl">
+                <p className="whitespace-pre-wrap">{post.content}</p>
+              </Link>
+            ) : (
+              <div className="px-4 pb-2 min-h-[60px]">
+                <p className="whitespace-pre-wrap">{post.content}</p>
+              </div>
+            )
           ) : null}
-          {likeAnim && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <Heart className="w-20 h-20 text-white fill-primary drop-shadow-lg animate-ping" />
-            </div>
-          )}
         </div>
 
         {images.length > 0 && post.content && (
