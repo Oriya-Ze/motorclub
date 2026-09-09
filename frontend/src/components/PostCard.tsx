@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Heart, MapPin, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -27,18 +27,23 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isDetail = variant === "detail";
+  const isFeed = !isDetail;
   const [showComments, setShowComments] = useState(isDetail);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
-  const [likeAnim, setLikeAnim] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const lastTap = useRef(0);
-  const openPostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAuthor = user?.id === post.user_id;
+  const postUrl = `/posts/${post.id}`;
+
+  const stopClick = (e: MouseEvent) => e.stopPropagation();
+
+  const openPost = () => {
+    if (isFeed) navigate(postUrl);
+  };
 
   useEffect(() => {
     if (!isDetail) return;
@@ -50,14 +55,8 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   }, [isDetail, post.id]);
 
   useEffect(() => {
-    return () => {
-      if (openPostTimer.current) clearTimeout(openPostTimer.current);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!showMenu) return;
-    const close = (e: MouseEvent) => {
+    const close = (e: globalThis.MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
     };
     document.addEventListener("mousedown", close);
@@ -94,33 +93,6 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const triggerLikeAnimation = () => {
-    if (!post.is_liked) likePost.mutate();
-    setLikeAnim(true);
-    setTimeout(() => setLikeAnim(false), 800);
-  };
-
-  const postUrl = `/posts/${post.id}`;
-
-  const handleMediaInteract = () => {
-    const now = Date.now();
-    if (now - lastTap.current < 300) {
-      if (openPostTimer.current) {
-        clearTimeout(openPostTimer.current);
-        openPostTimer.current = null;
-      }
-      triggerLikeAnimation();
-      lastTap.current = 0;
-      return;
-    }
-    lastTap.current = now;
-    if (!isDetail) {
-      openPostTimer.current = setTimeout(() => {
-        navigate(postUrl);
-      }, 280);
-    }
-  };
-
   const loadComments = async () => {
     if (showComments) {
       setShowComments(false);
@@ -151,13 +123,36 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
   return (
     <>
-      <article className={cn("feed-post", isDetail ? "feed-post--detail" : "feed-post--feed")}>
+      <article
+        className={cn(
+          "feed-post",
+          isDetail ? "feed-post--detail" : "feed-post--feed feed-post--clickable",
+        )}
+        onClick={isFeed ? openPost : undefined}
+        onKeyDown={
+          isFeed
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openPost();
+                }
+              }
+            : undefined
+        }
+        role={isFeed ? "link" : undefined}
+        tabIndex={isFeed ? 0 : undefined}
+        aria-label={isFeed ? t("viewPost") : undefined}
+      >
         <div className="flex items-center gap-3 px-4 py-3">
-          <Link to={`/profile/${post.author.id}`}>
+          <Link to={`/profile/${post.author.id}`} onClick={stopClick}>
             <Avatar user={post.author} size="md" />
           </Link>
           <div className="flex-1 min-w-0">
-            <Link to={`/profile/${post.author.id}`} className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-1">
+            <Link
+              to={`/profile/${post.author.id}`}
+              onClick={stopClick}
+              className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-1"
+            >
               {displayName(post.author)}
               {post.author.is_verified && <VerifiedBadge />}
             </Link>
@@ -169,15 +164,17 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
               </p>
             )}
             {post.vehicle_id && (
-              <VehicleBadge
-                label={t("linkedVehicle")}
-                vehicleId={post.vehicle_id}
-                className="mt-1.5"
-              />
+              <span onClick={stopClick} className="inline-block">
+                <VehicleBadge
+                  label={t("linkedVehicle")}
+                  vehicleId={post.vehicle_id}
+                  className="mt-1.5"
+                />
+              </span>
             )}
           </div>
           {isAuthor && (
-            <div className="relative" ref={menuRef}>
+            <div className="relative" ref={menuRef} onClick={stopClick}>
               <button
                 type="button"
                 onClick={() => setShowMenu((v) => !v)}
@@ -207,40 +204,11 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
         <div className={cn("relative", post.vehicle_id && images.length > 0 && "ring-2 ring-[#F5D033]/50 ring-inset")}>
           {images.length > 0 ? (
-            <>
-              <Link to={postUrl} className="hidden md:block relative group/media outline-none">
-                <PostMediaCarousel urls={images} mode={isDetail ? "detail" : "feed"} />
-                {!isDetail && (
-                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover/media:bg-black/15 group-focus-visible/media:bg-black/15 transition-colors">
-                    <span className="opacity-0 group-hover/media:opacity-100 group-focus-visible/media:opacity-100 transition-opacity text-white text-sm font-medium px-3 py-1.5 rounded-full bg-black/55 backdrop-blur-sm">
-                      {t("viewPost")}
-                    </span>
-                  </span>
-                )}
-              </Link>
-              <div className="md:hidden relative">
-                <PostMediaCarousel
-                  urls={images}
-                  mode={isDetail ? "detail" : "feed"}
-                  onInteract={!isDetail ? handleMediaInteract : undefined}
-                />
-                {likeAnim && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <Heart className="w-20 h-20 text-white fill-primary drop-shadow-lg animate-ping" />
-                  </div>
-                )}
-              </div>
-            </>
+            <PostMediaCarousel urls={images} mode={isDetail ? "detail" : "feed"} />
           ) : post.content ? (
-            !isDetail ? (
-              <Link to={postUrl} className="block px-4 pb-2 min-h-[60px] hover:bg-muted/30 transition-colors md:mx-2 md:rounded-xl">
-                <p className="whitespace-pre-wrap">{post.content}</p>
-              </Link>
-            ) : (
-              <div className="px-4 pb-2 min-h-[60px]">
-                <p className="whitespace-pre-wrap">{post.content}</p>
-              </div>
-            )
+            <div className="px-4 pb-2 min-h-[60px]">
+              <p className="whitespace-pre-wrap">{post.content}</p>
+            </div>
           ) : null}
         </div>
 
@@ -251,7 +219,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
         )}
 
         {post.hashtags && post.hashtags.length > 0 && (
-          <div className="px-4 pt-2 flex flex-wrap gap-2">
+          <div className="px-4 pt-2 flex flex-wrap gap-2" onClick={stopClick}>
             {post.hashtags.map((tag) => (
               <Link key={tag} to={`/explore?tag=${tag}`} className="text-sm text-primary hover:underline">
                 #{tag}
@@ -260,8 +228,9 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-4 px-4 py-3">
+        <div className="flex items-center gap-4 px-4 py-3" onClick={stopClick}>
           <button
+            type="button"
             onClick={() => likePost.mutate()}
             className={cn("flex items-center gap-1.5 text-sm transition-colors", post.is_liked ? "text-primary" : "text-muted-foreground hover:text-primary")}
           >
@@ -269,6 +238,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
             {post.likes_count}
           </button>
           <button
+            type="button"
             onClick={loadComments}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
@@ -276,18 +246,19 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
             {post.comments_count}
           </button>
           <button
+            type="button"
             onClick={() => savePost.mutate()}
             className={cn("flex items-center gap-1.5 text-sm transition-colors ms-auto", post.is_saved ? "text-primary" : "text-muted-foreground hover:text-primary")}
           >
             <Bookmark className={cn("w-5 h-5", post.is_saved && "fill-current")} />
           </button>
-          <button onClick={() => setShowShare(true)} className="text-muted-foreground hover:text-primary">
+          <button type="button" onClick={() => setShowShare(true)} className="text-muted-foreground hover:text-primary">
             <Share2 className="w-5 h-5" />
           </button>
         </div>
 
         {showComments && (
-          <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3">
+          <div className="px-4 pb-4 space-y-3 border-t border-border/40 pt-3" onClick={stopClick}>
             {loadingComments ? (
               <p className="text-sm text-muted-foreground">...</p>
             ) : comments.length === 0 ? (

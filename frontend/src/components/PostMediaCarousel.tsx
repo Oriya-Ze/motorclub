@@ -7,14 +7,12 @@ interface PostMediaCarouselProps {
   /** feed = cropped cover; detail = full image within viewport */
   mode?: "feed" | "detail";
   className?: string;
-  onInteract?: () => void;
 }
 
 export default function PostMediaCarousel({
   urls,
   mode = "feed",
   className,
-  onInteract,
 }: PostMediaCarouselProps) {
   const [idx, setIdx] = useState(0);
   if (!urls.length) return null;
@@ -22,13 +20,7 @@ export default function PostMediaCarousel({
   const isDetail = mode === "detail";
 
   return (
-    <div
-      className={cn("relative bg-asphalt", onInteract && "cursor-pointer", className)}
-      onClick={onInteract}
-      onKeyDown={onInteract ? (e) => e.key === "Enter" && onInteract() : undefined}
-      role={onInteract ? "button" : undefined}
-      tabIndex={onInteract ? 0 : undefined}
-    >
+    <div className={cn("relative bg-asphalt", className)}>
       <img
         src={mediaUrl(urls[idx])}
         alt=""

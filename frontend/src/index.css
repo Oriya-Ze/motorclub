@@ -256,6 +256,20 @@
     border-bottom: 1px solid hsl(var(--border) / 0.45);
   }
 
+  .feed-post--clickable {
+    cursor: pointer;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .feed-post--clickable:hover {
+      background: hsl(var(--muted) / 0.18);
+    }
+
+    .dark .feed-post--clickable:hover {
+      background: hsl(var(--muted) / 0.12);
+    }
+  }
+
   @media (max-width: 767px) {
     .feed-post--feed {
       border-radius: 0;
