@@ -35,6 +35,9 @@ function formatVideoUploadError(err: unknown, t: (key: string, opts?: Record<str
     if (err.code === "video_too_large") {
       return t("videoTooLargeMB", { mb: Math.round(MAX_VIDEO_BYTES / (1024 * 1024)) });
     }
+    if (err.code === "s3_put_failed") {
+      return t("videoUploadFailed");
+    }
     return err.message;
   }
   if (err instanceof Error) {
@@ -98,7 +101,6 @@ export default function CreatePostModal({ open, onClose, initialVehicleId }: Cre
     try {
       validateFileBeforeUpload(file);
 
-      setVideoUploadLabel(t("videoChecking"));
       try {
         const duration = await getVideoDuration(file);
         if (Number.isFinite(duration) && duration > MAX_POST_VIDEO_DURATION_SEC) {
@@ -106,9 +108,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId }: Cre
           return;
         }
       } catch (err) {
-        if (err instanceof Error && err.message === "duration_timeout") {
-          toast.message(t("videoDurationUnknown"));
-        } else {
+        if (!(err instanceof Error && err.message === "duration_timeout")) {
           throw err;
         }
       }
@@ -288,7 +288,6 @@ export default function CreatePostModal({ open, onClose, initialVehicleId }: Cre
               ref={videoInputRef}
               type="file"
               accept={`${SUPPORTED_VIDEO_TYPES.join(",")},video/*`}
-              capture="environment"
               className="hidden"
               onChange={(e) => void handleVideoSelect(e.target.files)}
             />

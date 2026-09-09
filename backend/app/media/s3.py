@@ -41,6 +41,10 @@ class S3MediaStorage(MediaStorage):
         normalized_type = content_type.split(";", 1)[0].strip().lower()
         storage_key = generate_storage_key(user_id=user_id, purpose=purpose, extension=extension)
 
+        expires_in = app_config.settings.s3_presigned_url_expiry_seconds
+        if media_type == "video":
+            expires_in = max(expires_in, 900)
+
         try:
             upload_url = self._client.generate_presigned_url(
                 ClientMethod="put_object",
@@ -49,7 +53,7 @@ class S3MediaStorage(MediaStorage):
                     "Key": storage_key,
                     "ContentType": normalized_type,
                 },
-                ExpiresIn=app_config.settings.s3_presigned_url_expiry_seconds,
+                ExpiresIn=expires_in,
             )
         except (BotoCoreError, ClientError) as exc:
             raise HTTPException(status_code=503, detail="Unable to create upload URL") from exc
@@ -61,7 +65,7 @@ class S3MediaStorage(MediaStorage):
             upload_method="PUT",
             upload_url=upload_url,
             required_headers={"Content-Type": normalized_type},
-            expires_in=app_config.settings.s3_presigned_url_expiry_seconds,
+            expires_in=expires_in,
         )
 
     def resolve_url(self, storage_key_or_legacy_path: str) -> str:

@@ -56,6 +56,11 @@ def normalize_extension(filename: str | None, content_type: str) -> str:
             raise HTTPException(status_code=400, detail="Unsupported file extension")
         expected_mime = EXTENSION_TO_MIME[ext]
         if expected_mime != normalized_type:
+            # Phones often send .mov with video/mp4 or the reverse.
+            if normalized_type in ALLOWED_VIDEO_MIMES and ext in {".mp4", ".mov"}:
+                allowed = MIME_TO_EXTENSIONS.get(normalized_type)
+                if allowed:
+                    return sorted(allowed)[0]
             raise HTTPException(status_code=400, detail="File extension does not match content type")
         allowed = MIME_TO_EXTENSIONS.get(normalized_type)
         if not allowed or ext not in allowed:

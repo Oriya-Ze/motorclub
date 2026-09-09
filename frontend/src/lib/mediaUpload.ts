@@ -71,6 +71,16 @@ const EXTENSION_TO_MIME: Record<string, string> = {
   ".mov": "video/quicktime",
 };
 
+const MIME_TO_EXTENSION: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/quicktime": ".mov",
+};
+
 function fileExtension(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot >= 0 ? name.slice(dot).toLowerCase() : "";
@@ -95,24 +105,44 @@ export function inferMediaType(file: File): MediaType {
   if ((SUPPORTED_VIDEO_TYPES as readonly string[]).includes(contentType)) {
     return "video";
   }
+  if (contentType.startsWith("video/")) {
+    return "video";
+  }
+  const ext = fileExtension(file.name);
+  if ([".mp4", ".mov", ".webm"].includes(ext)) {
+    return "video";
+  }
   throw new MediaUploadError("Unsupported file type", "unsupported_type");
+}
+
+function alignedMediaFilename(name: string, contentType: string, mediaType: MediaType): string {
+  const ext = MIME_TO_EXTENSION[contentType] ?? (mediaType === "video" ? ".mp4" : ".jpg");
+  const stem = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
+  const base = stem.trim() || (mediaType === "video" ? "video" : "photo");
+  return `${base}${ext}`;
 }
 
 /** Normalize mobile camera files that omit MIME type or use generic octet-stream. */
 export function normalizeMediaFile(file: File, mediaType: MediaType): File {
-  const contentType = resolveUploadContentType(file);
-  if (contentType === "application/octet-stream") {
-    const fallbackType = mediaType === "video" ? "video/mp4" : "image/jpeg";
-    const fallbackName =
-      file.name && fileExtension(file.name)
-        ? file.name
-        : mediaType === "video"
-          ? "video.mp4"
-          : "photo.jpg";
-    return new File([file], fallbackName, { type: fallbackType, lastModified: file.lastModified });
+  let contentType = resolveUploadContentType(file);
+  if (contentType === "application/octet-stream" || contentType.startsWith("video/")) {
+    if (mediaType === "video") {
+      const ext = fileExtension(file.name);
+      contentType =
+        ext === ".mov"
+          ? "video/quicktime"
+          : ext === ".webm"
+            ? "video/webm"
+            : "video/mp4";
+    } else {
+      contentType = "image/jpeg";
+    }
   }
-  if (file.type === contentType) return file;
-  return new File([file], file.name || (mediaType === "video" ? "video.mp4" : "photo.jpg"), {
+
+  const filename = alignedMediaFilename(file.name || "", contentType, mediaType);
+  if (file.name === filename && file.type === contentType) return file;
+
+  return new File([file], filename, {
     type: contentType,
     lastModified: file.lastModified,
   });
@@ -193,14 +223,19 @@ async function uploadToPresignedUrl(
   file: File,
   requiredHeaders: Record<string, string>,
 ): Promise<void> {
+  const headers = { ...requiredHeaders };
+  if (headers["Content-Type"]) {
+    headers["Content-Type"] = headers["Content-Type"].split(";", 1)[0].trim();
+  }
+
   const response = await fetch(uploadUrl, {
     method: "PUT",
-    headers: requiredHeaders,
+    headers,
     body: file,
   });
 
   if (!response.ok) {
-    throw new MediaUploadError("Upload failed. Please try again.", "s3_put_failed");
+    throw new MediaUploadError("Video upload failed", "s3_put_failed");
   }
 }
 
