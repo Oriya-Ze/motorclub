@@ -52,7 +52,7 @@ export const SUPPORTED_VIDEO_TYPES = [
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Camera recordings on mobile are often 15–50MB before server-side transcode (Phase B2). */
-export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
 
 // TODO(orphan-cleanup): A future worker should delete storage objects that were
 // uploaded successfully but never referenced by a domain record (e.g. after a

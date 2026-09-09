@@ -54,12 +54,24 @@ export interface UsernameCheckResult {
   reason: string | null;
 }
 
+export interface VideoMedia {
+  source_key: string;
+  status: "uploaded" | "processing" | "ready" | "failed";
+  poster_key?: string | null;
+  thumb_key?: string | null;
+  url_480p?: string | null;
+  url_720p?: string | null;
+  url_1080p?: string | null;
+  error_message?: string | null;
+}
+
 export interface Post {
   id: string;
   user_id: string;
   content?: string | null;
   image_urls?: string[] | null;
   video_urls?: string[] | null;
+  video_media?: VideoMedia[] | null;
   location?: string | null;
   vehicle_id?: string | null;
   hashtags?: string[] | null;

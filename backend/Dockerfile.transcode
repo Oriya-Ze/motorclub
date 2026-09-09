@@ -1,0 +1,13 @@
+FROM public.ecr.aws/lambda/python:3.12
+
+RUN microdnf install -y tar xz findutils && microdnf clean all
+
+RUN curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
+    | tar xJ --wildcards --strip-components=1 -C /usr/local/bin '*/ffmpeg' '*/ffprobe'
+
+COPY requirements-transcode.txt ${LAMBDA_TASK_ROOT}/requirements-transcode.txt
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements-transcode.txt
+
+COPY lambda_media ${LAMBDA_TASK_ROOT}/lambda_media
+
+CMD ["lambda_media.handler.handler"]

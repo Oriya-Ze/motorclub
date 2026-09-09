@@ -1,8 +1,8 @@
-import { Volume2, VolumeX } from "lucide-react";
+import { Loader2, Volume2, VolumeX } from "lucide-react";
 import { useId, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useFeedVideoAutoplay } from "@/hooks/useFeedVideoAutoplay";
-import type { PostMediaItem } from "@/lib/postMedia";
+import { pickVideoPlaybackUrl, type PostMediaItem } from "@/lib/postMedia";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -33,37 +33,81 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlidePr
   const isDetail = mode === "detail";
   const shouldAutoplay = autoplayEnabled || isDetail;
 
-  useFeedVideoAutoplay(id, containerRef, videoRef, shouldAutoplay, isActiveSlide);
+  if (item.type !== "video") return null;
+
+  const playbackUrl = pickVideoPlaybackUrl(item, mode);
+  const posterKey = item.video?.poster_key;
+  const isFailed = item.video?.status === "failed";
+  const showPosterOnly = !playbackUrl && Boolean(posterKey);
+  const hasProcessedVariants = Boolean(
+    item.video?.url_480p || item.video?.url_720p || item.video?.url_1080p,
+  );
+  const isProcessing =
+    (item.video?.status === "uploaded" || item.video?.status === "processing") &&
+    !hasProcessedVariants &&
+    showPosterOnly;
+
+  useFeedVideoAutoplay(id, containerRef, videoRef, shouldAutoplay && Boolean(playbackUrl), isActiveSlide);
 
   return (
     <div
       ref={containerRef}
       className={cn("relative bg-black", isDetail ? "min-h-[200px]" : "aspect-[4/3]")}
     >
-      <video
-        ref={videoRef}
-        src={mediaUrl(item.url)}
-        className={cn(
-          "w-full h-full",
-          isDetail ? "max-h-[75vh] object-contain mx-auto" : "object-cover",
-        )}
-        muted={muted}
-        playsInline
-        loop
-        preload="metadata"
-        onClick={stopClick}
-      />
-      <button
-        type="button"
-        onClick={(e) => {
-          stopClick(e);
-          setMuted((value) => !value);
-        }}
-        className="absolute bottom-3 end-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm"
-        aria-label={muted ? t("unmuteVideo") : t("muteVideo")}
-      >
-        {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-      </button>
+      {showPosterOnly && posterKey ? (
+        <img
+          src={mediaUrl(posterKey)}
+          alt=""
+          className={cn(
+            "w-full h-full",
+            isDetail ? "max-h-[75vh] object-contain mx-auto" : "object-cover",
+          )}
+        />
+      ) : playbackUrl ? (
+        <video
+          ref={videoRef}
+          src={mediaUrl(playbackUrl)}
+          poster={posterKey ? mediaUrl(posterKey) : undefined}
+          className={cn(
+            "w-full h-full",
+            isDetail ? "max-h-[75vh] object-contain mx-auto" : "object-cover",
+          )}
+          muted={muted}
+          playsInline
+          loop
+          preload="metadata"
+          onClick={stopClick}
+        />
+      ) : null}
+
+      {isProcessing && !isFailed && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+          <div className="flex flex-col items-center gap-2 text-white">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="text-xs font-medium">{t("videoProcessing")}</span>
+          </div>
+        </div>
+      )}
+
+      {isFailed && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60 px-4 text-center text-sm text-white">
+          {t("videoProcessingFailed")}
+        </div>
+      )}
+
+      {playbackUrl && (
+        <button
+          type="button"
+          onClick={(e) => {
+            stopClick(e);
+            setMuted((value) => !value);
+          }}
+          className="absolute bottom-3 end-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+          aria-label={muted ? t("unmuteVideo") : t("muteVideo")}
+        >
+          {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
+      )}
     </div>
   );
 }

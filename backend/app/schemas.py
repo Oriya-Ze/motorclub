@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.schemas_media import VideoMediaResponse
+
 
 class UserPublic(BaseModel):
     id: UUID
@@ -112,6 +114,7 @@ class PostResponse(BaseModel):
     content: str | None
     image_urls: list[str] | None
     video_urls: list[str] | None
+    video_media: list[VideoMediaResponse] | None = None
     location: str | None
     vehicle_id: UUID | None = None
     hashtags: list[str] | None = None

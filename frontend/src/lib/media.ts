@@ -2,7 +2,7 @@ const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1"
 const MEDIA_BASE_URL = (import.meta.env.VITE_MEDIA_BASE_URL || "").replace(/\/$/, "");
 
 function isStorageKey(ref: string): boolean {
-  return ref.startsWith("users/") && !ref.startsWith("/");
+  return /^(users|processed)\//.test(ref);
 }
 
 export function mediaUrl(path: string | null | undefined): string {

@@ -30,3 +30,14 @@ class UploadFileResponse(BaseModel):
 
 class UploadMultipleResponse(BaseModel):
     files: list[UploadFileResponse]
+
+
+class VideoMediaResponse(BaseModel):
+    source_key: str
+    status: str
+    poster_key: str | None = None
+    thumb_key: str | None = None
+    url_480p: str | None = None
+    url_720p: str | None = None
+    url_1080p: str | None = None
+    error_message: str | None = None

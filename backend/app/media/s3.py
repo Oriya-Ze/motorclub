@@ -43,7 +43,7 @@ class S3MediaStorage(MediaStorage):
 
         expires_in = app_config.settings.s3_presigned_url_expiry_seconds
         if media_type == "video":
-            expires_in = max(expires_in, 900)
+            expires_in = max(expires_in, 1800)
 
         try:
             upload_url = self._client.generate_presigned_url(
