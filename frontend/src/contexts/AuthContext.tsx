@@ -5,12 +5,19 @@ import { buildGoogleAuthorizeUrl } from "@/lib/cognitoOAuth";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, captchaToken?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   completeOAuthLogin: (data: { code: string; redirect_uri: string }) => Promise<void>;
   getOAuthConfig: () => Promise<OAuthConfig>;
-  register: (data: { email: string; username: string; full_name: string; password: string }) => Promise<AuthResponse>;
+  register: (data: {
+    email: string;
+    username: string;
+    full_name: string;
+    password: string;
+    captcha_token?: string;
+  }) => Promise<AuthResponse>;
   confirmSignUp: (data: { email: string; code: string; password: string }) => Promise<void>;
+  resendConfirmation: (email: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -70,8 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const res = await api.login({ email, password });
+  const login = async (email: string, password: string, captchaToken?: string) => {
+    const res = await api.login({
+      email,
+      password,
+      captcha_token: captchaToken,
+    });
     applyAuthResponse(res, setUser);
   };
 
@@ -94,6 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const confirmSignUp = async (data: { email: string; code: string; password: string }) => {
     const res = await api.confirmSignUp(data);
     applyAuthResponse(res, setUser);
+  };
+
+  const resendConfirmation = async (email: string) => {
+    await api.resendConfirmation(email);
   };
 
   const logout = () => {
@@ -119,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         getOAuthConfig,
         register,
         confirmSignUp,
+        resendConfirmation,
         logout,
         refreshUser,
       }}

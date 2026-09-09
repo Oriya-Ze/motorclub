@@ -4,10 +4,19 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.business_types import is_valid_business_type
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import BusinessUpgradeRequest, Follower, Post, ProfileSettings, User
-from app.schemas import ProfileUpdate, SettingsResponse, SettingsUpdate, UserPublic
+from app.schemas import (
+    BusinessUpgradeRequestCreate,
+    BusinessUpgradeRequestResponse,
+    ProfileUpdate,
+    SettingsResponse,
+    SettingsUpdate,
+    UserPublic,
+)
+from app.services.business_upgrade import get_latest_request, submit_business_upgrade_request
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -51,6 +60,23 @@ async def update_profile(
         if data["username"] != user.username:
             raise HTTPException(status_code=400, detail="Username cannot be changed")
         del data["username"]
+    business_fields = {
+        "business_type",
+        "business_description",
+        "business_phone",
+        "business_address",
+        "cover_image_url",
+        "business_website",
+        "business_registration_id",
+        "business_hours",
+        "gallery_urls",
+        "certifications",
+        "service_area",
+    }
+    if business_fields & data.keys() and user.account_type != "business":
+        raise HTTPException(status_code=400, detail="Business profile fields require a business account")
+    if "business_type" in data and data["business_type"] is not None and not is_valid_business_type(data["business_type"]):
+        raise HTTPException(status_code=400, detail="Invalid business category")
     for field, value in data.items():
         setattr(user, field, value)
     await db.commit()
@@ -157,23 +183,22 @@ async def follow_status(
     return {"following": existing is not None}
 
 
-@router.post("/me/business-upgrade")
+@router.post("/me/business-upgrade", response_model=BusinessUpgradeRequestResponse)
 async def request_business_upgrade(
+    body: BusinessUpgradeRequestCreate,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    if user.account_type == "business":
-        return {"status": "already_business"}
+    req = await submit_business_upgrade_request(db, user, body)
+    return BusinessUpgradeRequestResponse.model_validate(req)
 
-    existing = await db.scalar(
-        select(BusinessUpgradeRequest).where(
-            BusinessUpgradeRequest.user_id == user.id,
-            BusinessUpgradeRequest.status == "pending",
-        )
-    )
-    if existing:
-        return {"status": "pending"}
 
-    db.add(BusinessUpgradeRequest(user_id=user.id))
-    await db.commit()
-    return {"status": "pending"}
+@router.get("/me/business-upgrade", response_model=BusinessUpgradeRequestResponse | None)
+async def get_my_business_upgrade(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    req = await get_latest_request(db, user.id)
+    if not req:
+        return None
+    return BusinessUpgradeRequestResponse.model_validate(req)

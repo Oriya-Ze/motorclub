@@ -16,7 +16,7 @@ from typing import Literal
 from uuid import UUID
 
 MediaType = Literal["image", "video"]
-MediaPurpose = Literal["post", "story", "vehicle", "avatar"]
+MediaPurpose = Literal["post", "story", "vehicle", "avatar", "product"]
 UploadMethod = Literal["PUT", "multipart"]
 
 

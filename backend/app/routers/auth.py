@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,10 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_auth_provider
 from app.auth.cognito import CognitoAuthProvider
 from app.auth.local import LocalAuthProvider, _create_access_token
+from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import User
-from app.rate_limit import enforce_rate_limit
+from app.rate_limit import _client_ip, enforce_rate_limit
 from app.schemas import (
     AuthResponse,
     ChangePasswordRequest,
@@ -19,24 +20,59 @@ from app.schemas import (
     OAuthCallbackRequest,
     OAuthConfigResponse,
     RegisterRequest,
+    ResendConfirmationRequest,
     ResetPasswordRequest,
     UserPublic,
+    UsernameCheckResponse,
 )
+from app.services.auth_lookup import check_username_availability
+from app.services.turnstile import verify_turnstile_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
 
+async def _require_captcha(request: Request, token: str | None) -> None:
+    if not settings.turnstile_enabled:
+        return
+    await verify_turnstile_token(token or "", _client_ip(request))
+
+
+@router.get("/check-username", response_model=UsernameCheckResponse)
+async def check_username(
+    request: Request,
+    username: str = Query(min_length=1, max_length=30),
+    db: AsyncSession = Depends(get_db),
+):
+    await enforce_rate_limit(request, "auth:check-username", limit=60, window_seconds=3600)
+    await enforce_rate_limit(
+        request,
+        "auth:check-username:name",
+        identifier=username.strip().lower(),
+        limit=30,
+        window_seconds=3600,
+    )
+    result = await check_username_availability(db, username)
+    return UsernameCheckResponse(**result)
+
+
 @router.post("/register", response_model=AuthResponse)
 async def register(body: RegisterRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    await enforce_rate_limit(request, "auth:register", limit=5, window_seconds=3600)
+    await _require_captcha(request, body.captcha_token)
+    await enforce_rate_limit(request, "auth:register", limit=10, window_seconds=3600)
+    await enforce_rate_limit(
+        request,
+        "auth:register:email",
+        identifier=body.email,
+        limit=5,
+        window_seconds=3600,
+    )
     provider = get_auth_provider(db)
 
     if isinstance(provider, CognitoAuthProvider):
         await provider.register(body.email, body.username, body.full_name, body.password)
         return AuthResponse(
             confirmation_required=True,
-            message="Account created. Check your email for a verification code.",
         )
 
     auth_user = await provider.register(body.email, body.username, body.full_name, body.password)
@@ -55,7 +91,7 @@ async def register(body: RegisterRequest, request: Request, db: AsyncSession = D
 
 @router.post("/confirm", response_model=AuthResponse)
 async def confirm_sign_up(body: ConfirmSignUpRequest, request: Request, db: AsyncSession = Depends(get_db)):
-    await enforce_rate_limit(request, "auth:confirm", limit=10, window_seconds=3600)
+    await enforce_rate_limit(request, "auth:confirm", limit=15, window_seconds=3600)
     provider = get_auth_provider(db)
     if not isinstance(provider, CognitoAuthProvider):
         raise HTTPException(status_code=501, detail="Account confirmation is only available with Cognito auth")
@@ -73,8 +109,39 @@ async def confirm_sign_up(body: ConfirmSignUpRequest, request: Request, db: Asyn
     )
 
 
+@router.post("/resend-confirmation")
+async def resend_confirmation(
+    body: ResendConfirmationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    await enforce_rate_limit(request, "auth:resend", limit=8, window_seconds=3600)
+    await enforce_rate_limit(
+        request,
+        "auth:resend:email",
+        identifier=body.email,
+        limit=5,
+        window_seconds=3600,
+    )
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        raise HTTPException(status_code=501, detail="Account confirmation is only available with Cognito auth")
+
+    await provider.resend_confirmation(body.email)
+    return {"message": "If the email is pending verification, a new code was sent"}
+
+
 @router.post("/login", response_model=AuthResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await _require_captcha(request, body.captcha_token)
+    await enforce_rate_limit(request, "auth:login", limit=30, window_seconds=3600)
+    await enforce_rate_limit(
+        request,
+        "auth:login:email",
+        identifier=body.email,
+        limit=15,
+        window_seconds=3600,
+    )
     provider = get_auth_provider(db)
     auth_user, tokens = await provider.login(body.email, body.password)
 
@@ -92,10 +159,15 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 @router.get("/oauth/config", response_model=OAuthConfigResponse)
 async def oauth_config(db: AsyncSession = Depends(get_db)):
     provider = get_auth_provider(db)
-    if not isinstance(provider, CognitoAuthProvider):
-        return OAuthConfigResponse(google_enabled=False)
-    config = provider.get_oauth_config()
-    return OAuthConfigResponse(**config)
+    if isinstance(provider, CognitoAuthProvider):
+        config = provider.get_oauth_config()
+    else:
+        config = {"google_enabled": False}
+    return OAuthConfigResponse(
+        **config,
+        turnstile_enabled=settings.turnstile_enabled,
+        turnstile_site_key=settings.turnstile_site_key or None,
+    )
 
 
 @router.post("/oauth/callback", response_model=AuthResponse)

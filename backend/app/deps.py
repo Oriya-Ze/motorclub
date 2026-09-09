@@ -7,11 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_auth_provider
 from app.auth.base import AuthUser
+from app.config import settings
 from app.database import get_db
 from app.models import User
 from app.schemas import UserPublic
 
 security = HTTPBearer(auto_error=False)
+
+
+def is_platform_admin(user: User) -> bool:
+    if user.is_admin:
+        return True
+    return user.email.strip().lower() in settings.admin_email_list
 
 
 async def get_current_user(
@@ -43,6 +50,12 @@ async def get_user_model(user: AuthUser = Depends(get_current_user), db: AsyncSe
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
+
+
+async def require_admin(user: User = Depends(get_user_model)) -> User:
+    if not is_platform_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
 
 
 def user_to_public(user: User) -> UserPublic:

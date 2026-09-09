@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell, Calendar, Compass, Home, LogOut, MessageSquare, Menu, Plus, Settings,
-  ShoppingBag, UserCircle, Users, Warehouse, Wrench, X,
+  Bell, Building2, Calendar, Compass, Home, LogOut, MessageSquare, Menu, Plus, Settings,
+  ShoppingBag, UserCircle, Users, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,12 +22,11 @@ import { cn, displayUsername } from "@/lib/utils";
 const navItems = [
   { to: "/", label: "feed", icon: Home },
   { to: "/explore", label: "explore", icon: Compass },
-  { to: "/garage", label: "garage.nav", icon: Warehouse },
   { to: "/groups", label: "groups", icon: Users },
   { to: "/events", label: "events", icon: Calendar },
   { to: "/marketplace", label: "marketplace", icon: ShoppingBag },
   { to: "/forums", label: "forums", icon: MessageSquare },
-  { to: "/services", label: "services", icon: Wrench },
+  { to: "/services", label: "services", icon: Building2 },
 ];
 
 export default function Layout() {
@@ -63,6 +62,9 @@ export default function Layout() {
     logout();
     navigate("/auth");
   };
+
+  const edgeToEdge =
+    location.pathname === "/" || /^\/posts\/[^/]+$/.test(location.pathname);
 
   return (
     <div className="min-h-screen gradient-bg">
@@ -162,7 +164,12 @@ export default function Layout() {
 
       {user ? (
         <MessagesPanelProvider>
-          <main className={cn("feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter pb-24 md:pb-6")}>
+          <main
+            className={cn(
+              "feed-scroll max-w-7xl mx-auto py-4 md:py-6 page-enter pb-24 md:pb-6",
+              edgeToEdge ? "px-0 md:px-4" : "px-4",
+            )}
+          >
             <Outlet />
           </main>
           <ThemeSync />

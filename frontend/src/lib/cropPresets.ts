@@ -1,5 +1,7 @@
 import type { MediaPurpose } from "@/lib/mediaUpload";
 
+export type CropPurpose = MediaPurpose | "cover";
+
 export interface CropPreset {
   aspect: number;
   cropShape: "rect" | "round";
@@ -7,7 +9,7 @@ export interface CropPreset {
   hintKey: string;
 }
 
-export const CROP_PRESETS: Record<MediaPurpose, CropPreset> = {
+export const CROP_PRESETS: Record<CropPurpose, CropPreset> = {
   post: {
     aspect: 4 / 3,
     cropShape: "rect",
@@ -31,5 +33,17 @@ export const CROP_PRESETS: Record<MediaPurpose, CropPreset> = {
     cropShape: "rect",
     titleKey: "crop.titleStory",
     hintKey: "crop.hintStory",
+  },
+  product: {
+    aspect: 1,
+    cropShape: "rect",
+    titleKey: "crop.titleProduct",
+    hintKey: "crop.hintProduct",
+  },
+  cover: {
+    aspect: 16 / 9,
+    cropShape: "rect",
+    titleKey: "crop.titleCover",
+    hintKey: "crop.hintCover",
   },
 };

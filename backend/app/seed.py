@@ -31,6 +31,7 @@ async def seed_database(db: AsyncSession) -> None:
         password_hash=None,
         account_type="personal",
         is_verified=True,
+        is_admin=True,
     )
     db.add(admin)
     await db.flush()

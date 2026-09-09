@@ -2,14 +2,14 @@ import { memo, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Heart, MapPin, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import PostMediaCarousel from "@/components/PostMediaCarousel";
 import PostShareSheet from "@/components/PostShareSheet";
 import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { api, Comment, Post } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { cn, displayName, formatHandle, formatRelativeTime } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -18,42 +18,16 @@ import { useAuth } from "@/contexts/AuthContext";
 interface PostCardProps {
   post: Post;
   onDeleted?: () => void;
+  variant?: "feed" | "detail";
 }
 
-function ImageCarousel({ urls }: { urls: string[] }) {
-  const [idx, setIdx] = useState(0);
-  if (!urls.length) return null;
-  return (
-    <div className="relative bg-asphalt">
-      <img src={mediaUrl(urls[idx])} alt="" className="w-full aspect-[4/3] object-cover" loading="lazy" />
-      {urls.length > 1 && (
-        <>
-          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {urls.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIdx(i)}
-                className={cn("w-1.5 h-1.5 rounded-full", i === idx ? "bg-white" : "bg-white/40")}
-              />
-            ))}
-          </div>
-          {idx > 0 && (
-            <button onClick={() => setIdx(idx - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 rounded-full text-white text-lg">‹</button>
-          )}
-          {idx < urls.length - 1 && (
-            <button onClick={() => setIdx(idx + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 rounded-full text-white text-lg">›</button>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function PostCard({ post, onDeleted }: PostCardProps) {
+function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [showComments, setShowComments] = useState(false);
+  const isDetail = variant === "detail";
+  const [showComments, setShowComments] = useState(isDetail);
   const [comment, setComment] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -61,9 +35,25 @@ function PostCard({ post, onDeleted }: PostCardProps) {
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const lastTap = useRef(0);
+  const openPostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAuthor = user?.id === post.user_id;
+
+  useEffect(() => {
+    if (!isDetail) return;
+    setShowComments(true);
+    setLoadingComments(true);
+    api.getComments(post.id)
+      .then(setComments)
+      .finally(() => setLoadingComments(false));
+  }, [isDetail, post.id]);
+
+  useEffect(() => {
+    return () => {
+      if (openPostTimer.current) clearTimeout(openPostTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -79,12 +69,18 @@ function PostCard({ post, onDeleted }: PostCardProps) {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["posts"] });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["posts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post", post.id] });
+    },
   });
 
   const savePost = useMutation({
     mutationFn: () => api.toggleSave(post.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["posts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post", post.id] });
+    },
   });
 
   const deletePost = useMutation({
@@ -98,18 +94,36 @@ function PostCard({ post, onDeleted }: PostCardProps) {
     onError: (err: Error) => toast.error(err.message),
   });
 
-  const handleDoubleTap = () => {
+  const triggerLikeAnimation = () => {
+    if (!post.is_liked) likePost.mutate();
+    setLikeAnim(true);
+    setTimeout(() => setLikeAnim(false), 800);
+  };
+
+  const handleMediaInteract = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
-      if (!post.is_liked) likePost.mutate();
-      setLikeAnim(true);
-      setTimeout(() => setLikeAnim(false), 800);
+      if (openPostTimer.current) {
+        clearTimeout(openPostTimer.current);
+        openPostTimer.current = null;
+      }
+      triggerLikeAnimation();
+      lastTap.current = 0;
+      return;
     }
     lastTap.current = now;
+    if (!isDetail) {
+      openPostTimer.current = setTimeout(() => {
+        navigate(`/posts/${post.id}`);
+      }, 280);
+    }
   };
 
   const loadComments = async () => {
-    if (showComments) { setShowComments(false); return; }
+    if (showComments) {
+      setShowComments(false);
+      return;
+    }
     setLoadingComments(true);
     try {
       const data = await api.getComments(post.id);
@@ -128,14 +142,15 @@ function PostCard({ post, onDeleted }: PostCardProps) {
     const data = await api.getComments(post.id);
     setComments(data);
     queryClient.invalidateQueries({ queryKey: ["posts"] });
+    queryClient.invalidateQueries({ queryKey: ["post", post.id] });
   };
 
   const images = post.image_urls || [];
 
   return (
     <>
-      <article className="feed-post feed-post-card">
-        <div className="flex items-center gap-3 p-4">
+      <article className={cn("feed-post", isDetail ? "feed-post--detail" : "feed-post--feed")}>
+        <div className="flex items-center gap-3 px-4 py-3">
           <Link to={`/profile/${post.author.id}`}>
             <Avatar user={post.author} size="md" />
           </Link>
@@ -151,14 +166,14 @@ function PostCard({ post, onDeleted }: PostCardProps) {
                 <MapPin className="w-3 h-3 shrink-0" /> {post.location}
               </p>
             )}
-          {post.vehicle_id && (
-            <VehicleBadge
-              label={t("linkedVehicle")}
-              vehicleId={post.vehicle_id}
-              className="mt-1.5"
-            />
-          )}
-        </div>
+            {post.vehicle_id && (
+              <VehicleBadge
+                label={t("linkedVehicle")}
+                vehicleId={post.vehicle_id}
+                className="mt-1.5"
+              />
+            )}
+          </div>
           {isAuthor && (
             <div className="relative" ref={menuRef}>
               <button
@@ -188,13 +203,14 @@ function PostCard({ post, onDeleted }: PostCardProps) {
           )}
         </div>
 
-      <div
-        className={cn("relative", post.vehicle_id && images.length > 0 && "ring-2 ring-[#F5D033]/50 ring-inset")}
-        onClick={handleDoubleTap}
-      >
-        {images.length > 0 ? (
-          <ImageCarousel urls={images} />
-        ) : post.content ? (
+        <div className={cn("relative", post.vehicle_id && images.length > 0 && "ring-2 ring-[#F5D033]/50 ring-inset")}>
+          {images.length > 0 ? (
+            <PostMediaCarousel
+              urls={images}
+              mode={isDetail ? "detail" : "feed"}
+              onInteract={handleMediaInteract}
+            />
+          ) : post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
               <p className="whitespace-pre-wrap">{post.content}</p>
             </div>
@@ -230,13 +246,16 @@ function PostCard({ post, onDeleted }: PostCardProps) {
             <Heart className={cn("w-5 h-5", post.is_liked && "fill-current")} />
             {post.likes_count}
           </button>
-          <button onClick={loadComments} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
+          <button
+            onClick={loadComments}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+          >
             <MessageCircle className="w-5 h-5" />
             {post.comments_count}
           </button>
           <button
             onClick={() => savePost.mutate()}
-            className={cn("flex items-center gap-1.5 text-sm transition-colors mr-auto", post.is_saved ? "text-primary" : "text-muted-foreground hover:text-primary")}
+            className={cn("flex items-center gap-1.5 text-sm transition-colors ms-auto", post.is_saved ? "text-primary" : "text-muted-foreground hover:text-primary")}
           >
             <Bookmark className={cn("w-5 h-5", post.is_saved && "fill-current")} />
           </button>

@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AuthPage from "@/pages/AuthPage";
@@ -23,7 +23,15 @@ import NotificationsPage from "@/pages/NotificationsPage";
 import PostPage from "@/pages/PostPage";
 import ProfilePage from "@/pages/ProfilePage";
 import ServicesPage from "@/pages/ServicesPage";
+import AdminBusinessRequestsPage from "@/pages/AdminBusinessRequestsPage";
 import SettingsPage from "@/pages/SettingsPage";
+import BusinessProfilePage from "@/pages/BusinessProfilePage";
+import CommunityPage from "@/pages/CommunityPage";
+
+function WorkshopRedirect() {
+  const { userId } = useParams();
+  return <Navigate to={userId ? `/services/${userId}` : "/services"} replace />;
+}
 
 export default function App() {
   return (
@@ -45,9 +53,13 @@ export default function App() {
             <Route index element={<FeedPage />} />
             <Route path="explore" element={<ExplorePage />} />
             <Route path="posts/:postId" element={<PostPage />} />
+            <Route path="workshops" element={<Navigate to="/services" replace />} />
+            <Route path="workshops/:userId" element={<WorkshopRedirect />} />
+            <Route path="services/:userId" element={<BusinessProfilePage />} />
             <Route path="garage" element={<GaragePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="stories/create" element={<CreateStoryPage />} />
+            <Route path="community" element={<CommunityPage />} />
             <Route path="groups" element={<GroupsPage />} />
             <Route path="groups/:groupId" element={<GroupDetailPage />} />
             <Route path="forums" element={<ForumsPage />} />
@@ -61,6 +73,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/:userId" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="admin/business-requests" element={<AdminBusinessRequestsPage />} />
           </Route>
         </Route>
 

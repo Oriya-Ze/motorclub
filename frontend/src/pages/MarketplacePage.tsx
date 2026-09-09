@@ -1,35 +1,49 @@
 import { ShoppingBag } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import CreateProductModal from "@/components/CreateProductModal";
 import EmptyState from "@/components/EmptyState";
 import PageHeading from "@/components/PageHeading";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = ["vehicles", "spareParts", "accessories", "services", "other"] as const;
+const CATEGORIES = ["vehicles", "spareParts", "accessories", "other"] as const;
 
 export default function MarketplacePage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [category, setCategory] = useState<string>("");
   const [selected, setSelected] = useState<Product | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", category],
-    queryFn: () => api.getProducts(category || undefined),
+    queryFn: () => api.getProducts({ category: category || undefined }),
   });
 
   if (isLoading) return <CardGridSkeleton count={4} />;
 
+  const isBusiness = user?.account_type === "business";
+
   return (
     <div className="space-y-4 pb-20 md:pb-6">
-      <PageHeading>{t("marketplace")}</PageHeading>
+      <div className="flex items-center justify-between gap-3">
+        <PageHeading>{t("marketplace")}</PageHeading>
+        {isBusiness && (
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            {t("businessSettings.addProduct")}
+          </Button>
+        )}
+      </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button
@@ -77,7 +91,9 @@ export default function MarketplacePage() {
                 )}
                 <CardContent className="pt-6">
                   <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
-                    {t(`categories.${product.category as typeof CATEGORIES[number]}`)}
+                    {t(`categories.${product.category as typeof CATEGORIES[number]}`, {
+                      defaultValue: product.category,
+                    })}
                   </span>
                   <h3 className="font-semibold mt-3">{product.name}</h3>
                   {product.description && (
@@ -92,6 +108,15 @@ export default function MarketplacePage() {
       )}
 
       {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
+
+      <CreateProductModal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={() => {
+          void queryClient.invalidateQueries({ queryKey: ["products"] });
+          void queryClient.invalidateQueries({ queryKey: ["my-products"] });
+        }}
+      />
     </div>
   );
 }

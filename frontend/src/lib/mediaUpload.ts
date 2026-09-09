@@ -1,6 +1,6 @@
 import { API_BASE } from "@/lib/media";
 
-export type MediaPurpose = "post" | "story" | "vehicle" | "avatar";
+export type MediaPurpose = "post" | "story" | "vehicle" | "avatar" | "product";
 export type MediaType = "image" | "video";
 export type UploadMethod = "PUT" | "multipart";
 

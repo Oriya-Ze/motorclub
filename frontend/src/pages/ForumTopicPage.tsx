@@ -19,24 +19,21 @@ export default function ForumTopicPage() {
   const queryClient = useQueryClient();
   const [reply, setReply] = useState("");
 
+  const { data: topic, isLoading: topicLoading, isError } = useQuery({
+    queryKey: ["forum-topic", topicId],
+    queryFn: () => api.getForumTopic(topicId!),
+    enabled: Boolean(topicId),
+  });
+
   const { data: forums = [] } = useQuery({
     queryKey: ["forums"],
     queryFn: () => api.getForums(),
+    enabled: Boolean(topic),
   });
 
-  const { data: allTopics = [] } = useQuery({
-    queryKey: ["all-forum-topics"],
-    queryFn: async () => {
-      const results = await Promise.all(forums.map((f) => api.getForumTopics(f.id)));
-      return results.flat();
-    },
-    enabled: forums.length > 0,
-  });
-
-  const topic = allTopics.find((t) => t.id === topicId);
   const forum = forums.find((f) => f.id === topic?.forum_id);
 
-  const { data: replies = [], isLoading } = useQuery({
+  const { data: replies = [], isLoading: repliesLoading } = useQuery({
     queryKey: ["topic-replies", topicId],
     queryFn: () => api.getTopicReplies(topicId!),
     enabled: Boolean(topicId),
@@ -46,27 +43,32 @@ export default function ForumTopicPage() {
     mutationFn: (content: string) => api.createTopicReply(topicId!, content),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["topic-replies", topicId] });
+      queryClient.invalidateQueries({ queryKey: ["forum-topic", topicId] });
       setReply("");
       toast.success(t("replyPosted"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
-  if (isLoading || !topic) {
-    return isLoading ? <ListPageSkeleton rows={3} /> : <div className="text-center py-12 text-muted-foreground">{t("topicNotFound")}</div>;
+  if (topicLoading || repliesLoading) {
+    return <ListPageSkeleton rows={3} />;
+  }
+
+  if (isError || !topic) {
+    return <div className="text-center py-12 text-muted-foreground">{t("topicNotFound")}</div>;
   }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center gap-2 text-sm flex-wrap">
-        <Link to="/forums" className="text-muted-foreground hover:text-primary">{t("forums")}</Link>
-        <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        <Link to="/community?tab=forums" className="text-muted-foreground hover:text-primary">{t("forums")}</Link>
+        <ArrowRight className="w-4 h-4 text-muted-foreground rtl:rotate-180" />
         {forum && (
           <>
             <Link to={`/forums/${forum.id}`} className="text-muted-foreground hover:text-primary">
               {forumName(forum, i18n.language)}
             </Link>
-            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+            <ArrowRight className="w-4 h-4 text-muted-foreground rtl:rotate-180" />
           </>
         )}
         <span className="font-medium truncate">{topic.title}</span>

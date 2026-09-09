@@ -8,7 +8,7 @@ from app.media.base import MediaPurpose
 from app.media.validation import VALID_PURPOSES
 
 STORAGE_KEY_PATTERN = re.compile(
-    r"^users/(?P<user_id>[0-9a-f-]{36})/(?P<purpose>posts|stories|vehicles|avatar)/"
+    r"^users/(?P<user_id>[0-9a-f-]{36})/(?P<purpose>posts|stories|vehicles|avatar|products)/"
     r"(?P<media_id>[0-9a-f-]{36})\.[a-z0-9]+$"
 )
 
@@ -17,6 +17,7 @@ PURPOSE_TO_SEGMENT: dict[MediaPurpose, str] = {
     "story": "stories",
     "vehicle": "vehicles",
     "avatar": "avatar",
+    "product": "products",
 }
 
 

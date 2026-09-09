@@ -1,4 +1,5 @@
 import type { MediaPurpose } from "@/lib/mediaUpload";
+import { translateApiError, translateRateLimitError } from "@/lib/apiErrors";
 import {
   uploadMedia as uploadMediaImpl,
   uploadMediaFiles as uploadMediaFilesImpl,
@@ -14,7 +15,18 @@ export interface User {
   profile_picture_url?: string | null;
   account_type: string;
   business_type?: string | null;
+  business_description?: string | null;
+  business_phone?: string | null;
+  business_address?: string | null;
+  business_website?: string | null;
+  business_registration_id?: string | null;
+  business_hours?: import("@/lib/businessProfile").BusinessHours | null;
+  gallery_urls?: string[] | null;
+  certifications?: string[] | null;
+  service_area?: { cities?: string[]; radius_km?: number } | null;
+  cover_image_url?: string | null;
   is_verified: boolean;
+  is_admin?: boolean;
 }
 
 export interface AuthResponse {
@@ -31,6 +43,15 @@ export interface OAuthConfig {
   client_id?: string | null;
   cognito_domain?: string | null;
   region?: string | null;
+  turnstile_enabled?: boolean;
+  turnstile_site_key?: string | null;
+}
+
+export interface UsernameCheckResult {
+  username: string;
+  valid: boolean;
+  available: boolean;
+  reason: string | null;
 }
 
 export interface Post {
@@ -205,6 +226,18 @@ class ApiClient {
     return this.token;
   }
 
+  private errorMessageFromBody(body: unknown, fallback: string): string {
+    if (!body || typeof body !== "object" || !("detail" in body)) return fallback;
+    const { detail } = body as { detail?: unknown };
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item) => (typeof item === "object" && item && "msg" in item ? String(item.msg) : String(item)))
+        .join(", ");
+    }
+    return fallback;
+  }
+
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const isForm = options.body instanceof FormData;
     const headers: Record<string, string> = {
@@ -216,23 +249,36 @@ class ApiClient {
     const response = await fetch(`${API_URL}${path}`, { ...options, headers });
 
     if (response.status === 401) {
+      const errorBody = await response.json().catch(() => null);
+      const message = this.errorMessageFromBody(errorBody, "Unauthorized");
       this.setToken(null);
       if (!window.location.pathname.startsWith("/auth")) {
         window.location.href = "/auth";
       }
-      throw new Error("Unauthorized");
+      throw new Error(translateApiError(message));
+    }
+
+    if (response.status === 429) {
+      await response.json().catch(() => null);
+      throw new Error(translateRateLimitError());
     }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: "Request failed" }));
-      throw new Error(error.detail || "Request failed");
+      throw new Error(translateApiError(this.errorMessageFromBody(error, "Request failed")));
     }
 
     if (response.status === 204) return {} as T;
     return response.json();
   }
 
-  register(data: { email: string; username: string; full_name: string; password: string }) {
+  register(data: {
+    email: string;
+    username: string;
+    full_name: string;
+    password: string;
+    captcha_token?: string;
+  }) {
     return this.request<AuthResponse>("/auth/register", { method: "POST", body: JSON.stringify(data) });
   }
 
@@ -240,8 +286,20 @@ class ApiClient {
     return this.request<AuthResponse>("/auth/confirm", { method: "POST", body: JSON.stringify(data) });
   }
 
-  login(data: { email: string; password: string }) {
+  resendConfirmation(email: string) {
+    return this.request<{ message: string }>("/auth/resend-confirmation", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  login(data: { email: string; password: string; captcha_token?: string }) {
     return this.request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  checkUsername(username: string) {
+    const q = encodeURIComponent(username.trim());
+    return this.request<UsernameCheckResult>(`/auth/check-username?username=${q}`);
   }
 
   getOAuthConfig() {
@@ -465,6 +523,10 @@ class ApiClient {
     return this.request<ForumTopic[]>(`/forums/${forumId}/topics`);
   }
 
+  getForumTopic(topicId: string) {
+    return this.request<ForumTopic>(`/forums/topics/${topicId}`);
+  }
+
   getTopicReplies(topicId: string) {
     return this.request<ForumReply[]>(`/forums/topics/${topicId}/replies`);
   }
@@ -546,14 +608,42 @@ class ApiClient {
     });
   }
 
-  requestBusinessUpgrade() {
-    return this.request<{ status: string }>("/users/me/business-upgrade", { method: "POST" });
+  requestBusinessUpgrade(data: import("@/lib/businessTypes").BusinessUpgradeFormData) {
+    return this.request<import("@/lib/businessTypes").BusinessUpgradeRequest>("/users/me/business-upgrade", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getMyBusinessUpgrade() {
+    return this.request<import("@/lib/businessTypes").BusinessUpgradeRequest | null>("/users/me/business-upgrade");
+  }
+
+  listBusinessUpgradeRequests(status = "pending") {
+    return this.request<import("@/lib/businessTypes").BusinessUpgradeRequestAdmin[]>(
+      `/admin/business-upgrade-requests?status=${encodeURIComponent(status)}`
+    );
+  }
+
+  approveBusinessUpgrade(requestId: string, adminNotes?: string) {
+    return this.request(`/admin/business-upgrade-requests/${requestId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ admin_notes: adminNotes ?? null }),
+    });
+  }
+
+  rejectBusinessUpgrade(requestId: string, rejectionReason: string, adminNotes?: string) {
+    return this.request(`/admin/business-upgrade-requests/${requestId}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ rejection_reason: rejectionReason, admin_notes: adminNotes ?? null }),
+    });
   }
 
   getEvents() {
     return this.request<Array<{
-      id: string; title: string; description?: string; event_type: string;
-      location?: string; event_date: string; max_participants?: number;
+      id: string; creator_id: string; title: string; description?: string; event_type: string;
+      location?: string; event_date: string; event_end_date?: string | null;
+      max_participants?: number;
       participants_count: number; is_joined: boolean;
     }>>("/events");
   }
@@ -566,20 +656,196 @@ class ApiClient {
     return this.request<{ joined: boolean }>(`/events/${eventId}/leave`, { method: "POST" });
   }
 
-  getProducts(category?: string) {
-    const q = category ? `?category=${encodeURIComponent(category)}` : "";
+  deleteEvent(eventId: string) {
+    return this.request<{ deleted: boolean }>(`/events/${eventId}`, { method: "DELETE" });
+  }
+
+  createEvent(data: {
+    title: string;
+    description?: string;
+    event_type: string;
+    location?: string;
+    event_date: string;
+    event_end_date?: string;
+    max_participants?: number;
+    image_url?: string;
+  }) {
+    return this.request<{
+      id: string;
+      title: string;
+      description?: string;
+      event_type: string;
+      location?: string;
+      event_date: string;
+      event_end_date?: string | null;
+      max_participants?: number;
+      participants_count: number;
+      is_joined: boolean;
+    }>("/events", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  getProducts(opts?: { category?: string; businessId?: string }) {
+    const params = new URLSearchParams();
+    if (opts?.category) params.set("category", opts.category);
+    if (opts?.businessId) params.set("business_id", opts.businessId);
+    const q = params.toString() ? `?${params}` : "";
     return this.request<Product[]>(`/marketplace${q}`);
   }
 
-  getServices(businessType?: string) {
-    const q = businessType ? `?business_type=${businessType}` : "";
-    return this.request<Array<{
-      id: string; full_name: string; business_type?: string;
-      business_description?: string; business_phone?: string; business_address?: string;
-    }>>(`/services${q}`);
+  getMyProducts() {
+    return this.request<Product[]>("/marketplace/mine");
   }
 
-  updateProfile(data: { full_name?: string; username?: string; profile_picture_url?: string }) {
+  createProduct(data: {
+    name: string;
+    description?: string;
+    price: number;
+    category: string;
+    image_urls?: string[];
+  }) {
+    return this.request<Product>("/marketplace", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteProduct(productId: string) {
+    return this.request<{ deleted: boolean }>(`/marketplace/${productId}`, { method: "DELETE" });
+  }
+
+  updateProduct(
+    productId: string,
+    data: {
+      name?: string;
+      description?: string;
+      price?: number;
+      category?: string;
+      image_urls?: string[];
+    }
+  ) {
+    return this.request<Product>(`/marketplace/${productId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getBusinesses(opts?: { businessType?: string; q?: string }) {
+    const params = new URLSearchParams();
+    if (opts?.businessType) params.set("business_type", opts.businessType);
+    if (opts?.q) params.set("q", opts.q);
+    const q = params.toString() ? `?${params}` : "";
+    return this.request<import("@/lib/businessProfile").BusinessPublic[]>(`/businesses${q}`);
+  }
+
+  getServices(opts?: { businessType?: string; q?: string }) {
+    const params = new URLSearchParams();
+    if (opts?.businessType) params.set("business_type", opts.businessType);
+    if (opts?.q) params.set("q", opts.q);
+    const q = params.toString() ? `?${params}` : "";
+    return this.request<import("@/lib/businessProfile").BusinessPublic[]>(`/services${q}`);
+  }
+
+  getService(userId: string) {
+    return this.request<import("@/lib/businessProfile").BusinessPublic>(`/services/${userId}`);
+  }
+
+  getWorkshops(opts?: { specialty?: string; q?: string }) {
+    const params = new URLSearchParams();
+    if (opts?.specialty) params.set("business_type", opts.specialty);
+    if (opts?.q) params.set("q", opts.q);
+    const q = params.toString() ? `?${params}` : "";
+    return this.request<import("@/lib/businessProfile").BusinessPublic[]>(`/workshops${q}`);
+  }
+
+  getWorkshop(userId: string) {
+    return this.request<import("@/lib/businessProfile").BusinessPublic>(`/workshops/${userId}`);
+  }
+
+  getBusiness(userId: string) {
+    return this.request<import("@/lib/businessProfile").BusinessPublic>(`/business/${userId}`);
+  }
+
+  getBusinessServices(userId: string) {
+    return this.request<import("@/lib/businessProfile").BusinessService[]>(`/business/${userId}/services`);
+  }
+
+  getMyBusinessServices() {
+    return this.request<import("@/lib/businessProfile").BusinessService[]>("/business/me/services");
+  }
+
+  createBusinessService(data: {
+    name: string;
+    description?: string;
+    price_from?: number;
+    duration_minutes?: number;
+    sort_order?: number;
+    is_active?: boolean;
+  }) {
+    return this.request<import("@/lib/businessProfile").BusinessService>("/business/me/services", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateBusinessService(
+    serviceId: string,
+    data: {
+      name?: string;
+      description?: string;
+      price_from?: number;
+      duration_minutes?: number;
+      sort_order?: number;
+      is_active?: boolean;
+    }
+  ) {
+    return this.request<import("@/lib/businessProfile").BusinessService>(`/business/me/services/${serviceId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  deleteBusinessService(serviceId: string) {
+    return this.request<{ deleted: boolean }>(`/business/me/services/${serviceId}`, { method: "DELETE" });
+  }
+
+  getBusinessReviews(userId: string) {
+    return this.request<import("@/lib/businessProfile").BusinessReview[]>(`/business/${userId}/reviews`);
+  }
+
+  createBusinessReview(userId: string, data: { rating: number; text?: string }) {
+    return this.request<import("@/lib/businessProfile").BusinessReview>(`/business/${userId}/reviews`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  recordBusinessEvent(userId: string, eventType: string) {
+    return this.request<{ ok: boolean }>(`/business/${userId}/events`, {
+      method: "POST",
+      body: JSON.stringify({ event_type: eventType }),
+    });
+  }
+
+  getBusinessAnalytics() {
+    return this.request<import("@/lib/businessProfile").BusinessAnalytics>("/business/me/analytics");
+  }
+
+  updateProfile(data: {
+    full_name?: string;
+    username?: string;
+    profile_picture_url?: string;
+    cover_image_url?: string;
+    business_type?: string;
+    business_description?: string;
+    business_phone?: string;
+    business_address?: string;
+    business_website?: string;
+    business_registration_id?: string;
+    business_hours?: import("@/lib/businessProfile").BusinessHours;
+    gallery_urls?: string[];
+    certifications?: string[];
+    service_area?: { cities?: string[]; radius_km?: number };
+  }) {
     return this.request<User>("/users/me", { method: "PATCH", body: JSON.stringify(data) });
   }
 
@@ -627,3 +893,4 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+export type { BusinessUpgradeFormData, BusinessUpgradeRequest, BusinessUpgradeRequestAdmin } from "@/lib/businessTypes";

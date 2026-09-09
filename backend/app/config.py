@@ -44,6 +44,17 @@ class Settings(BaseSettings):
     max_image_upload_bytes: int = 10 * 1024 * 1024
     max_video_upload_bytes: int = 10 * 1024 * 1024
     rate_limit_table: str = ""
+    resend_api_key: str = ""
+    resend_secret_arn: str = ""
+    resend_from_email: str = ""
+    resend_from_name: str = "MotorClub"
+    admin_emails: str = ""
+    app_name: str = "MotorClub"
+    app_url: str = ""
+    signup_code_expire_minutes: int = 30
+    password_reset_code_expire_minutes: int = 30
+    turnstile_site_key: str = ""
+    turnstile_secret_key: str = ""
 
     @field_validator("environment")
     @classmethod
@@ -70,12 +81,20 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.backend_cors_origins.split(",") if origin.strip()]
 
     @property
+    def admin_email_list(self) -> list[str]:
+        return [email.strip().lower() for email in self.admin_emails.split(",") if email.strip()]
+
+    @property
     def is_local(self) -> bool:
         return self.environment == "local"
 
     @property
     def is_lambda(self) -> bool:
         return bool(os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+
+    @property
+    def turnstile_enabled(self) -> bool:
+        return bool(self.turnstile_site_key.strip() and self.turnstile_secret_key.strip())
 
     @model_validator(mode="after")
     def apply_environment_defaults_and_validation(self) -> "Settings":

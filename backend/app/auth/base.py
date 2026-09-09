@@ -21,9 +21,7 @@ class AuthTokens:
 
 class AuthProvider(ABC):
     @abstractmethod
-    async def register(
-        self, email: str, username: str, full_name: str, password: str
-    ) -> AuthUser:
+    async def register(self, email: str, username: str, full_name: str, password: str) -> AuthUser | None:
         pass
 
     @abstractmethod

@@ -397,6 +397,30 @@ async def create_topic(
     )
 
 
+@forums_router.get("/topics/{topic_id}", response_model=ForumTopicResponse)
+async def get_topic(topic_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+    topic = await db.get(ForumTopic, topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    author = await db.get(User, topic.user_id)
+    replies_count = await db.scalar(
+        select(func.count()).select_from(ForumReply).where(ForumReply.topic_id == topic.id)
+    )
+    return ForumTopicResponse(
+        id=topic.id,
+        forum_id=topic.forum_id,
+        user_id=topic.user_id,
+        title=topic.title,
+        content=topic.content,
+        is_pinned=topic.is_pinned,
+        is_solved=topic.is_solved,
+        views_count=topic.views_count,
+        replies_count=replies_count or 0,
+        created_at=topic.created_at,
+        author=user_to_public(author) if author else None,
+    )
+
+
 @forums_router.get("/topics/{topic_id}/replies", response_model=list[ForumReplyResponse])
 async def list_replies(topic_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     result = await db.execute(

@@ -29,7 +29,7 @@ EXTENSION_TO_MIME: dict[str, str] = {
     ".mov": "video/quicktime",
 }
 
-VALID_PURPOSES = frozenset({"post", "story", "vehicle", "avatar"})
+VALID_PURPOSES = frozenset({"post", "story", "vehicle", "avatar", "product"})
 
 
 def media_type_from_content_type(content_type: str) -> MediaType:

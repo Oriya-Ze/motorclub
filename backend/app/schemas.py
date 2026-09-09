@@ -12,21 +12,41 @@ class UserPublic(BaseModel):
     profile_picture_url: str | None = None
     account_type: str = "personal"
     business_type: str | None = None
+    business_description: str | None = None
+    business_phone: str | None = None
+    business_address: str | None = None
+    cover_image_url: str | None = None
+    business_website: str | None = None
+    business_registration_id: str | None = None
+    business_hours: dict | None = None
+    gallery_urls: list[str] | None = None
+    certifications: list[str] | None = None
+    service_area: dict | None = None
     is_verified: bool = False
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    username: str = Field(min_length=3, max_length=50)
+    username: str = Field(min_length=3, max_length=30)
     full_name: str = Field(min_length=2, max_length=255)
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=128)
+    captcha_token: str | None = None
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1, max_length=128)
+    captcha_token: str | None = None
+
+
+class UsernameCheckResponse(BaseModel):
+    username: str
+    valid: bool
+    available: bool
+    reason: str | None = None
 
 
 class AuthResponse(BaseModel):
@@ -54,9 +74,15 @@ class OAuthConfigResponse(BaseModel):
     client_id: str | None = None
     cognito_domain: str | None = None
     region: str | None = None
+    turnstile_enabled: bool = False
+    turnstile_site_key: str | None = None
 
 
 class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResendConfirmationRequest(BaseModel):
     email: EmailStr
 
 
@@ -223,6 +249,7 @@ class EventCreate(BaseModel):
     event_type: str = "meetup"
     location: str | None = None
     event_date: datetime
+    event_end_date: datetime | None = None
     max_participants: int | None = None
     image_url: str | None = None
 
@@ -235,6 +262,7 @@ class EventResponse(BaseModel):
     event_type: str
     location: str | None
     event_date: datetime
+    event_end_date: datetime | None
     max_participants: int | None
     image_url: str | None
     participants_count: int = 0
@@ -249,6 +277,14 @@ class ProductCreate(BaseModel):
     description: str | None = None
     price: float = Field(gt=0)
     category: str = "other"
+    image_urls: list[str] | None = None
+
+
+class ProductUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    description: str | None = None
+    price: float | None = Field(default=None, gt=0)
+    category: str | None = None
     image_urls: list[str] | None = None
 
 
@@ -270,9 +306,17 @@ class ProfileUpdate(BaseModel):
     full_name: str | None = None
     username: str | None = None
     profile_picture_url: str | None = None
+    cover_image_url: str | None = None
+    business_type: str | None = None
     business_description: str | None = None
     business_phone: str | None = None
     business_address: str | None = None
+    business_website: str | None = None
+    business_registration_id: str | None = None
+    business_hours: dict | None = None
+    gallery_urls: list[str] | None = None
+    certifications: list[str] | None = None
+    service_area: dict | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -411,3 +455,113 @@ class StoryResponse(BaseModel):
     author: UserPublic
 
     model_config = {"from_attributes": True}
+
+
+class BusinessUpgradeRequestCreate(BaseModel):
+    business_name: str = Field(min_length=2, max_length=255)
+    business_type: str = Field(min_length=2, max_length=50)
+    business_phone: str = Field(min_length=7, max_length=30)
+    business_address: str = Field(min_length=3, max_length=500)
+    business_description: str = Field(min_length=10, max_length=2000)
+    contact_full_name: str = Field(min_length=2, max_length=255)
+    contact_phone: str = Field(min_length=7, max_length=30)
+    business_registration_id: str | None = Field(default=None, max_length=50)
+    business_website: str | None = Field(default=None, max_length=500)
+    additional_notes: str | None = Field(default=None, max_length=2000)
+
+
+class BusinessUpgradeRequestResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    status: str
+    business_name: str | None
+    business_type: str | None
+    business_description: str | None
+    business_phone: str | None
+    business_address: str | None
+    business_registration_id: str | None
+    business_website: str | None
+    contact_full_name: str | None
+    contact_phone: str | None
+    additional_notes: str | None
+    rejection_reason: str | None
+    created_at: datetime
+    reviewed_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class BusinessUpgradeRequestAdminResponse(BusinessUpgradeRequestResponse):
+    applicant_email: str
+    applicant_username: str
+    admin_notes: str | None
+
+
+class BusinessUpgradeRejectBody(BaseModel):
+    rejection_reason: str = Field(min_length=3, max_length=1000)
+    admin_notes: str | None = Field(default=None, max_length=2000)
+
+
+class BusinessUpgradeApproveBody(BaseModel):
+    admin_notes: str | None = Field(default=None, max_length=2000)
+
+
+class BusinessServiceCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    price_from: float | None = Field(default=None, ge=0)
+    duration_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
+    sort_order: int = 0
+    is_active: bool = True
+
+
+class BusinessServiceUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    price_from: float | None = Field(default=None, ge=0)
+    duration_minutes: int | None = Field(default=None, ge=1, le=24 * 60)
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+
+class BusinessServiceResponse(BaseModel):
+    id: UUID
+    business_id: UUID
+    name: str
+    description: str | None
+    price_from: float | None
+    duration_minutes: int | None
+    sort_order: int
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BusinessReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    text: str | None = Field(default=None, max_length=2000)
+
+
+class BusinessReviewResponse(BaseModel):
+    id: UUID
+    business_id: UUID
+    rating: int
+    text: str | None
+    created_at: datetime
+    reviewer: UserPublic | None = None
+
+
+class BusinessViewCreate(BaseModel):
+    event_type: str = Field(min_length=1, max_length=30)
+
+
+class BusinessAnalyticsResponse(BaseModel):
+    period_days: int
+    views: int
+    call_clicks: int
+    navigate_clicks: int
+    whatsapp_clicks: int
+    share_clicks: int
+    rating_avg: float | None
+    review_count: int

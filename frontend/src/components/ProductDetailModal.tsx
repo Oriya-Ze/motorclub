@@ -8,6 +8,7 @@ import Avatar from "@/components/Avatar";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { api, Product } from "@/lib/api";
+import { getBusinessProfilePath } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
 import { formatHandle } from "@/lib/utils";
 
@@ -55,7 +56,7 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
 
           {product.seller && (
             <Link
-              to={`/profile/${product.seller.id}`}
+              to={getBusinessProfilePath(product.seller.business_type, product.seller.id)}
               className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               onClick={onClose}
             >

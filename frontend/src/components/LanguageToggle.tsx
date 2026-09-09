@@ -1,13 +1,13 @@
+import { applyAppLanguage, type AppLanguage } from "@/i18n";
 import { useTranslation } from "react-i18next";
 
 export default function LanguageToggle({ className = "" }: { className?: string }) {
   const { i18n } = useTranslation();
 
   const toggleLang = () => {
-    const next = i18n.language === "he" ? "en" : "he";
-    i18n.changeLanguage(next);
-    document.documentElement.lang = next;
-    document.documentElement.dir = next === "he" ? "rtl" : "ltr";
+    const next: AppLanguage = i18n.language === "he" ? "en" : "he";
+    applyAppLanguage(next);
+    void i18n.changeLanguage(next);
   };
 
   return (

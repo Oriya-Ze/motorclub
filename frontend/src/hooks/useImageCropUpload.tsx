@@ -2,11 +2,13 @@ import { useRef, useState } from "react";
 import ImageCropModal from "@/components/ImageCropModal";
 import { api } from "@/lib/api";
 import { isImageFile } from "@/lib/cropImage";
+import type { CropPurpose } from "@/lib/cropPresets";
 import type { MediaPurpose, UploadMediaResult } from "@/lib/mediaUpload";
 import { SUPPORTED_IMAGE_TYPES } from "@/lib/mediaUpload";
 
 interface UseImageCropUploadOptions {
   purpose: MediaPurpose;
+  cropPurpose?: CropPurpose;
   multiple?: boolean;
   onUploaded: (result: UploadMediaResult) => void;
   onAllComplete?: () => void;
@@ -22,6 +24,7 @@ function filterImageFiles(files: FileList | null): File[] {
 
 export function useImageCropUpload({
   purpose,
+  cropPurpose,
   multiple = false,
   onUploaded,
   onAllComplete,
@@ -74,6 +77,7 @@ export function useImageCropUpload({
       key={`${current.name}-${current.lastModified}-${current.size}`}
       file={current}
       purpose={purpose}
+      cropPurpose={cropPurpose}
       queueRemaining={queue.length}
       uploading={uploading}
       onConfirm={handleCropConfirm}

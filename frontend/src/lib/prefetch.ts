@@ -27,17 +27,27 @@ const routePrefetch: Record<string, (qc: QueryClient) => void> = {
     void qc.prefetchQuery({ queryKey: ["explore-vehicles"], queryFn: () => api.exploreVehicles() });
     void qc.prefetchQuery({ queryKey: ["trending-hashtags"], queryFn: () => api.trendingHashtags() });
   },
+  "/services": (qc) => {
+    void qc.prefetchQuery({ queryKey: ["services", "", ""], queryFn: () => api.getServices() });
+  },
   "/garage": (qc) => {
     void qc.prefetchQuery({ queryKey: ["garage"], queryFn: () => api.getMyGarage() });
   },
   "/groups": (qc) => {
     void qc.prefetchQuery({ queryKey: ["groups"], queryFn: () => api.getGroups() });
   },
+  "/community": (qc) => {
+    void qc.prefetchQuery({ queryKey: ["groups"], queryFn: () => api.getGroups() });
+    void qc.prefetchQuery({ queryKey: ["forums"], queryFn: () => api.getForums() });
+  },
+  "/forums": (qc) => {
+    void qc.prefetchQuery({ queryKey: ["forums"], queryFn: () => api.getForums() });
+  },
   "/events": (qc) => {
     void qc.prefetchQuery({ queryKey: ["events"], queryFn: () => api.getEvents() });
   },
   "/marketplace": (qc) => {
-    void qc.prefetchQuery({ queryKey: ["products", ""], queryFn: () => api.getProducts() });
+    void qc.prefetchQuery({ queryKey: ["products", ""], queryFn: () => api.getProducts({}) });
   },
   "/notifications": (qc) => {
     void qc.prefetchQuery({ queryKey: ["notifications"], queryFn: () => api.getNotifications() });

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Car, Hash, Warehouse } from "lucide-react";
+import { Calendar, Car, Hash } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -40,10 +40,10 @@ export default function FeedSidebar() {
         <Card>
           <CardContent className="pt-5 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <Warehouse className="w-4 h-4 text-primary" />
-              {t("garage.nav")}
+              <Car className="w-4 h-4 text-primary" />
+              {t("garage.myGarage")}
             </div>
-            <Link to="/garage" className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
+            <Link to="/profile?tab=garage" className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
               {primaryVehicle.image_urls?.[0] ? (
                 <img src={mediaUrl(primaryVehicle.image_urls[0])} alt="" className="w-full h-28 object-cover" />
               ) : (

@@ -4,9 +4,9 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded-xl bg-muted/60", className)} />;
 }
 
-export function PostSkeleton() {
+export function PostSkeleton({ variant = "feed" }: { variant?: "feed" | "detail" }) {
   return (
-    <div className="feed-post-card">
+    <div className={variant === "detail" ? "feed-post--detail" : "feed-post--feed"}>
       <div className="flex items-center gap-3 p-4">
         <Skeleton className="w-10 h-10 rounded-full" />
         <div className="space-y-2 flex-1">

@@ -9,9 +9,10 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -35,7 +36,15 @@ class User(Base):
     business_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     business_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     business_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    cover_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    business_website: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    business_registration_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    business_hours: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    gallery_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    certifications: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    service_area: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -231,6 +240,7 @@ class Event(Base):
     event_type: Mapped[str] = mapped_column(String(50), default="meetup")
     location: Mapped[str | None] = mapped_column(String(500), nullable=True)
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    event_end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     max_participants: Mapped[int | None] = mapped_column(Integer, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -286,12 +296,87 @@ class DirectMessage(Base):
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")
 
 
+class PendingSignup(Base):
+    __tablename__ = "pending_signups"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(255))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PendingPasswordReset(Base):
+    __tablename__ = "pending_password_resets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BusinessService(Base):
+    __tablename__ = "business_services"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    price_from: Mapped[float | None] = mapped_column(Float, nullable=True)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BusinessReview(Base):
+    __tablename__ = "business_reviews"
+    __table_args__ = (UniqueConstraint("business_id", "reviewer_id", name="uq_business_reviews_business_reviewer"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    reviewer_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    rating: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BusinessView(Base):
+    __tablename__ = "business_views"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    business_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    viewer_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    event_type: Mapped[str] = mapped_column(String(30))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class BusinessUpgradeRequest(Base):
     __tablename__ = "business_upgrade_requests"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")
+    business_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    business_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    business_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    business_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    business_registration_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    business_website: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    contact_full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    additional_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

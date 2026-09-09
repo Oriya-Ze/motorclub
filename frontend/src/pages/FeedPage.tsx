@@ -53,15 +53,18 @@ export default function FeedPage() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 justify-center">
-      <div className="w-full lg:w-[min(100%,42rem)] space-y-5 pb-2">
-        <StoriesBar />
+      <div className="w-full lg:w-[min(100%,42rem)] space-y-0 pb-2">
+        <div className="px-4 md:px-0 pb-3">
+          <StoriesBar />
+        </div>
 
         {isLoading ? (
           <>
-            <PostSkeleton />
-            <PostSkeleton />
+            <PostSkeleton variant="feed" />
+            <PostSkeleton variant="feed" />
           </>
         ) : posts.length === 0 ? (
+          <div className="px-4 md:px-0">
           <EmptyState
             icon={Car}
             title={t("noPostsTitle")}
@@ -77,10 +80,11 @@ export default function FeedPage() {
               </div>
             }
           />
+          </div>
         ) : (
           <>
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={post} variant="feed" />
             ))}
             <div ref={loadMoreRef} className="h-8 flex items-center justify-center">
               {isFetchingNextPage && <BrandedSpinner size="sm" />}

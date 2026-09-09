@@ -1,4 +1,3 @@
-import re
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -9,16 +8,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.base import AuthProvider, AuthTokens, AuthUser
+from app.auth.validation import (
+    validate_email_format,
+    validate_full_name,
+    validate_password_for_login,
+    validate_password_for_registration,
+    validate_username,
+)
 from app.config import settings
 from app.logging_config import get_logger
 from app.models import ProfileSettings, User
+from app.services.auth_lookup import check_registration_availability, resolve_login_email
 
 logger = get_logger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-PASSWORD_MIN_LENGTH = 8
-USERNAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
 
 
 def _hash_password(password: str) -> str:
@@ -36,26 +40,14 @@ def _create_access_token(user_id: uuid.UUID, email: str) -> AuthTokens:
     return AuthTokens(access_token=token, expires_in=settings.jwt_expire_minutes * 60)
 
 
-def _validate_password(password: str, email: str, username: str) -> None:
-    if len(password) < PASSWORD_MIN_LENGTH:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    if not re.search(r"[A-Za-z]", password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one letter")
-    if not re.search(r"\d", password):
-        raise HTTPException(status_code=400, detail="Password must contain at least one number")
-    if username.lower() in password.lower():
-        raise HTTPException(status_code=400, detail="Password cannot contain username")
-    email_local = email.split("@")[0].lower()
-    if len(email_local) >= 3 and email_local in password.lower():
-        raise HTTPException(status_code=400, detail="Password cannot contain email")
-
-
 class LocalAuthProvider(AuthProvider):
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def _get_user_by_email(self, email: str) -> User | None:
-        result = await self.db.execute(select(User).where(User.email == email.lower()))
+        from sqlalchemy import func
+
+        result = await self.db.execute(select(User).where(func.lower(User.email) == email.lower()))
         return result.scalar_one_or_none()
 
     async def _get_user_by_id(self, user_id: uuid.UUID) -> User | None:
@@ -72,29 +64,17 @@ class LocalAuthProvider(AuthProvider):
         )
 
     async def register(self, email: str, username: str, full_name: str, password: str) -> AuthUser:
-        email = email.lower().strip()
-        username = username.strip()
+        email = validate_email_format(email)
+        username = validate_username(username)
+        full_name = validate_full_name(full_name)
+        validate_password_for_registration(password, email, username)
 
-        if len(full_name.strip()) < 2:
-            raise HTTPException(status_code=400, detail="Full name must be at least 2 characters")
-        if len(username) < 3:
-            raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
-        if not USERNAME_PATTERN.match(username):
-            raise HTTPException(status_code=400, detail="Username contains invalid characters")
-
-        _validate_password(password, email, username)
-
-        if await self._get_user_by_email(email):
-            raise HTTPException(status_code=409, detail="Email already registered")
-
-        existing_username = await self.db.execute(select(User).where(User.username == username))
-        if existing_username.scalar_one_or_none():
-            raise HTTPException(status_code=409, detail="Username already taken")
+        await check_registration_availability(self.db, email, username)
 
         user = User(
             email=email,
             username=username,
-            full_name=full_name.strip(),
+            full_name=full_name,
             password_hash=_hash_password(password),
         )
         self.db.add(user)
@@ -106,11 +86,13 @@ class LocalAuthProvider(AuthProvider):
         return self._to_auth_user(user)
 
     async def login(self, email: str, password: str) -> tuple[AuthUser, AuthTokens]:
-        user = await self._get_user_by_email(email.lower().strip())
+        email = validate_email_format(email)
+        validate_password_for_login(password)
+        await resolve_login_email(self.db, email)
+
+        user = await self._get_user_by_email(email)
         if not user or not user.password_hash:
             raise HTTPException(status_code=401, detail="Invalid email or password")
-        if not user.is_active:
-            raise HTTPException(status_code=403, detail="Account is disabled")
         if not _verify_password(password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -130,7 +112,7 @@ class LocalAuthProvider(AuthProvider):
         return self._to_auth_user(user)
 
     async def forgot_password(self, email: str) -> None:
-        user = await self._get_user_by_email(email.lower().strip())
+        user = await self._get_user_by_email(validate_email_format(email))
         if user:
             logger.info("Password reset requested")
 
@@ -146,6 +128,6 @@ class LocalAuthProvider(AuthProvider):
             raise HTTPException(status_code=404, detail="User not found")
         if not _verify_password(current_password, user.password_hash):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
-        _validate_password(new_password, user.email, user.username)
+        validate_password_for_registration(new_password, user.email, user.username)
         user.password_hash = _hash_password(new_password)
         await self.db.commit()

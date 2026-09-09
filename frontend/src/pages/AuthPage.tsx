@@ -1,41 +1,65 @@
-import { Eye, EyeOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import LanguageToggle from "@/components/LanguageToggle";
+import TurnstileWidget from "@/components/TurnstileWidget";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDebouncedUsernameCheck } from "@/hooks/useDebouncedUsernameCheck";
+import { useAuthFormDraft } from "@/lib/authDraft";
+import {
+  validateConfirmForm,
+  validateLoginForm,
+  validateRegisterForm,
+} from "@/lib/authValidation";
 import { api, type OAuthConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
-type AuthMode = "login" | "register" | "confirm";
 
 export default function AuthPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { login, register, confirmSignUp, loginWithGoogle } = useAuth();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const { login, register, confirmSignUp, resendConfirmation, loginWithGoogle } = useAuth();
+  const { form, mode, setMode, setForm, resetDraft, restoreFromStorage } = useAuthFormDraft();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [oauthConfig, setOauthConfig] = useState<OAuthConfig | null>(null);
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    full_name: "",
-    username: "",
-    code: "",
-    agree: false,
-  });
+  const [oauthConfigLoading, setOauthConfigLoading] = useState(true);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+
+  const turnstileEnabled = Boolean(oauthConfig?.turnstile_enabled && oauthConfig.turnstile_site_key);
+  const captchaReady = !turnstileEnabled || Boolean(captchaToken);
+  const { status: usernameStatus } = useDebouncedUsernameCheck(
+    form.username,
+    mode === "register",
+  );
+
+  const resetCaptcha = useCallback(() => {
+    setCaptchaToken(null);
+    setCaptchaResetKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
+    restoreFromStorage();
+  }, [restoreFromStorage]);
+
+  useEffect(() => {
+    setOauthConfigLoading(true);
     api.getOAuthConfig()
       .then(setOauthConfig)
-      .catch(() => setOauthConfig({ google_enabled: false }));
+      .catch(() => setOauthConfig({ google_enabled: false, turnstile_enabled: false }))
+      .finally(() => setOauthConfigLoading(false));
   }, []);
+
+  useEffect(() => {
+    resetCaptcha();
+  }, [mode, resetCaptcha]);
 
   const handleGoogleSignIn = async () => {
     if (mode === "register" && !form.agree) {
@@ -54,59 +78,132 @@ export default function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (mode === "login") {
+      const validationError = validateLoginForm(form.email, form.password);
+      if (validationError) {
+        toast.error(t(validationError));
+        return;
+      }
+    }
+
+    if (mode === "register") {
+      if (!form.agree) {
+        toast.error(t("agreeTermsRequired"));
+        return;
+      }
+      const validationError = validateRegisterForm(form);
+      if (validationError) {
+        toast.error(t(validationError));
+        return;
+      }
+      if (usernameStatus === "taken") {
+        toast.error(t("authValidation.usernameTaken"));
+        return;
+      }
+      if (usernameStatus === "reserved") {
+        toast.error(t("authValidation.usernameReserved"));
+        return;
+      }
+      if (usernameStatus === "invalid") {
+        toast.error(t("authValidation.usernameInvalid"));
+        return;
+      }
+    }
+
+    if (oauthConfigLoading) {
+      toast.error(t("loading"));
+      return;
+    }
+
+    if (turnstileEnabled && !captchaToken) {
+      toast.error(t("authValidation.captchaRequired"));
+      return;
+    }
+
     setLoading(true);
     try {
       if (mode === "login") {
-        await login(form.email, form.password);
+        await login(form.email.trim(), form.password, captchaToken ?? undefined);
+        resetDraft();
         toast.success(t("loginSuccess"));
         navigate("/", { replace: true });
         return;
       }
 
       if (mode === "confirm") {
+        const validationError = validateConfirmForm(form.code);
+        if (validationError) {
+          toast.error(t(validationError));
+          return;
+        }
+        if (!form.password) {
+          toast.error(t("authValidation.passwordRequired"));
+          setMode("register");
+          return;
+        }
         await confirmSignUp({
-          email: form.email,
-          code: form.code,
+          email: form.email.trim(),
+          code: form.code.trim(),
           password: form.password,
         });
+        resetDraft();
         toast.success(t("confirmSuccess"));
         navigate("/", { replace: true });
         return;
       }
 
-      if (!form.agree) {
-        toast.error(t("agreeTermsRequired"));
-        return;
-      }
-
       const res = await register({
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
-        full_name: form.full_name,
-        username: form.username,
+        full_name: form.full_name.trim(),
+        username: form.username.trim(),
+        captcha_token: captchaToken ?? undefined,
       });
 
       if (res.confirmation_required) {
         setMode("confirm");
-        toast.success(res.message || t("confirmEmailSent"));
+        resetCaptcha();
+        toast.success(t("confirmEmailSentDetail"));
         return;
       }
 
+      resetDraft();
       toast.success(t("registerSuccess"));
       navigate("/", { replace: true });
     } catch (err) {
+      resetCaptcha();
       toast.error(err instanceof Error ? err.message : t("error"));
     } finally {
       setLoading(false);
     }
   };
 
-  const switchMode = (next: AuthMode) => {
+  const switchMode = (next: typeof mode) => {
     setMode(next);
     if (next !== "confirm") {
-      setForm((current) => ({ ...current, code: "" }));
+      setForm({ code: "" });
     }
   };
+
+  const usernameStatusMessage = (() => {
+    switch (usernameStatus) {
+      case "checking":
+        return t("authValidation.usernameChecking");
+      case "available":
+        return t("authValidation.usernameAvailable");
+      case "taken":
+        return t("authValidation.usernameTaken");
+      case "reserved":
+        return t("authValidation.usernameReserved");
+      case "invalid":
+        return t("authValidation.usernameInvalid");
+      case "error":
+        return t("authValidation.usernameCheckError");
+      default:
+        return null;
+    }
+  })();
 
   return (
     <div className="min-h-screen auth-screen flex items-center justify-center p-4 relative">
@@ -181,18 +278,46 @@ export default function AuthPage() {
                   <label className="text-sm font-medium">{t("fullName")}</label>
                   <Input
                     value={form.full_name}
-                    onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                    required
+                    onChange={(e) => setForm({ full_name: e.target.value })}
+                    autoComplete="name"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">{t("username")}</label>
-                  <Input
-                    value={form.username}
-                    onChange={(e) => setForm({ ...form, username: e.target.value })}
-                    required
-                    dir="ltr"
-                  />
+                  <div className="relative">
+                    <Input
+                      value={form.username}
+                      onChange={(e) => setForm({ username: e.target.value })}
+                      required
+                      dir="ltr"
+                      autoComplete="username"
+                      className="pe-10"
+                    />
+                    <div className="absolute end-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                      {usernameStatus === "checking" && (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                      {usernameStatus === "available" && (
+                        <Check className="w-4 h-4 text-green-500" />
+                      )}
+                      {(usernameStatus === "taken" || usernameStatus === "invalid" || usernameStatus === "reserved") && (
+                        <X className="w-4 h-4 text-destructive" />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t("authValidation.usernameHint")}</p>
+                  {usernameStatusMessage && (
+                    <p
+                      className={cn(
+                        "text-xs",
+                        usernameStatus === "available" ? "text-green-600 dark:text-green-400" : "text-destructive",
+                        usernameStatus === "checking" && "text-muted-foreground",
+                        usernameStatus === "error" && "text-amber-600 dark:text-amber-400",
+                      )}
+                    >
+                      {usernameStatusMessage}
+                    </p>
+                  )}
                 </div>
               </>
             )}
@@ -204,9 +329,10 @@ export default function AuthPage() {
                   type="email"
                   placeholder={t("emailPlaceholder")}
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(e) => setForm({ email: e.target.value })}
                   required
                   dir="ltr"
+                  autoComplete="email"
                   readOnly={mode === "confirm"}
                 />
               </div>
@@ -217,7 +343,7 @@ export default function AuthPage() {
                 <label className="text-sm font-medium">{t("verificationCode")}</label>
                 <Input
                   value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  onChange={(e) => setForm({ code: e.target.value })}
                   required
                   dir="ltr"
                   inputMode="numeric"
@@ -226,17 +352,18 @@ export default function AuthPage() {
               </div>
             )}
 
-            {(mode === "login" || mode === "register" || mode === "confirm") && (
+            {(mode === "login" || mode === "register") && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t("password")}</label>
                 <div className="relative">
                   <Input
                     type={showPassword ? "text" : "password"}
                     value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    onChange={(e) => setForm({ password: e.target.value })}
                     required
                     dir="ltr"
                     className="pl-12"
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
                   />
                   <button
                     type="button"
@@ -246,6 +373,9 @@ export default function AuthPage() {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {mode === "register" && (
+                  <p className="text-xs text-muted-foreground">{t("authValidation.passwordHint")}</p>
+                )}
               </div>
             )}
 
@@ -254,19 +384,41 @@ export default function AuthPage() {
                 <input
                   type="checkbox"
                   checked={form.agree}
-                  onChange={(e) => setForm({ ...form, agree: e.target.checked })}
+                  onChange={(e) => setForm({ agree: e.target.checked })}
                   className="mt-1 rounded"
                 />
                 <span>
                   {t("agreeTerms")}{" "}
-                  <Link to="/privacy-policy" className="text-primary hover:underline">{t("privacyPolicy")}</Link>
+                  <Link
+                    to="/privacy-policy"
+                    state={{ returnTo: "/auth" }}
+                    className="text-primary hover:underline"
+                  >
+                    {t("privacyPolicy")}
+                  </Link>
                   {" "}{t("and")}{" "}
-                  <Link to="/terms-of-service" className="text-primary hover:underline">{t("termsOfService")}</Link>
+                  <Link
+                    to="/terms-of-service"
+                    state={{ returnTo: "/auth" }}
+                    className="text-primary hover:underline"
+                  >
+                    {t("termsOfService")}
+                  </Link>
                 </span>
               </label>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            {turnstileEnabled && mode !== "confirm" && oauthConfig?.turnstile_site_key && (
+              <TurnstileWidget
+                siteKey={oauthConfig.turnstile_site_key}
+                resetKey={captchaResetKey}
+                onToken={setCaptchaToken}
+                onExpire={resetCaptcha}
+                onError={resetCaptcha}
+              />
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading || oauthConfigLoading || !captchaReady}>
               {loading
                 ? mode === "login"
                   ? t("loggingIn")
@@ -287,13 +439,33 @@ export default function AuthPage() {
             )}
 
             {mode === "confirm" && (
-              <button
-                type="button"
-                onClick={() => switchMode("login")}
-                className="block w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                {t("backToLogin")}
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={resendLoading || !form.email}
+                  onClick={async () => {
+                    setResendLoading(true);
+                    try {
+                      await resendConfirmation(form.email.trim());
+                      toast.success(t("resendCodeSent"));
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : t("error"));
+                    } finally {
+                      setResendLoading(false);
+                    }
+                  }}
+                  className="block w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                >
+                  {resendLoading ? t("resending") : t("resendCode")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode("login")}
+                  className="block w-full text-center text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {t("backToLogin")}
+                </button>
+              </>
             )}
           </form>
         </CardContent>

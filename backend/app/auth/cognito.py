@@ -8,7 +8,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.base import AuthProvider, AuthTokens, AuthUser
 from app.config import settings
+from app.auth.validation import (
+    validate_email_format,
+    validate_full_name,
+    validate_password_for_login,
+    validate_password_for_registration,
+    validate_username,
+)
 from app.models import ProfileSettings, User
+from app.services.auth_lookup import check_registration_availability, resolve_login_email
+from app.services.pending_password_reset import (
+    cleanup_expired_password_resets,
+    create_or_refresh_password_reset,
+    delete_password_reset,
+    verify_password_reset_code,
+)
+from app.services.pending_signup import (
+    cleanup_expired_pending_signups,
+    create_or_refresh_pending_signup,
+    delete_pending_signup,
+    resend_pending_signup_code,
+    verify_pending_signup,
+)
 
 _jwks_cache: dict | None = None
 
@@ -226,44 +247,165 @@ class CognitoAuthProvider(AuthProvider):
             cognito_sub=user.cognito_sub,
         )
 
-    async def register(self, email: str, username: str, full_name: str, password: str) -> AuthUser:
+    async def register(self, email: str, username: str, full_name: str, password: str) -> None:
+        email = validate_email_format(email)
+        username = validate_username(username)
+        full_name = validate_full_name(full_name)
+        validate_password_for_registration(password, email, username)
+
+        await check_registration_availability(self.db, email, username)
+
+        await cleanup_expired_pending_signups(self.db)
+        await create_or_refresh_pending_signup(
+            self.db,
+            email=email,
+            username=username,
+            full_name=full_name,
+            password=password,
+        )
+
+    async def resend_confirmation(self, email: str) -> None:
+        await resend_pending_signup_code(self.db, email)
+
+    def _cognito_user_exists_sync(self, email: str) -> bool:
         client = self._cognito_client()
         try:
-            client.sign_up(
-                ClientId=settings.cognito_client_id,
+            client.admin_get_user(
+                UserPoolId=settings.cognito_user_pool_id,
                 Username=email,
-                Password=password,
-                SecretHash=self._secret_hash(email) if settings.cognito_client_secret else None,
+            )
+        except client.exceptions.UserNotFoundException:
+            return False
+        return True
+
+    def _delete_cognito_user(self, email: str) -> None:
+        client = self._cognito_client()
+        try:
+            client.admin_delete_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+            )
+        except client.exceptions.UserNotFoundException:
+            return
+
+    def _remove_unconfirmed_cognito_user(self, email: str) -> None:
+        client = self._cognito_client()
+        try:
+            response = client.admin_get_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+            )
+        except client.exceptions.UserNotFoundException:
+            return
+
+        if response.get("UserStatus") == "CONFIRMED":
+            raise HTTPException(status_code=409, detail="Email already registered")
+
+        client.admin_delete_user(
+            UserPoolId=settings.cognito_user_pool_id,
+            Username=email,
+        )
+
+    def _create_confirmed_cognito_user(
+        self,
+        email: str,
+        username: str,
+        full_name: str,
+        password: str,
+    ) -> None:
+        client = self._cognito_client()
+        self._remove_unconfirmed_cognito_user(email)
+
+        try:
+            client.admin_create_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
                 UserAttributes=[
                     {"Name": "email", "Value": email},
+                    {"Name": "email_verified", "Value": "true"},
                     {"Name": "name", "Value": full_name},
                     {"Name": "preferred_username", "Value": username},
                 ],
+                MessageAction="SUPPRESS",
             )
         except client.exceptions.UsernameExistsException:
-            raise HTTPException(status_code=409, detail="Email already registered") from None
+            if self._cognito_user_is_confirmed_sync(email):
+                raise HTTPException(status_code=409, detail="Email already registered") from None
+            self._remove_unconfirmed_cognito_user(email)
+            client.admin_create_user(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+                UserAttributes=[
+                    {"Name": "email", "Value": email},
+                    {"Name": "email_verified", "Value": "true"},
+                    {"Name": "name", "Value": full_name},
+                    {"Name": "preferred_username", "Value": username},
+                ],
+                MessageAction="SUPPRESS",
+            )
+
+        try:
+            client.admin_set_user_password(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+                Password=password,
+                Permanent=True,
+            )
         except client.exceptions.InvalidPasswordException as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    async def confirm_sign_up(self, email: str, code: str, password: str) -> tuple[AuthUser, AuthTokens]:
+    def _cognito_user_is_confirmed_sync(self, email: str) -> bool:
         client = self._cognito_client()
         try:
-            client.confirm_sign_up(
-                ClientId=settings.cognito_client_id,
+            response = client.admin_get_user(
+                UserPoolId=settings.cognito_user_pool_id,
                 Username=email,
-                ConfirmationCode=code,
-                SecretHash=self._secret_hash(email) if settings.cognito_client_secret else None,
             )
-        except client.exceptions.CodeMismatchException:
-            raise HTTPException(status_code=400, detail="Invalid verification code") from None
-        except client.exceptions.ExpiredCodeException:
-            raise HTTPException(status_code=400, detail="Verification code expired") from None
-        except client.exceptions.NotAuthorizedException:
-            raise HTTPException(status_code=400, detail="Account already confirmed") from None
+        except client.exceptions.UserNotFoundException:
+            return False
+        return response.get("UserStatus") == "CONFIRMED"
 
-        return await self.login(email, password)
+    async def confirm_sign_up(self, email: str, code: str, password: str) -> tuple[AuthUser, AuthTokens]:
+        pending = await verify_pending_signup(
+            self.db,
+            email=email,
+            code=code,
+            password=password,
+        )
 
-    async def login(self, email: str, password: str) -> tuple[AuthUser, AuthTokens]:
+        # Cognito is created only after the verification code is valid.
+        # If later steps fail, roll back so the email is not left in Cognito.
+        created_cognito = False
+        try:
+            if self._cognito_user_exists_sync(pending.email):
+                self._delete_cognito_user(pending.email)
+
+            self._create_confirmed_cognito_user(
+                pending.email,
+                pending.username,
+                pending.full_name,
+                password,
+            )
+            created_cognito = True
+
+            auth_result = self._initiate_password_auth(pending.email, password)
+            auth_user, tokens = await self._complete_auth_from_tokens(
+                auth_result,
+                fallback_email=pending.email,
+            )
+        except HTTPException:
+            if created_cognito:
+                self._delete_cognito_user(pending.email)
+            raise
+        except Exception as exc:
+            if created_cognito:
+                self._delete_cognito_user(pending.email)
+            raise HTTPException(status_code=503, detail="Could not create account") from exc
+
+        await delete_pending_signup(self.db, pending)
+        return auth_user, tokens
+
+    def _initiate_password_auth(self, email: str, password: str) -> dict:
         client = self._cognito_client()
         try:
             response = client.initiate_auth(
@@ -283,7 +425,19 @@ class CognitoAuthProvider(AuthProvider):
                 detail="Email not verified. Enter the confirmation code sent to your email.",
             ) from None
 
-        auth_result = response["AuthenticationResult"]
+        return response["AuthenticationResult"]
+
+    async def login(self, email: str, password: str) -> tuple[AuthUser, AuthTokens]:
+        email = validate_email_format(email)
+        validate_password_for_login(password)
+        try:
+            await resolve_login_email(self.db, email)
+        except HTTPException as exc:
+            # Cognito account may exist before Neon user row (e.g. after a failed confirm).
+            if exc.status_code != 401 or exc.detail != "Email not registered":
+                raise
+
+        auth_result = self._initiate_password_auth(email, password)
         return await self._complete_auth_from_tokens(auth_result, fallback_email=email)
 
     @property
@@ -382,22 +536,35 @@ class CognitoAuthProvider(AuthProvider):
         return self._to_auth_user(user)
 
     async def forgot_password(self, email: str) -> None:
-        client = self._cognito_client()
-        client.forgot_password(
-            ClientId=settings.cognito_client_id,
-            Username=email,
-            **({"SecretHash": self._secret_hash(email)} if settings.cognito_client_secret else {}),
-        )
+        email = email.lower().strip()
+        if not self._cognito_user_is_confirmed_sync(email):
+            return
+
+        await cleanup_expired_password_resets(self.db)
+        await create_or_refresh_password_reset(self.db, email=email)
 
     async def reset_password(self, email: str, code: str, new_password: str) -> None:
+        email = email.lower().strip()
+        pending = await verify_password_reset_code(self.db, email=email, code=code)
+
+        attrs = self._fetch_cognito_user_attributes(email)
+        username = (attrs.get("preferred_username") or email.split("@", 1)[0]).strip()
+        validate_password_for_registration(new_password, email, username)
+
         client = self._cognito_client()
-        client.confirm_forgot_password(
-            ClientId=settings.cognito_client_id,
-            Username=email,
-            ConfirmationCode=code,
-            Password=new_password,
-            **({"SecretHash": self._secret_hash(email)} if settings.cognito_client_secret else {}),
-        )
+        try:
+            client.admin_set_user_password(
+                UserPoolId=settings.cognito_user_pool_id,
+                Username=email,
+                Password=new_password,
+                Permanent=True,
+            )
+        except client.exceptions.InvalidPasswordException as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except client.exceptions.UserNotFoundException:
+            raise HTTPException(status_code=400, detail="Invalid verification code") from None
+
+        await delete_password_reset(self.db, pending)
 
     async def change_password(
         self,

@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Post, Vehicle } from "@/lib/api";
+import { getBusinessProfilePath } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
 import { cn, displayName, formatHandle } from "@/lib/utils";
 
@@ -23,14 +24,27 @@ type Tab = "posts" | "saved" | "garage";
 export default function ProfilePage() {
   const { t } = useTranslation();
   const { userId } = useParams();
+  const [searchParams] = useSearchParams();
   const messagesPanel = useMessagesPanelOptional();
   const { user: authUser } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>("posts");
+  const initialTab = searchParams.get("tab");
+  const [tab, setTab] = useState<Tab>(
+    initialTab === "garage" || initialTab === "saved" ? initialTab : "posts"
+  );
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab === "garage" || urlTab === "saved") setTab(urlTab);
+  }, [searchParams]);
 
   const profileUserId = userId ?? authUser?.id;
   const isOwnProfile = Boolean(authUser && profileUserId === authUser.id);
+
+  if (isOwnProfile && authUser?.account_type === "business" && !userId) {
+    return <Navigate to={getBusinessProfilePath(authUser.business_type, authUser.id)} replace />;
+  }
 
   const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ["user", profileUserId],
@@ -102,7 +116,7 @@ export default function ProfilePage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "posts", label: t("profile.posts") },
     ...(isOwnProfile ? [{ id: "saved" as Tab, label: t("savedPosts") }] : []),
-    { id: "garage", label: t("garage.nav") },
+    { id: "garage", label: t("garage.myGarage") },
   ];
 
   const loading = tab === "posts" ? postsLoading : tab === "saved" ? savedLoading : garageLoading;
