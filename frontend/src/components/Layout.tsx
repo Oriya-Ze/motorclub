@@ -7,8 +7,10 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
+import CreateFab from "@/components/CreateFab";
 import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
+import MobileHeaderActions from "@/components/MobileHeaderActions";
 import { MessagesPanelProvider, MessagesSideButton } from "@/components/MessagesPanel";
 import ThemeSync from "@/components/ThemeSync";
 import UserSearch from "@/components/UserSearch";
@@ -29,7 +31,7 @@ const navItems = [
   { to: "/services", label: "services", icon: Building2 },
 ];
 
-export default function Layout() {
+function AuthenticatedLayout() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -54,20 +56,19 @@ export default function Layout() {
   const { data: unread } = useQuery({
     queryKey: ["unread-count"],
     queryFn: () => api.getUnreadCount(),
-    enabled: !!user,
     refetchInterval: 30000,
   });
+
+  const edgeToEdge =
+    location.pathname === "/" || /^\/posts\/[^/]+$/.test(location.pathname);
 
   const handleLogout = () => {
     logout();
     navigate("/auth");
   };
 
-  const edgeToEdge =
-    location.pathname === "/" || /^\/posts\/[^/]+$/.test(location.pathname);
-
   return (
-    <div className="min-h-screen gradient-bg">
+    <>
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-3 min-w-0">
@@ -76,119 +77,164 @@ export default function Layout() {
               <span className="font-bold text-lg hidden sm:block font-display tracking-wide">{t("appName")}</span>
             </Link>
 
-            {user && (
-              <div className="hidden md:block flex-1 min-w-0 max-w-sm lg:max-w-md mx-2">
-                <UserSearch />
-              </div>
-            )}
+            <div className="hidden md:block flex-1 min-w-0 max-w-sm lg:max-w-md mx-2">
+              <UserSearch />
+            </div>
 
             <div className="flex items-center gap-1 shrink-0">
               <LanguageToggle />
-              {user && (
-                <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-muted/50">
-                  <Bell className="w-5 h-5" />
-                  {(unread?.count ?? 0) > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
-                      {unread!.count > 9 ? "9+" : unread!.count}
-                    </span>
-                  )}
-                </Link>
-              )}
-              {user && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="hidden md:flex gap-1.5"
-                    onClick={() => setShowCreate(true)}
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span className="hidden lg:inline">{t("create")}</span>
-                  </Button>
-                  <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
-                    <Avatar user={user} size="sm" />
-                    <span className="text-sm font-medium hidden xl:inline">{displayUsername(user)}</span>
-                  </Link>
-                  <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
-                  <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>
-                </>
-              )}
-              {!user && (
-                <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
-              )}
-              <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => user && setMobileOpen(!mobileOpen)} disabled={!user}>
+              <MobileHeaderActions />
+              <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-muted/50 hidden md:flex">
+                <Bell className="w-5 h-5" />
+                {(unread?.count ?? 0) > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-white text-[9px] rounded-full flex items-center justify-center">
+                    {unread!.count > 9 ? "9+" : unread!.count}
+                  </span>
+                )}
+              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden md:flex gap-1.5"
+                onClick={() => setShowCreate(true)}
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden lg:inline">{t("create")}</span>
+              </Button>
+              <Link to="/profile" className="hidden md:flex items-center gap-2 px-2 py-1 rounded-xl hover:bg-muted/50">
+                <Avatar user={user!} size="sm" />
+                <span className="text-sm font-medium hidden xl:inline">{displayUsername(user!)}</span>
+              </Link>
+              <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
+              <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
             </div>
           </div>
 
-          {user && (
-            <nav className="hidden xl:flex flex-wrap items-center gap-1 pb-3 pt-0.5 border-t border-border/40">
-              {navItems.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === "/"}
-                  onMouseEnter={() => prefetchRoute(queryClient, to)}
-                  className={({ isActive }) =>
-                    cn(
-                      "nav-link",
-                      isActive ? "nav-link-active text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                    )
-                  }
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {t(label)}
-                </NavLink>
-              ))}
-            </nav>
-          )}
+          <nav className="hidden xl:flex flex-wrap items-center gap-1 pb-3 pt-0.5 border-t border-border/40">
+            {navItems.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                onMouseEnter={() => prefetchRoute(queryClient, to)}
+                className={({ isActive }) =>
+                  cn(
+                    "nav-link",
+                    isActive ? "nav-link-active text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  )
+                }
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {t(label)}
+              </NavLink>
+            ))}
+          </nav>
         </div>
 
-        {mobileOpen && user && (
+        {mobileOpen && (
           <nav className="xl:hidden border-t border-border/50 px-4 py-3 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
             <div className="pb-3 sm:hidden"><UserSearch /></div>
             {navItems.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} end={to === "/"} onClick={() => setMobileOpen(false)}
-                className={({ isActive }) => cn("flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium", isActive ? "text-primary bg-primary/10" : "text-muted-foreground")}>
-                <Icon className="w-4 h-4" />{t(label)}
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium",
+                    isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+                  )
+                }
+              >
+                <Icon className="w-4 h-4" />
+                {t(label)}
               </NavLink>
             ))}
-            <NavLink to="/profile" onClick={() => setMobileOpen(false)}
-              className={({ isActive }) => cn("flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium", isActive ? "text-primary bg-primary/10" : "text-muted-foreground")}>
-              <UserCircle className="w-4 h-4" />{t("profile.nav")}
+            <NavLink
+              to="/profile"
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium",
+                  isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+                )
+              }
+            >
+              <UserCircle className="w-4 h-4" />
+              {t("profile.nav")}
             </NavLink>
           </nav>
         )}
       </header>
 
-      {user ? (
+      <main
+        className={cn(
+          "feed-scroll max-w-7xl mx-auto py-4 md:py-6 page-enter pb-24 md:pb-6",
+          edgeToEdge ? "px-0 md:px-4" : "px-4",
+        )}
+      >
+        <Outlet />
+      </main>
+      <ThemeSync />
+      <CreateFab onClick={() => setShowCreate(true)} />
+      <MessagesSideButton />
+      <BottomNav />
+      <CreatePostModal
+        open={showCreate}
+        onClose={() => {
+          setShowCreate(false);
+          setCreateVehicleId(undefined);
+        }}
+        initialVehicleId={createVehicleId}
+      />
+    </>
+  );
+}
+
+export default function Layout() {
+  const { user } = useAuth();
+
+  if (user) {
+    return (
+      <div className="min-h-screen gradient-bg">
         <MessagesPanelProvider>
-          <main
-            className={cn(
-              "feed-scroll max-w-7xl mx-auto py-4 md:py-6 page-enter pb-24 md:pb-6",
-              edgeToEdge ? "px-0 md:px-4" : "px-4",
-            )}
-          >
-            <Outlet />
-          </main>
-          <ThemeSync />
-          <MessagesSideButton />
-          <BottomNav onCreatePost={() => setShowCreate(true)} />
-          <CreatePostModal
-            open={showCreate}
-            onClose={() => {
-              setShowCreate(false);
-              setCreateVehicleId(undefined);
-            }}
-            initialVehicleId={createVehicleId}
-          />
+          <AuthenticatedLayout />
         </MessagesPanelProvider>
-      ) : (
-        <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">
-          <Outlet />
-        </main>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen gradient-bg">
+      <GuestLayout />
     </div>
+  );
+}
+
+function GuestLayout() {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
+            <span className="font-bold text-lg font-display tracking-wide">{t("appName")}</span>
+          </Link>
+          <div className="flex items-center gap-1">
+            <LanguageToggle />
+            <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
+          </div>
+        </div>
+      </header>
+      <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">
+        <Outlet />
+      </main>
+    </>
   );
 }
