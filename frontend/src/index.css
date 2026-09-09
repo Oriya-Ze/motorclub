@@ -404,4 +404,121 @@
       transform: translateX(0);
     }
   }
+
+  .create-fab {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border: 1px solid hsl(0 0% 100% / 0.22);
+    background: hsl(var(--card) / 0.12);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    box-shadow:
+      0 8px 28px hsl(25 95% 55% / 0.22),
+      0 0 0 1px hsl(38 90% 58% / 0.12),
+      inset 0 1px 0 hsl(0 0% 100% / 0.35);
+  }
+
+  .dark .create-fab {
+    border-color: hsl(0 0% 100% / 0.12);
+    background: hsl(var(--card) / 0.18);
+    box-shadow:
+      0 8px 32px hsl(25 95% 50% / 0.28),
+      0 0 0 1px hsl(38 85% 55% / 0.15),
+      inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  }
+
+  .create-fab__flow {
+    position: absolute;
+    inset: -60%;
+    pointer-events: none;
+    opacity: 0.75;
+    filter: blur(7px);
+    will-change: transform;
+  }
+
+  .create-fab__flow--a {
+    background:
+      repeating-linear-gradient(
+        118deg,
+        transparent 0px,
+        transparent 14px,
+        hsl(45 100% 62% / 0.55) 14px,
+        hsl(25 95% 58% / 0.65) 17px,
+        hsl(38 100% 68% / 0.4) 19px,
+        transparent 22px
+      );
+    animation: createFabFlowA 2.8s linear infinite;
+  }
+
+  .create-fab__flow--b {
+    background:
+      repeating-linear-gradient(
+        -62deg,
+        transparent 0px,
+        transparent 18px,
+        hsl(32 100% 60% / 0.35) 18px,
+        hsl(48 100% 70% / 0.5) 21px,
+        transparent 24px
+      );
+    opacity: 0.55;
+    filter: blur(9px);
+    animation: createFabFlowB 3.6s linear infinite reverse;
+  }
+
+  .create-fab__flow--c {
+    inset: -20%;
+    background: radial-gradient(
+      circle at 50% 50%,
+      hsl(38 100% 62% / 0.35) 0%,
+      hsl(25 95% 55% / 0.15) 35%,
+      transparent 65%
+    );
+    filter: blur(12px);
+    opacity: 0.6;
+    animation: createFabPulse 2.4s ease-in-out infinite;
+  }
+
+  .create-fab__icon {
+    position: relative;
+    z-index: 2;
+    color: hsl(45 100% 92%);
+    filter: drop-shadow(0 0 6px hsl(25 95% 55% / 0.65));
+  }
+
+  @keyframes createFabFlowA {
+    from {
+      transform: translate3d(-8%, -6%, 0) rotate(0deg);
+    }
+    to {
+      transform: translate3d(8%, 6%, 0) rotate(2deg);
+    }
+  }
+
+  @keyframes createFabFlowB {
+    from {
+      transform: translate3d(6%, -8%, 0) rotate(0deg);
+    }
+    to {
+      transform: translate3d(-6%, 8%, 0) rotate(-2deg);
+    }
+  }
+
+  @keyframes createFabPulse {
+    0%,
+    100% {
+      opacity: 0.45;
+      transform: scale(0.95);
+    }
+    50% {
+      opacity: 0.75;
+      transform: scale(1.05);
+    }
+  }
+
+  .create-fab:active {
+    box-shadow:
+      0 4px 16px hsl(25 95% 55% / 0.28),
+      inset 0 1px 0 hsl(0 0% 100% / 0.2);
+  }
 }
