@@ -51,7 +51,8 @@ export const SUPPORTED_VIDEO_TYPES = [
 ] as const;
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
+/** Camera recordings on mobile are often 15–50MB before server-side transcode (Phase B2). */
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
 // TODO(orphan-cleanup): A future worker should delete storage objects that were
 // uploaded successfully but never referenced by a domain record (e.g. after a
@@ -59,12 +60,35 @@ export const MAX_VIDEO_BYTES = 10 * 1024 * 1024;
 
 type AuthenticatedRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 
+const EXTENSION_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+};
+
+function fileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot).toLowerCase() : "";
+}
+
 function normalizeContentType(file: File): string {
   return (file.type || "application/octet-stream").split(";", 1)[0].trim().toLowerCase();
 }
 
-export function inferMediaType(file: File): MediaType {
+export function resolveUploadContentType(file: File): string {
   const contentType = normalizeContentType(file);
+  if (contentType !== "application/octet-stream") return contentType;
+  const fromExt = EXTENSION_TO_MIME[fileExtension(file.name)];
+  return fromExt ?? contentType;
+}
+
+export function inferMediaType(file: File): MediaType {
+  const contentType = resolveUploadContentType(file);
   if ((SUPPORTED_IMAGE_TYPES as readonly string[]).includes(contentType)) {
     return "image";
   }
@@ -74,6 +98,26 @@ export function inferMediaType(file: File): MediaType {
   throw new MediaUploadError("Unsupported file type", "unsupported_type");
 }
 
+/** Normalize mobile camera files that omit MIME type or use generic octet-stream. */
+export function normalizeMediaFile(file: File, mediaType: MediaType): File {
+  const contentType = resolveUploadContentType(file);
+  if (contentType === "application/octet-stream") {
+    const fallbackType = mediaType === "video" ? "video/mp4" : "image/jpeg";
+    const fallbackName =
+      file.name && fileExtension(file.name)
+        ? file.name
+        : mediaType === "video"
+          ? "video.mp4"
+          : "photo.jpg";
+    return new File([file], fallbackName, { type: fallbackType, lastModified: file.lastModified });
+  }
+  if (file.type === contentType) return file;
+  return new File([file], file.name || (mediaType === "video" ? "video.mp4" : "photo.jpg"), {
+    type: contentType,
+    lastModified: file.lastModified,
+  });
+}
+
 export function validateFileBeforeUpload(file: File): MediaType {
   const mediaType = inferMediaType(file);
   const limit = mediaType === "image" ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES;
@@ -81,7 +125,8 @@ export function validateFileBeforeUpload(file: File): MediaType {
     throw new MediaUploadError("File is empty", "empty_file");
   }
   if (file.size > limit) {
-    throw new MediaUploadError(`File too large (max ${limit / (1024 * 1024)}MB)`, "file_too_large");
+    const mb = Math.round(limit / (1024 * 1024));
+    throw new MediaUploadError(`File too large (max ${mb}MB)`, mediaType === "video" ? "video_too_large" : "file_too_large");
   }
   return mediaType;
 }
@@ -100,15 +145,17 @@ async function requestUploadInstruction(
   request: AuthenticatedRequest,
   file: File,
   purpose: MediaPurpose,
+  mediaType: MediaType,
 ): Promise<MediaUploadRequestResponse> {
-  const contentType = normalizeContentType(file);
+  const normalizedFile = normalizeMediaFile(file, mediaType);
+  const contentType = resolveUploadContentType(normalizedFile);
   return request<MediaUploadRequestResponse>("/media/upload-requests", {
     method: "POST",
     body: JSON.stringify({
       purpose,
       content_type: contentType,
-      size_bytes: file.size,
-      filename: file.name || undefined,
+      size_bytes: normalizedFile.size,
+      filename: normalizedFile.name || undefined,
     }),
   });
 }
@@ -165,20 +212,21 @@ export async function uploadMedia(
     getToken: () => string | null;
   },
 ): Promise<UploadMediaResult> {
-  validateFileBeforeUpload(file);
+  const mediaType = validateFileBeforeUpload(file);
+  const normalizedFile = normalizeMediaFile(file, mediaType);
 
-  const instruction = await requestUploadInstruction(deps.request, file, purpose);
+  const instruction = await requestUploadInstruction(deps.request, normalizedFile, purpose, mediaType);
 
   if (instruction.upload_method === "multipart") {
     const uploadPath = instruction.upload_path || "/api/v1/uploads";
-    return uploadLocalMultipart(deps.getToken, uploadPath, file);
+    return uploadLocalMultipart(deps.getToken, uploadPath, normalizedFile);
   }
 
   if (instruction.upload_method === "PUT") {
     if (!instruction.upload_url || !instruction.storage_key) {
       throw new MediaUploadError("Invalid upload instructions", "invalid_instruction");
     }
-    await uploadToPresignedUrl(instruction.upload_url, file, instruction.required_headers);
+    await uploadToPresignedUrl(instruction.upload_url, normalizedFile, instruction.required_headers);
     return {
       reference: instruction.storage_key,
       mediaType: instruction.media_type,

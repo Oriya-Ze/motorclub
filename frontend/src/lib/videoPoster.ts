@@ -1,61 +1,44 @@
 export const MAX_POST_VIDEO_DURATION_SEC = 60;
 
-export function getVideoDuration(file: File): Promise<number> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, code: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
-      resolve(video.duration);
-      URL.revokeObjectURL(url);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("invalid_video"));
-    };
-    video.src = url;
+    const timer = window.setTimeout(() => reject(new Error(code)), timeoutMs);
+    promise
+      .then((value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
   });
 }
 
-export function captureVideoPoster(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.muted = true;
-    video.playsInline = true;
+export function getVideoDuration(file: File, timeoutMs = 8000): Promise<number> {
+  return withTimeout(
+    new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      video.onloadedmetadata = () => {
+        resolve(video.duration);
+        URL.revokeObjectURL(url);
+      };
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("invalid_video"));
+      };
+      video.src = url;
+    }),
+    timeoutMs,
+    "duration_timeout",
+  );
+}
 
-    const cleanup = () => URL.revokeObjectURL(url);
-
-    video.onloadeddata = () => {
-      video.currentTime = Math.min(0.1, video.duration / 2);
-    };
-
-    video.onseeked = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          cleanup();
-          reject(new Error("poster_failed"));
-          return;
-        }
-        ctx.drawImage(video, 0, 0);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-        cleanup();
-      } catch {
-        cleanup();
-        reject(new Error("poster_failed"));
-      }
-    };
-
-    video.onerror = () => {
-      cleanup();
-      reject(new Error("invalid_video"));
-    };
-
-    video.src = url;
-  });
+/** Lightweight preview URL — caller must revoke when done. */
+export function createVideoPreviewUrl(file: File): string {
+  return URL.createObjectURL(file);
 }

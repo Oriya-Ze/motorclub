@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     s3_media_bucket: str = ""
     s3_presigned_url_expiry_seconds: int = 300
     max_image_upload_bytes: int = 10 * 1024 * 1024
-    max_video_upload_bytes: int = 10 * 1024 * 1024
+    max_video_upload_bytes: int = 50 * 1024 * 1024
     rate_limit_table: str = ""
     resend_api_key: str = ""
     resend_secret_arn: str = ""
