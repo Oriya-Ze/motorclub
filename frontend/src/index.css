@@ -406,7 +406,6 @@
   }
 
   .create-fab {
-    position: relative;
     overflow: hidden;
     isolation: isolate;
     border: 1px solid hsl(0 0% 100% / 0.22);
@@ -482,8 +481,13 @@
   .create-fab__icon {
     position: relative;
     z-index: 2;
+    color: hsl(25 95% 42%);
+    filter: drop-shadow(0 0 8px hsl(38 100% 55% / 0.75));
+  }
+
+  .dark .create-fab__icon {
     color: hsl(45 100% 92%);
-    filter: drop-shadow(0 0 6px hsl(25 95% 55% / 0.65));
+    filter: drop-shadow(0 0 8px hsl(25 95% 55% / 0.8));
   }
 
   @keyframes createFabFlowA {

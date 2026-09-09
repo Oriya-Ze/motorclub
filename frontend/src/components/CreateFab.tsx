@@ -20,7 +20,7 @@ export default function CreateFab({ onClick }: CreateFabProps) {
       onClick={onClick}
       aria-label={t("createPost")}
       className={cn(
-        "create-fab md:hidden fixed z-40",
+        "create-fab md:hidden fixed z-[60]",
         "bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] end-4",
         "flex h-14 w-14 items-center justify-center rounded-2xl",
         "transition-transform active:scale-95",
