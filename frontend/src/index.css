@@ -458,8 +458,8 @@
     overflow: hidden;
     border: 1px solid hsl(0 0% 100% / 0.12);
     background: hsl(0 0% 100% / 0.02);
-    backdrop-filter: saturate(1.14) brightness(1.02);
-    -webkit-backdrop-filter: saturate(1.14) brightness(1.02);
+    backdrop-filter: saturate(1.22) contrast(1.06) brightness(1.03);
+    -webkit-backdrop-filter: saturate(1.22) contrast(1.06) brightness(1.03);
     box-shadow:
       0 2px 14px hsl(25 95% 55% / 0.08),
       inset 0 1px 0 hsl(0 0% 100% / 0.14);
@@ -474,12 +474,12 @@
     background:
       linear-gradient(
         135deg,
-        hsl(45 90% 68% / 0.04) 0%,
+        hsl(45 90% 68% / 0.07) 0%,
         transparent 42%,
-        hsl(25 85% 58% / 0.03) 100%
+        hsl(25 85% 58% / 0.06) 100%
       );
-    backdrop-filter: saturate(1.18) contrast(1.04) brightness(1.03);
-    -webkit-backdrop-filter: saturate(1.18) contrast(1.04) brightness(1.03);
+    backdrop-filter: saturate(1.32) contrast(1.12) brightness(1.05);
+    -webkit-backdrop-filter: saturate(1.32) contrast(1.12) brightness(1.05);
     filter: url(#createFabDistort);
     animation: createFabDistortShift 16s ease-in-out infinite;
   }
@@ -492,7 +492,7 @@
       118deg,
       transparent 0px,
       transparent 52px,
-      hsl(48 100% 70% / 0.025) 56px,
+      hsl(48 100% 70% / 0.05) 56px,
       transparent 60px
     );
     mix-blend-mode: soft-light;
@@ -540,19 +540,19 @@
   @keyframes createFabDistortShift {
     0%,
     100% {
-      transform: scale(1) skew(0deg, 0deg);
+      transform: perspective(140px) scale(1) skew(0deg, 0deg);
     }
     33% {
-      transform: scale(1.008) skew(0.4deg, -0.25deg);
+      transform: perspective(140px) scale(1.014) skew(0.85deg, -0.55deg);
     }
     66% {
-      transform: scale(0.996) skew(-0.3deg, 0.35deg);
+      transform: perspective(140px) scale(0.992) skew(-0.7deg, 0.75deg);
     }
   }
 
   @keyframes createFabShimmer {
     to {
-      transform: translate3d(6%, 4%, 0) rotate(2deg);
+      transform: translate3d(12%, 8%, 0) rotate(4deg);
     }
   }
 

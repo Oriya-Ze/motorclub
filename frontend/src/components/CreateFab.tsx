@@ -35,22 +35,22 @@ export default function CreateFab({ onClick }: CreateFabProps) {
           <filter id="createFabFlowSoft" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="2.2" />
           </filter>
-          <filter id="createFabDistort" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id="createFabDistort" x="-35%" y="-35%" width="170%" height="170%">
             <feTurbulence
               type="fractalNoise"
-              baseFrequency="0.011 0.014"
-              numOctaves="2"
+              baseFrequency="0.016 0.019"
+              numOctaves="3"
               seed="4"
               result="noise"
             >
               <animate
                 attributeName="baseFrequency"
                 dur="18s"
-                values="0.011 0.014;0.014 0.011;0.011 0.014"
+                values="0.016 0.019;0.021 0.016;0.016 0.019"
                 repeatCount="indefinite"
               />
             </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>
         <g filter="url(#createFabFlowSoft)">
