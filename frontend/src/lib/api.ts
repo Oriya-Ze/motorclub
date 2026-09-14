@@ -235,6 +235,7 @@ export interface Group {
   can_manage?: boolean;
   pending_count?: number;
   creator_id: string;
+  created_at?: string;
 }
 
 export interface Story {

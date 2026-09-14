@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { ListPageSkeleton } from "@/components/Skeleton";
+import { avatarColors } from "@/lib/avatar";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -67,8 +68,9 @@ export default function GroupsPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {groups.map((group) => (
             <Link key={group.id} to={`/groups/${group.id}`}>
-              <Card className="hover:shadow-glow transition-shadow h-full">
-                <CardContent className="pt-6">
+              <Card className="hover:shadow-glow transition-shadow h-full overflow-hidden">
+                <div className="h-16" style={{ background: `linear-gradient(135deg, ${avatarColors(group.id).bg}, hsl(0 0% 12%))` }} />
+                <CardContent className="pt-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-lg">{group.name}</h3>
                     <div className="flex items-center gap-1 shrink-0">
