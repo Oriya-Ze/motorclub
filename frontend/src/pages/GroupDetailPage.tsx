@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Crown, Lock, MessageCircle, Send, Share2, Shield, Trash2, UserMinus, Users, X } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { Check, Crown, Lock, MessageCircle, MoreHorizontal, Send, Share2, Shield, Trash2, UserMinus, Users, X } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import { GroupMark } from "@/components/GroupCard";
 import ShareSheet from "@/components/ShareSheet";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
-import { avatarColors, avatarInitial } from "@/lib/avatar";
 import { api, User } from "@/lib/api";
 import { cn, displayName } from "@/lib/utils";
 
@@ -60,6 +60,9 @@ export default function GroupDetailPage() {
   const tab: Tab = tabParam === "members" || tabParam === "about" ? tabParam : "chat";
   const [message, setMessage] = useState("");
   const [showShare, setShowShare] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const setTab = (next: Tab) => {
     setSearchParams(next === "chat" ? {} : { tab: next }, { replace: true });
@@ -89,6 +92,20 @@ export default function GroupDetailPage() {
     enabled: Boolean(groupId && group?.is_member && tab === "chat"),
     refetchInterval: group?.is_member && tab === "chat" ? 5000 : false,
   });
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [showMenu]);
+
+  useEffect(() => {
+    if (tab !== "chat") return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length, tab]);
 
   const invalidateGroup = () => {
     queryClient.invalidateQueries({ queryKey: ["group", groupId] });
@@ -185,8 +202,6 @@ export default function GroupDetailPage() {
   const isPending = group.my_status === "pending";
   const isPrivate = group.privacy === "closed";
   const groupUrl = `${window.location.origin}/groups/${group.id}`;
-  const colors = avatarColors(group.id);
-  const initial = avatarInitial(group.name);
   const pendingCount = group.pending_count ?? joinRequests.length;
 
   const canKick = (targetRole: string, targetUserId: string) => {
@@ -209,42 +224,36 @@ export default function GroupDetailPage() {
     <Button size="sm" variant="outline" onClick={() => leaveGroup.mutate()} disabled={leaveGroup.isPending}>
       {t("cancelJoinRequest")}
     </Button>
-  ) : group.is_member ? (
-    group.my_role !== "owner" ? (
-      <Button size="sm" variant="outline" onClick={() => leaveGroup.mutate()} disabled={leaveGroup.isPending}>
-        {t("leaveGroup")}
-      </Button>
-    ) : null
-  ) : (
+  ) : group.is_member ? null : (
     <Button size="sm" onClick={() => joinGroup.mutate()} disabled={joinGroup.isPending}>
       {isPrivate ? t("requestToJoinGroup") : t("joinGroup")}
     </Button>
   );
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-20 md:pb-6">
-      <Link to="/groups" className="inline-flex text-sm text-muted-foreground hover:text-primary">
+    <div
+      className={cn(
+        "max-w-2xl mx-auto flex flex-col gap-3",
+        tab === "chat" ? "h-[calc(100dvh-11rem)] md:h-[calc(100dvh-8rem)]" : "pb-20 md:pb-6",
+      )}
+    >
+      <Link to="/groups" className="inline-flex text-sm text-muted-foreground hover:text-primary shrink-0">
         {t("groups")}
       </Link>
 
-      <Card className="overflow-hidden">
-        <div className="relative h-32 sm:h-40" style={{ background: `linear-gradient(135deg, ${colors.bg}, hsl(0 0% 12%))` }}>
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/20 to-transparent" />
-        </div>
-        <CardContent className="relative pt-0 pb-5 px-4 sm:px-6 space-y-4">
-          <div className="flex items-end gap-3 sm:gap-4 -mt-10 sm:-mt-12">
-            <div
-              className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-4 border-card shadow-md flex items-center justify-center text-3xl font-bold shrink-0"
-              style={{ backgroundColor: colors.bg, color: colors.fg }}
-            >
-              {initial}
-            </div>
+      <Card className="overflow-hidden shrink-0">
+        <div className="h-20 sm:h-24 bg-muted/70" />
+        <CardContent className="relative pt-0 pb-4 px-4 sm:px-6 space-y-3">
+          <div className="flex items-end gap-3 sm:gap-4 -mt-8">
+            <GroupMark id={group.id} name={group.name} size="lg" className="border-4 border-card" />
             <div className="flex-1 min-w-0 pb-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-display tracking-wide leading-tight truncate">{group.name}</h1>
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                  {isPrivate ? t("groupPrivacyPrivate") : t("groupPrivacyPublic")}
-                </span>
+                {isPrivate && (
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                    {t("groupPrivacyPrivate")}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 <Users className="w-4 h-4" />
@@ -260,24 +269,52 @@ export default function GroupDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setShowShare(true)}>
+            {joinButton}
+            <Button size="sm" variant="outline" onClick={() => setShowShare(true)} aria-label={t("shareGroup")}>
               <Share2 className="w-4 h-4 me-1" />
               {t("shareGroup")}
             </Button>
-            {joinButton}
-            {isOwner && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => {
-                  if (window.confirm(t("confirmDeleteGroup"))) deleteGroup.mutate();
-                }}
-                disabled={deleteGroup.isPending}
-              >
-                <Trash2 className="w-4 h-4 me-1" />
-                {t("deleteGroup")}
-              </Button>
+            {(isOwner || (group.is_member && group.my_role !== "owner")) && (
+              <div className="relative ms-auto" ref={menuRef}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9"
+                  onClick={() => setShowMenu((v) => !v)}
+                  aria-label={t("groupOptions")}
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </Button>
+                {showMenu && (
+                  <div className="absolute end-0 top-full mt-1 z-20 min-w-[180px] glass-card rounded-xl py-1">
+                    {group.is_member && group.my_role !== "owner" && (
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted/50 text-start"
+                        onClick={() => {
+                          setShowMenu(false);
+                          leaveGroup.mutate();
+                        }}
+                      >
+                        {t("leaveGroup")}
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted/50 text-start"
+                        onClick={() => {
+                          setShowMenu(false);
+                          if (window.confirm(t("confirmDeleteGroup"))) deleteGroup.mutate();
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {t("deleteGroup")}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -289,7 +326,7 @@ export default function GroupDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/50">
+      <div className="flex gap-1 p-1 rounded-xl bg-muted/50 border border-border/50 shrink-0">
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -311,8 +348,8 @@ export default function GroupDetailPage() {
       </div>
 
       {tab === "chat" && (
-        <Card className="flex flex-col min-h-[420px]">
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[50vh]">
+        <Card className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {!group.is_member ? (
               <EmptyState
                 icon={Lock}
@@ -338,9 +375,10 @@ export default function GroupDetailPage() {
                 );
               })
             )}
+            <div ref={messagesEndRef} />
           </div>
           <form
-            className="p-4 border-t border-border/50 flex gap-2"
+            className="p-3 border-t border-border/50 flex gap-2 shrink-0"
             onSubmit={(e) => {
               e.preventDefault();
               if (message.trim()) sendMessage.mutate(message.trim());

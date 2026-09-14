@@ -2,14 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import PageHeading from "@/components/PageHeading";
+import GroupCard from "@/components/GroupCard";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { ListPageSkeleton } from "@/components/Skeleton";
-import { avatarColors } from "@/lib/avatar";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -65,42 +64,9 @@ export default function GroupsPage() {
           <Button onClick={() => setShowCreate(true)}>{t("createGroup")}</Button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {groups.map((group) => (
-            <Link key={group.id} to={`/groups/${group.id}`}>
-              <Card className="hover:shadow-glow transition-shadow h-full overflow-hidden">
-                <div className="h-16" style={{ background: `linear-gradient(135deg, ${avatarColors(group.id).bg}, hsl(0 0% 12%))` }} />
-                <CardContent className="pt-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="font-semibold text-lg">{group.name}</h3>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {group.privacy === "closed" && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          {t("groupPrivacyPrivate")}
-                        </span>
-                      )}
-                      {group.my_status === "pending" && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
-                          {t("groupJoinPending")}
-                        </span>
-                      )}
-                      {group.is_member && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                          {t("groupMember")}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {group.description && (
-                    <p className="text-muted-foreground text-sm mb-4">{group.description}</p>
-                  )}
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Users className="w-4 h-4" />
-                    {group.members_count} {t("members")}
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
+            <GroupCard key={group.id} group={group} />
           ))}
         </div>
       )}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import PageHeading from "@/components/PageHeading";
+import GroupCard from "@/components/GroupCard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -79,36 +80,7 @@ export default function CommunityPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {groups.map((group) => (
-                <Link key={group.id} to={`/groups/${group.id}`}>
-                  <Card className="hover:shadow-glow transition-shadow h-full">
-                    <CardContent className="pt-5 pb-5 flex gap-3">
-                      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Users className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-semibold truncate">{group.name}</h3>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                          {group.privacy === "closed" && (
-                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                              {t("groupPrivacyPrivate")}
-                            </span>
-                          )}
-                          {group.my_status === "pending" && (
-                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
-                              {t("groupJoinPending")}
-                            </span>
-                          )}
-                        </div>
-                        {group.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{group.description}</p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {group.members_count} {t("members")}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <GroupCard key={group.id} group={group} />
               ))}
             </div>
           )}
