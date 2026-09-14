@@ -148,6 +148,7 @@ class GroupCreate(BaseModel):
     name: str = Field(min_length=2, max_length=255)
     description: str | None = None
     category: str | None = None
+    privacy: str = Field(default="public", pattern="^(public|closed)$")
 
 
 class GroupResponse(BaseModel):
@@ -155,11 +156,14 @@ class GroupResponse(BaseModel):
     name: str
     description: str | None
     category: str | None
+    privacy: str = "public"
     creator_id: UUID
     members_count: int = 0
     is_member: bool = False
+    my_status: str | None = None
     my_role: str | None = None
     can_manage: bool = False
+    pending_count: int = 0
     created_at: datetime
 
     model_config = {"from_attributes": True}

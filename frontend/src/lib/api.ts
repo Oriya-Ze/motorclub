@@ -223,6 +223,20 @@ export interface Notification {
   created_at: string;
 }
 
+export interface Group {
+  id: string;
+  name: string;
+  description?: string | null;
+  privacy?: "public" | "closed";
+  members_count: number;
+  is_member: boolean;
+  my_status?: string | null;
+  my_role?: string | null;
+  can_manage?: boolean;
+  pending_count?: number;
+  creator_id: string;
+}
+
 export interface Story {
   id: string;
   user_id: string;
@@ -512,25 +526,19 @@ class ApiClient {
   }
 
   getGroups() {
-    return this.request<Array<{
-      id: string; name: string; description?: string; members_count: number;
-      is_member: boolean; my_role?: string | null; can_manage?: boolean; creator_id: string;
-    }>>("/groups");
+    return this.request<Group[]>("/groups");
   }
 
   getGroup(groupId: string) {
-    return this.request<{
-      id: string; name: string; description?: string; members_count: number;
-      is_member: boolean; my_role?: string | null; can_manage?: boolean; creator_id: string;
-    }>(`/groups/${groupId}`);
+    return this.request<Group>(`/groups/${groupId}`);
   }
 
   getGroupMembers(groupId: string) {
     return this.request<Array<{ user_id: string; role: string; joined_at: string; user: User }>>(`/groups/${groupId}/members`);
   }
 
-  createGroup(data: { name: string; description?: string; category?: string }) {
-    return this.request<{ id: string; name: string; description?: string; members_count: number; is_member: boolean }>("/groups", {
+  createGroup(data: { name: string; description?: string; category?: string; privacy?: "public" | "closed" }) {
+    return this.request<Group>("/groups", {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -568,6 +576,20 @@ class ApiClient {
 
   joinGroup(groupId: string) {
     return this.request<{ status: string }>(`/groups/${groupId}/join`, { method: "POST" });
+  }
+
+  getGroupJoinRequests(groupId: string) {
+    return this.request<Array<{ user_id: string; role: string; joined_at: string; user: User }>>(
+      `/groups/${groupId}/join-requests`,
+    );
+  }
+
+  approveGroupJoinRequest(groupId: string, userId: string) {
+    return this.request<{ status: string }>(`/groups/${groupId}/join-requests/${userId}/approve`, { method: "POST" });
+  }
+
+  rejectGroupJoinRequest(groupId: string, userId: string) {
+    return this.request<{ status: string }>(`/groups/${groupId}/join-requests/${userId}/reject`, { method: "POST" });
   }
 
   leaveGroup(groupId: string) {

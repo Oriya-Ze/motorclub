@@ -87,6 +87,18 @@ export default function CommunityPage() {
                       </div>
                       <div className="min-w-0">
                         <h3 className="font-semibold truncate">{group.name}</h3>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          {group.privacy === "closed" && (
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              {t("groupPrivacyClosed")}
+                            </span>
+                          )}
+                          {group.my_status === "pending" && (
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
+                              {t("groupJoinPending")}
+                            </span>
+                          )}
+                        </div>
                         {group.description && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{group.description}</p>
                         )}

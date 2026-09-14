@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Crown, Send, Shield, Trash2, UserMinus, Users } from "lucide-react";
+import { ArrowRight, Check, Crown, Send, Share2, Shield, Trash2, UserMinus, Users, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import ShareSheet from "@/components/ShareSheet";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
@@ -33,6 +34,7 @@ export default function GroupDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
+  const [showShare, setShowShare] = useState(false);
 
   const { data: group, isLoading: groupLoading } = useQuery({
     queryKey: ["group", groupId],
@@ -46,6 +48,12 @@ export default function GroupDetailPage() {
     enabled: Boolean(groupId && group?.is_member),
   });
 
+  const { data: joinRequests = [] } = useQuery({
+    queryKey: ["group-join-requests", groupId],
+    queryFn: () => api.getGroupJoinRequests(groupId!),
+    enabled: Boolean(groupId && group?.can_manage),
+  });
+
   const { data: messages = [] } = useQuery({
     queryKey: ["group-messages", groupId],
     queryFn: () => api.getGroupMessages(groupId!),
@@ -57,23 +65,24 @@ export default function GroupDetailPage() {
     queryClient.invalidateQueries({ queryKey: ["group", groupId] });
     queryClient.invalidateQueries({ queryKey: ["groups"] });
     queryClient.invalidateQueries({ queryKey: ["group-members", groupId] });
+    queryClient.invalidateQueries({ queryKey: ["group-join-requests", groupId] });
   };
 
   const joinGroup = useMutation({
     mutationFn: () => api.joinGroup(groupId!),
-    onSuccess: () => {
+    onSuccess: (data) => {
       invalidateGroup();
-      toast.success(t("joinedGroup"));
+      toast.success(data.status === "pending" ? t("groupJoinRequested") : t("joinedGroup"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
 
   const leaveGroup = useMutation({
     mutationFn: () => api.leaveGroup(groupId!),
-    onSuccess: () => {
+    onSuccess: (data) => {
       invalidateGroup();
       queryClient.removeQueries({ queryKey: ["group-messages", groupId] });
-      toast.success(t("leftGroup"));
+      toast.success(data.status === "cancelled" ? t("groupJoinCancelled") : t("leftGroup"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -116,6 +125,24 @@ export default function GroupDetailPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const approveRequest = useMutation({
+    mutationFn: (userId: string) => api.approveGroupJoinRequest(groupId!, userId),
+    onSuccess: () => {
+      invalidateGroup();
+      toast.success(t("groupJoinApproved"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const rejectRequest = useMutation({
+    mutationFn: (userId: string) => api.rejectGroupJoinRequest(groupId!, userId),
+    onSuccess: () => {
+      invalidateGroup();
+      toast.success(t("groupJoinRejected"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   if (groupLoading) {
     return <ListPageSkeleton rows={4} />;
   }
@@ -126,6 +153,8 @@ export default function GroupDetailPage() {
 
   const isOwner = group.my_role === "owner";
   const canManage = group.can_manage;
+  const isPending = group.my_status === "pending";
+  const groupUrl = `${window.location.origin}/groups/${group.id}`;
 
   const canKick = (targetRole: string, targetUserId: string) => {
     if (targetRole === "owner" || targetUserId === user?.id) return false;
@@ -143,6 +172,9 @@ export default function GroupDetailPage() {
         <Link to="/groups" className="text-muted-foreground hover:text-primary">{t("groups")}</Link>
         <ArrowRight className="w-4 h-4 text-muted-foreground" />
         <h1 className="text-2xl font-display tracking-wide">{group.name}</h1>
+        {group.privacy === "closed" && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{t("groupPrivacyClosed")}</span>
+        )}
       </div>
 
       <Card>
@@ -154,15 +186,23 @@ export default function GroupDetailPage() {
               {group.members_count} {t("members")}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => setShowShare(true)}>
+                <Share2 className="w-4 h-4 me-1" />
+                {t("shareGroup")}
+              </Button>
               {group.is_member ? (
                 group.my_role !== "owner" && (
                   <Button size="sm" variant="outline" onClick={() => leaveGroup.mutate()} disabled={leaveGroup.isPending}>
                     {t("leaveGroup")}
                   </Button>
                 )
+              ) : isPending ? (
+                <Button size="sm" variant="outline" onClick={() => leaveGroup.mutate()} disabled={leaveGroup.isPending}>
+                  {t("cancelJoinRequest")}
+                </Button>
               ) : (
                 <Button size="sm" variant="outline" onClick={() => joinGroup.mutate()} disabled={joinGroup.isPending}>
-                  {t("joinGroup")}
+                  {group.privacy === "closed" ? t("requestToJoinGroup") : t("joinGroup")}
                 </Button>
               )}
               {isOwner && (
@@ -183,6 +223,65 @@ export default function GroupDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {isPending && (
+        <p className="text-sm text-center text-amber-600 bg-amber-500/10 rounded-xl px-4 py-3">
+          {t("groupJoinPendingHint")}
+        </p>
+      )}
+
+      {canManage && group.privacy === "closed" && (
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <h2 className="font-semibold">
+              {t("groupJoinRequests")}
+              {joinRequests.length > 0 && (
+                <span className="ms-2 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                  {joinRequests.length}
+                </span>
+              )}
+            </h2>
+            {joinRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("groupJoinRequestsEmpty")}</p>
+            ) : (
+              <div className="space-y-2">
+                {joinRequests.map((request) => (
+                  <div key={request.user_id} className="flex items-center gap-3 py-2 border-b border-border/30 last:border-0">
+                    <Link to={`/profile/${request.user_id}`}>
+                      <Avatar user={request.user} size="sm" />
+                    </Link>
+                    <Link to={`/profile/${request.user_id}`} className="flex-1 min-w-0 text-sm font-medium hover:text-primary truncate">
+                      {displayName(request.user)}
+                    </Link>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-emerald-600"
+                        disabled={approveRequest.isPending || rejectRequest.isPending}
+                        onClick={() => approveRequest.mutate(request.user_id)}
+                        aria-label={t("approveJoinRequest")}
+                      >
+                        <Check className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive"
+                        disabled={approveRequest.isPending || rejectRequest.isPending}
+                        onClick={() => rejectRequest.mutate(request.user_id)}
+                        aria-label={t("rejectJoinRequest")}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {group.is_member && members.length > 0 && (
         <Card>
@@ -256,7 +355,9 @@ export default function GroupDetailPage() {
       <Card className="flex flex-col min-h-[400px]">
         <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-[50vh]">
           {!group.is_member ? (
-            <p className="text-sm text-muted-foreground text-center py-8">{t("joinGroupToChat")}</p>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              {isPending ? t("groupJoinPendingHint") : t("joinGroupToChat")}
+            </p>
           ) : messages.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">{t("noGroupMessages")}</p>
           ) : (
@@ -288,7 +389,7 @@ export default function GroupDetailPage() {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder={group.is_member ? t("typeMessage") : t("joinGroup")}
+            placeholder={group.is_member ? t("typeMessage") : isPending ? t("groupJoinPending") : t("joinGroup")}
             className="h-10"
             disabled={!group.is_member}
           />
@@ -297,6 +398,14 @@ export default function GroupDetailPage() {
           </Button>
         </form>
       </Card>
+      <ShareSheet
+        open={showShare}
+        onClose={() => setShowShare(false)}
+        heading={t("shareGroup")}
+        url={groupUrl}
+        text={t("shareGroupMessage").replace("{name}", group.name)}
+        sentToastKey="groupSharedToUser"
+      />
     </div>
   );
 }

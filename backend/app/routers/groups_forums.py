@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import Forum, ForumReply, ForumTopic, Group, GroupMember, GroupMessage, User
+from app.routers.social import create_notification
 from app.schemas import (
     ForumReplyCreate,
     ForumReplyResponse,
@@ -35,8 +36,42 @@ async def _group_membership(db: AsyncSession, group_id: uuid.UUID, user_id: uuid
     )
 
 
+async def _raw_membership(db: AsyncSession, group_id: uuid.UUID, user_id: uuid.UUID) -> GroupMember | None:
+    return await db.scalar(
+        select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
+    )
+
+
 def _is_manager(role: str | None) -> bool:
     return role in ("owner", "admin")
+
+
+async def _notify_group_managers(
+    db: AsyncSession,
+    group: Group,
+    actor_id: uuid.UUID,
+    ntype: str,
+    title: str,
+    body: str | None = None,
+) -> None:
+    result = await db.execute(
+        select(GroupMember.user_id).where(
+            GroupMember.group_id == group.id,
+            GroupMember.status == "approved",
+            GroupMember.role.in_(("owner", "admin")),
+            GroupMember.user_id != actor_id,
+        )
+    )
+    for (manager_id,) in result.all():
+        await create_notification(
+            db,
+            manager_id,
+            actor_id,
+            ntype,
+            title,
+            body=body,
+            link=f"/groups/{group.id}",
+        )
 
 
 async def _group_response(db: AsyncSession, group: Group, user_id: uuid.UUID) -> GroupResponse:
@@ -46,17 +81,29 @@ async def _group_response(db: AsyncSession, group: Group, user_id: uuid.UUID) ->
         )
     )
     membership = await _group_membership(db, group.id, user_id)
+    raw = membership or await _raw_membership(db, group.id, user_id)
     my_role = membership.role if membership else None
+    can_manage = _is_manager(my_role)
+    pending_count = 0
+    if can_manage:
+        pending_count = await db.scalar(
+            select(func.count()).select_from(GroupMember).where(
+                GroupMember.group_id == group.id, GroupMember.status == "pending"
+            )
+        ) or 0
     return GroupResponse(
         id=group.id,
         name=group.name,
         description=group.description,
         category=group.category,
+        privacy=group.privacy or "public",
         creator_id=group.creator_id,
         members_count=count or 0,
         is_member=membership is not None,
+        my_status=raw.status if raw else None,
         my_role=my_role,
-        can_manage=_is_manager(my_role),
+        can_manage=can_manage,
+        pending_count=pending_count,
         created_at=group.created_at,
     )
 
@@ -74,7 +121,14 @@ async def create_group(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    group = Group(name=body.name, description=body.description, category=body.category, creator_id=user.id)
+    privacy = body.privacy if body.privacy in ("public", "closed") else "public"
+    group = Group(
+        name=body.name,
+        description=body.description,
+        category=body.category,
+        privacy=privacy,
+        creator_id=user.id,
+    )
     db.add(group)
     await db.flush()
     db.add(GroupMember(group_id=group.id, user_id=user.id, status="approved", role="owner"))
@@ -136,16 +190,24 @@ async def join_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    existing = await db.scalar(
-        select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user.id)
-    )
+    existing = await _raw_membership(db, group_id, user.id)
     if existing:
         return {"status": existing.status}
 
-    member = GroupMember(group_id=group_id, user_id=user.id, status="approved")
+    status = "pending" if (group.privacy or "public") == "closed" else "approved"
+    member = GroupMember(group_id=group_id, user_id=user.id, status=status)
     db.add(member)
+    if status == "pending":
+        await _notify_group_managers(
+            db,
+            group,
+            user.id,
+            "group_join_request",
+            f"{user.full_name} requested to join {group.name}",
+            body=group.name,
+        )
     await db.commit()
-    return {"status": "approved"}
+    return {"status": status}
 
 
 @groups_router.post("/{group_id}/leave")
@@ -158,18 +220,17 @@ async def leave_group(
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    membership = await db.scalar(
-        select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user.id)
-    )
-    if not membership or membership.status != "approved":
+    membership = await _raw_membership(db, group_id, user.id)
+    if not membership:
         raise HTTPException(status_code=400, detail="You are not a member of this group")
 
-    if membership.role == "owner":
+    if membership.role == "owner" and membership.status == "approved":
         raise HTTPException(status_code=400, detail="Group owners cannot leave. Delete the group instead.")
 
+    was_pending = membership.status == "pending"
     await db.delete(membership)
     await db.commit()
-    return {"status": "left"}
+    return {"status": "cancelled" if was_pending else "left"}
 
 
 @groups_router.delete("/{group_id}")
@@ -189,6 +250,103 @@ async def delete_group(
     await db.delete(group)
     await db.commit()
     return {"deleted": True}
+
+
+@groups_router.get("/{group_id}/join-requests", response_model=list[GroupMemberResponse])
+async def list_join_requests(
+    group_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    actor = await _group_membership(db, group_id, user.id)
+    if not actor or not _is_manager(actor.role):
+        raise HTTPException(status_code=403, detail="Only group managers can view join requests")
+
+    result = await db.execute(
+        select(GroupMember)
+        .where(GroupMember.group_id == group_id, GroupMember.status == "pending")
+        .order_by(GroupMember.joined_at.asc())
+    )
+    responses: list[GroupMemberResponse] = []
+    for member in result.scalars().all():
+        member_user = await db.get(User, member.user_id)
+        if not member_user:
+            continue
+        responses.append(
+            GroupMemberResponse(
+                user_id=member.user_id,
+                role=member.role,
+                joined_at=member.joined_at,
+                user=user_to_public(member_user),
+            )
+        )
+    return responses
+
+
+@groups_router.post("/{group_id}/join-requests/{member_user_id}/approve")
+async def approve_join_request(
+    group_id: uuid.UUID,
+    member_user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    actor = await _group_membership(db, group_id, user.id)
+    if not actor or not _is_manager(actor.role):
+        raise HTTPException(status_code=403, detail="Only group managers can approve join requests")
+
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    target = await _raw_membership(db, group_id, member_user_id)
+    if not target or target.status != "pending":
+        raise HTTPException(status_code=404, detail="Join request not found")
+
+    target.status = "approved"
+    await create_notification(
+        db,
+        member_user_id,
+        user.id,
+        "group_join_accepted",
+        f"You were accepted to {group.name}",
+        body=group.name,
+        link=f"/groups/{group.id}",
+    )
+    await db.commit()
+    return {"status": "approved"}
+
+
+@groups_router.post("/{group_id}/join-requests/{member_user_id}/reject")
+async def reject_join_request(
+    group_id: uuid.UUID,
+    member_user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    actor = await _group_membership(db, group_id, user.id)
+    if not actor or not _is_manager(actor.role):
+        raise HTTPException(status_code=403, detail="Only group managers can reject join requests")
+
+    group = await db.get(Group, group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    target = await _raw_membership(db, group_id, member_user_id)
+    if not target or target.status != "pending":
+        raise HTTPException(status_code=404, detail="Join request not found")
+
+    await db.delete(target)
+    await create_notification(
+        db,
+        member_user_id,
+        user.id,
+        "group_join_rejected",
+        f"Your request to join {group.name} was declined",
+        body=group.name,
+        link=f"/groups/{group.id}",
+    )
+    await db.commit()
+    return {"status": "rejected"}
 
 
 @groups_router.delete("/{group_id}/members/{member_user_id}")

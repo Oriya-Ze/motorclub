@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
+import { Bell, Heart, MessageCircle, UserPlus, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import PageHeading from "@/components/PageHeading";
@@ -12,6 +12,9 @@ const iconMap: Record<string, typeof Bell> = {
   like: Heart,
   comment: MessageCircle,
   follow: UserPlus,
+  group_join_request: Users,
+  group_join_accepted: Users,
+  group_join_rejected: Users,
 };
 
 export default function NotificationsPage() {
@@ -51,14 +54,8 @@ export default function NotificationsPage() {
         <div className="space-y-2">
           {notifications.map((n: Notification) => {
             const Icon = iconMap[n.type] || Bell;
-            return (
-              <div
-                key={n.id}
-                className={cn(
-                  "flex items-start gap-3 p-4 rounded-xl border transition-colors",
-                  n.is_read ? "bg-card/50 border-border/30" : "bg-primary/5 border-primary/20"
-                )}
-              >
+            const inner = (
+              <>
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <Icon className="w-5 h-5 text-primary" />
                 </div>
@@ -69,6 +66,19 @@ export default function NotificationsPage() {
                     {new Date(n.created_at).toLocaleString("he-IL")}
                   </p>
                 </div>
+              </>
+            );
+            const className = cn(
+              "flex items-start gap-3 p-4 rounded-xl border transition-colors",
+              n.is_read ? "bg-card/50 border-border/30" : "bg-primary/5 border-primary/20",
+            );
+            return n.link ? (
+              <Link key={n.id} to={n.link} className={className}>
+                {inner}
+              </Link>
+            ) : (
+              <div key={n.id} className={className}>
+                {inner}
               </div>
             );
           })}

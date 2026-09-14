@@ -1,5 +1,7 @@
 import { resizeImageForUpload } from "@/lib/resizeImage";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+
 export type MediaPurpose = "post" | "story" | "vehicle" | "avatar" | "product";
 export type MediaType = "image" | "video";
 export type UploadMethod = "PUT" | "multipart";

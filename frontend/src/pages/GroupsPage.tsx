@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import PageHeading from "@/components/PageHeading";
 import { Button } from "@/components/ui/Button";
@@ -10,14 +10,17 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export default function GroupsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(Boolean((location.state as { openCreate?: boolean } | null)?.openCreate));
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [privacy, setPrivacy] = useState<"public" | "closed">("public");
 
   const { data: groups = [], isLoading } = useQuery({
     queryKey: ["groups"],
@@ -25,13 +28,18 @@ export default function GroupsPage() {
   });
 
   const createGroup = useMutation({
-    mutationFn: () => api.createGroup({ name: name.trim(), description: description.trim() || undefined }),
+    mutationFn: () => api.createGroup({
+      name: name.trim(),
+      description: description.trim() || undefined,
+      privacy,
+    }),
     onSuccess: (group) => {
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       toast.success(t("groupCreated"));
       setShowCreate(false);
       setName("");
       setDescription("");
+      setPrivacy("public");
       navigate(`/groups/${group.id}`);
     },
     onError: (err: Error) => toast.error(err.message),
@@ -63,11 +71,23 @@ export default function GroupsPage() {
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h3 className="font-semibold text-lg">{group.name}</h3>
-                    {group.is_member && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
-                        {t("groupMember")}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {group.privacy === "closed" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          {t("groupPrivacyClosed")}
+                        </span>
+                      )}
+                      {group.my_status === "pending" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600">
+                          {t("groupJoinPending")}
+                        </span>
+                      )}
+                      {group.is_member && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                          {t("groupMember")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {group.description && (
                     <p className="text-muted-foreground text-sm mb-4">{group.description}</p>
@@ -106,6 +126,28 @@ export default function GroupsPage() {
               rows={3}
               className="w-full bg-muted/30 border border-border rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
+            <div className="grid grid-cols-2 gap-2">
+              {(["public", "closed"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setPrivacy(value)}
+                  className={cn(
+                    "rounded-xl border px-3 py-2.5 text-start transition-colors",
+                    privacy === value
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-muted/20 text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <p className="text-sm font-medium">
+                    {value === "public" ? t("groupPrivacyPublic") : t("groupPrivacyClosed")}
+                  </p>
+                  <p className="text-xs mt-0.5">
+                    {value === "public" ? t("groupPrivacyPublicHint") : t("groupPrivacyClosedHint")}
+                  </p>
+                </button>
+              ))}
+            </div>
             <Button
               className="w-full"
               disabled={name.trim().length < 2 || createGroup.isPending}
