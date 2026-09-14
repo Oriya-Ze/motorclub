@@ -2,7 +2,7 @@ import { Loader2, Volume2, VolumeX } from "lucide-react";
 import { useId, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useFeedVideoAutoplay } from "@/hooks/useFeedVideoAutoplay";
-import { pickVideoPlaybackUrl, type PostMediaItem } from "@/lib/postMedia";
+import { pickImageUrl, pickVideoPlaybackUrl, type PostMediaItem } from "@/lib/postMedia";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -114,10 +114,12 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlidePr
 
 function ImageSlide({ item, mode }: Pick<MediaSlideProps, "item" | "mode">) {
   const isDetail = mode === "detail";
+  if (item.type !== "image") return null;
+  const src = pickImageUrl(item, mode);
 
   return (
     <img
-      src={mediaUrl(item.url)}
+      src={mediaUrl(src)}
       alt=""
       className={cn(
         "w-full",

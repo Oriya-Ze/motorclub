@@ -197,6 +197,7 @@ export default function BusinessSettingsSection() {
             <Avatar
               user={{ id: user.id, full_name: businessName, profile_picture_url: profilePictureUrl }}
               size="xl"
+              preview
               className="border-4 border-card ring-2 ring-primary/15 bg-card shrink-0"
             />
             <div className="flex-1 min-w-0 pb-1 space-y-1">
@@ -282,6 +283,7 @@ export default function BusinessSettingsSection() {
             <Avatar
               user={{ id: user.id, full_name: businessName, profile_picture_url: profilePictureUrl }}
               size="2xl"
+              preview
               className="border-4 border-card ring-2 ring-primary/15"
             />
             <label className="cursor-pointer inline-flex h-9 items-center justify-center rounded-xl border border-border bg-transparent px-4 text-sm font-medium hover:bg-muted transition-colors">

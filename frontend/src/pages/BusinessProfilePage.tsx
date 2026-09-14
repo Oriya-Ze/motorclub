@@ -288,6 +288,7 @@ export default function BusinessProfilePage() {
                 profile_picture_url: business.profile_picture_url,
               }}
               size="2xl"
+              preview
               className="relative z-10 shrink-0 border-4 border-card ring-2 ring-primary/15 bg-card shadow-md"
             />
 

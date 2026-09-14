@@ -1,7 +1,7 @@
-import type { Post, VideoMedia } from "@/lib/api";
+import type { ImageMedia, Post, VideoMedia } from "@/lib/api";
 
 export type PostMediaItem =
-  | { type: "image"; url: string }
+  | { type: "image"; url: string; image?: ImageMedia | null }
   | { type: "video"; url: string; video?: VideoMedia | null };
 
 function isMobileViewport(): boolean {
@@ -31,12 +31,27 @@ export function pickVideoPlaybackUrl(
   return item.url;
 }
 
+export function pickImageUrl(
+  item: Extract<PostMediaItem, { type: "image" }>,
+  mode: "feed" | "detail",
+): string {
+  const image = item.image;
+  if (image?.status === "ready") {
+    if (mode === "feed") {
+      return image.thumb_key ?? image.display_key ?? item.url;
+    }
+    return image.display_key ?? image.thumb_key ?? item.url;
+  }
+  return item.url;
+}
+
 export function postMediaFromPost(
-  post: Pick<Post, "image_urls" | "video_urls" | "video_media">,
+  post: Pick<Post, "image_urls" | "video_urls" | "video_media" | "image_media">,
 ): PostMediaItem[] {
   const items: PostMediaItem[] = [];
+  const imageByKey = new Map((post.image_media ?? []).map((image) => [image.source_key, image]));
   for (const url of post.image_urls ?? []) {
-    if (url) items.push({ type: "image", url });
+    if (url) items.push({ type: "image", url, image: imageByKey.get(url) ?? null });
   }
 
   const videoByKey = new Map((post.video_media ?? []).map((video) => [video.source_key, video]));

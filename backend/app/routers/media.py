@@ -28,7 +28,7 @@ async def create_upload_request(
         size_bytes=body.size_bytes,
         original_filename=body.filename,
     )
-    if request.media_type == "video" and request.storage_key:
+    if request.media_type in {"video", "image"} and request.storage_key:
         parsed = parse_storage_key(request.storage_key)
         await ensure_uploaded_video_asset(
             db,

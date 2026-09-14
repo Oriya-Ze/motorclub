@@ -9,6 +9,7 @@ from urllib.parse import unquote_plus
 import boto3
 
 from lambda_media.db import ensure_asset_exists, set_status
+from lambda_media.images import ImageProcessError, process_image
 from lambda_media.transcode import TranscodeError, transcode_video
 
 logger = logging.getLogger(__name__)
@@ -17,24 +18,35 @@ logger.setLevel(logging.INFO)
 s3 = boto3.client("s3")
 
 VIDEO_SUFFIXES = (".mp4", ".mov", ".webm")
-ALLOWED_SEGMENTS = {"posts", "stories"}
-SKIP_SEGMENTS = {"videos"}
+IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+VIDEO_SEGMENTS = {"posts", "stories"}
+IMAGE_SEGMENTS = {"posts", "stories", "vehicles", "products"}
+SKIP_SEGMENTS = {"videos", "images"}
 CACHE_CONTROL = "public, max-age=31536000, immutable"
 
 
+def _kind(key: str) -> str | None:
+    lower = key.lower()
+    if lower.endswith(VIDEO_SUFFIXES):
+        return "video"
+    if lower.endswith(IMAGE_SUFFIXES):
+        return "image"
+    return None
+
+
 def _should_process(key: str) -> bool:
-    if key.startswith("processed/"):
+    if key.startswith("processed/") or not key.startswith("users/"):
         return False
-    if not key.startswith("users/"):
-        return False
-    if not key.lower().endswith(VIDEO_SUFFIXES):
+    kind = _kind(key)
+    if kind is None:
         return False
     parts = key.split("/")
     if len(parts) < 4:
         return False
     if parts[2] in SKIP_SEGMENTS:
         return False
-    return parts[2] in ALLOWED_SEGMENTS
+    allowed = VIDEO_SEGMENTS if kind == "video" else IMAGE_SEGMENTS
+    return parts[2] in allowed
 
 
 def _parse_key(key: str) -> tuple[uuid.UUID, uuid.UUID, str]:
@@ -54,16 +66,7 @@ def _upload_file(bucket: str, key: str, path: Path, content_type: str) -> None:
     )
 
 
-def process_object(bucket: str, key: str) -> None:
-    if not _should_process(key):
-        logger.info("Skipping key %s", key)
-        return
-
-    logger.info("Transcoding %s", key)
-    user_id, media_id, purpose = _parse_key(key)
-    ensure_asset_exists(media_id, user_id, purpose, key)
-    set_status(media_id, "processing")
-
+def _process_video(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUID) -> None:
     prefix = f"users/{user_id}/videos/{media_id}"
     variant_keys = {
         "1080p": f"{prefix}/1080p.mp4",
@@ -104,6 +107,56 @@ def process_object(bucket: str, key: str) -> None:
         clear_original=True,
     )
     logger.info("Processed video %s", media_id)
+
+
+def _process_image(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUID) -> None:
+    prefix = f"users/{user_id}/images/{media_id}"
+    is_gif = key.lower().endswith(".gif")
+    variant_keys = {
+        "thumb": f"{prefix}/thumb.webp",
+        "display": key if is_gif else f"{prefix}/display.webp",
+    }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        source = tmpdir / "source"
+        s3.download_file(bucket, key, str(source))
+        try:
+            outputs = process_image(source, tmpdir / "out", make_display=not is_gif)
+        except ImageProcessError as exc:
+            logger.exception("Image process failed for %s", key)
+            set_status(media_id, "failed", error_message=str(exc))
+            return
+
+        _upload_file(bucket, variant_keys["thumb"], outputs["thumb"], "image/webp")
+        if not is_gif:
+            _upload_file(bucket, variant_keys["display"], outputs["display"], "image/webp")
+
+    set_status(
+        media_id,
+        "ready",
+        variants={
+            "thumb": variant_keys["thumb"],
+            "display": variant_keys["display"],
+        },
+    )
+    logger.info("Processed image %s", media_id)
+
+
+def process_object(bucket: str, key: str) -> None:
+    if not _should_process(key):
+        logger.info("Skipping key %s", key)
+        return
+
+    kind = _kind(key)
+    logger.info("Processing %s %s", kind, key)
+    user_id, media_id, purpose = _parse_key(key)
+    ensure_asset_exists(media_id, user_id, purpose, key)
+    set_status(media_id, "processing")
+    if kind == "video":
+        _process_video(bucket, key, user_id, media_id)
+        return
+    _process_image(bucket, key, user_id, media_id)
 
 
 def handler(event, context):

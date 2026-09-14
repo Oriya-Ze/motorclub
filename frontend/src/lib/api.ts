@@ -65,6 +65,14 @@ export interface VideoMedia {
   error_message?: string | null;
 }
 
+export interface ImageMedia {
+  source_key: string;
+  status: "uploaded" | "processing" | "ready" | "failed";
+  thumb_key?: string | null;
+  display_key?: string | null;
+  error_message?: string | null;
+}
+
 export interface Post {
   id: string;
   user_id: string;
@@ -72,6 +80,7 @@ export interface Post {
   image_urls?: string[] | null;
   video_urls?: string[] | null;
   video_media?: VideoMedia[] | null;
+  image_media?: ImageMedia[] | null;
   location?: string | null;
   vehicle_id?: string | null;
   hashtags?: string[] | null;

@@ -9,6 +9,7 @@ from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import Comment, Post, PostLike, SavedPost, User
 from app.routers.social import create_notification
+from app.media.image_assets import build_image_media_map
 from app.media.video_assets import build_video_media_map
 from app.schemas import CommentCreate, CommentResponse, PostCreate, PostResponse
 
@@ -70,10 +71,14 @@ async def _batch_post_responses(
     users_map = {u.id: u for u in users_result.scalars().all()}
 
     all_video_keys: list[str] = []
+    all_image_keys: list[str] = []
     for post in posts:
         if post.video_urls:
             all_video_keys.extend([key for key in post.video_urls if key])
+        if post.image_urls:
+            all_image_keys.extend([key for key in post.image_urls if key])
     video_media_map = await build_video_media_map(db, list(dict.fromkeys(all_video_keys)))
+    image_media_map = await build_image_media_map(db, list(dict.fromkeys(all_image_keys)))
 
     responses: list[PostResponse] = []
     for post in posts:
@@ -81,8 +86,11 @@ async def _batch_post_responses(
         if not author:
             continue
         video_media = None
+        image_media = None
         if post.video_urls:
             video_media = [video_media_map[key] for key in post.video_urls if key in video_media_map]
+        if post.image_urls:
+            image_media = [image_media_map[key] for key in post.image_urls if key in image_media_map]
         responses.append(
             PostResponse(
                 id=post.id,
@@ -91,6 +99,7 @@ async def _batch_post_responses(
                 image_urls=post.image_urls,
                 video_urls=post.video_urls,
                 video_media=video_media,
+                image_media=image_media,
                 location=post.location,
                 vehicle_id=post.vehicle_id,
                 hashtags=post.hashtags,
@@ -126,9 +135,13 @@ async def _post_to_response(db: AsyncSession, post: Post, current_user_id: uuid.
 
     author = await db.get(User, post.user_id)
     video_media = None
+    image_media = None
     if post.video_urls:
         video_media_map = await build_video_media_map(db, [key for key in post.video_urls if key])
         video_media = [video_media_map[key] for key in post.video_urls if key in video_media_map]
+    if post.image_urls:
+        image_media_map = await build_image_media_map(db, [key for key in post.image_urls if key])
+        image_media = [image_media_map[key] for key in post.image_urls if key in image_media_map]
     return PostResponse(
         id=post.id,
         user_id=post.user_id,
@@ -136,6 +149,7 @@ async def _post_to_response(db: AsyncSession, post: Post, current_user_id: uuid.
         image_urls=post.image_urls,
         video_urls=post.video_urls,
         video_media=video_media,
+        image_media=image_media,
         location=post.location,
         vehicle_id=post.vehicle_id,
         hashtags=post.hashtags,

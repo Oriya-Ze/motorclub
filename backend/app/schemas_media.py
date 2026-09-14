@@ -32,6 +32,14 @@ class UploadMultipleResponse(BaseModel):
     files: list[UploadFileResponse]
 
 
+class ImageMediaResponse(BaseModel):
+    source_key: str
+    status: str
+    thumb_key: str | None = None
+    display_key: str | None = None
+    error_message: str | None = None
+
+
 class VideoMediaResponse(BaseModel):
     source_key: str
     status: str

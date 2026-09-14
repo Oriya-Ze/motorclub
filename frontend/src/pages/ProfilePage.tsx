@@ -127,7 +127,7 @@ export default function ProfilePage() {
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row sm:items-start gap-6">
             <div className="shrink-0 mx-auto sm:mx-0">
-              <Avatar user={profile} size="2xl" className="border-2 border-primary/30" />
+              <Avatar user={profile} size="2xl" preview className="border-2 border-primary/30" />
             </div>
 
             <div className="flex-1 text-center sm:text-start space-y-3">

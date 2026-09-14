@@ -222,7 +222,7 @@ export default function SettingsPage() {
                   <CardContent className="pt-0 pb-6">
                     <div className="-mt-12 flex flex-col sm:flex-row sm:items-end gap-4 mb-6">
                       <div className="relative shrink-0 mx-auto sm:mx-0">
-                        <Avatar user={user} size="2xl" className="border-4 border-card ring-2 ring-primary/25" />
+                        <Avatar user={user} size="2xl" preview className="border-4 border-card ring-2 ring-primary/25" />
                         <label className="absolute bottom-0 end-0 w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-md hover:opacity-90 transition-opacity">
                           <Camera className="w-4 h-4" />
                           <input

@@ -1,4 +1,4 @@
-import { API_BASE } from "@/lib/media";
+import { resizeImageForUpload } from "@/lib/resizeImage";
 
 export type MediaPurpose = "post" | "story" | "vehicle" | "avatar" | "product";
 export type MediaType = "image" | "video";
@@ -247,8 +247,16 @@ export async function uploadMedia(
     getToken: () => string | null;
   },
 ): Promise<UploadMediaResult> {
-  const mediaType = validateFileBeforeUpload(file);
-  const normalizedFile = normalizeMediaFile(file, mediaType);
+  let mediaType = validateFileBeforeUpload(file);
+  let normalizedFile = normalizeMediaFile(file, mediaType);
+  if (mediaType === "image") {
+    try {
+      normalizedFile = normalizeMediaFile(await resizeImageForUpload(normalizedFile), "image");
+      mediaType = validateFileBeforeUpload(normalizedFile);
+    } catch {
+      // Keep the original file if canvas resize fails (e.g. GIF/HEIC edge cases).
+    }
+  }
 
   const instruction = await requestUploadInstruction(deps.request, normalizedFile, purpose, mediaType);
 
