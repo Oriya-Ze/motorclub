@@ -74,7 +74,7 @@ export default function GroupsPage() {
                     <div className="flex items-center gap-1 shrink-0">
                       {group.privacy === "closed" && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                          {t("groupPrivacyClosed")}
+                          {t("groupPrivacyPrivate")}
                         </span>
                       )}
                       {group.my_status === "pending" && (
@@ -140,10 +140,10 @@ export default function GroupsPage() {
                   )}
                 >
                   <p className="text-sm font-medium">
-                    {value === "public" ? t("groupPrivacyPublic") : t("groupPrivacyClosed")}
+                    {value === "public" ? t("groupPrivacyPublic") : t("groupPrivacyPrivate")}
                   </p>
                   <p className="text-xs mt-0.5">
-                    {value === "public" ? t("groupPrivacyPublicHint") : t("groupPrivacyClosedHint")}
+                    {value === "public" ? t("groupPrivacyPublicHint") : t("groupPrivacyPrivateHint")}
                   </p>
                 </button>
               ))}

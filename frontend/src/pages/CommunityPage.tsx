@@ -90,7 +90,7 @@ export default function CommunityPage() {
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                           {group.privacy === "closed" && (
                             <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                              {t("groupPrivacyClosed")}
+                              {t("groupPrivacyPrivate")}
                             </span>
                           )}
                           {group.my_status === "pending" && (

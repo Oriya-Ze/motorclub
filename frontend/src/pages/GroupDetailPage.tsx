@@ -173,7 +173,7 @@ export default function GroupDetailPage() {
         <ArrowRight className="w-4 h-4 text-muted-foreground" />
         <h1 className="text-2xl font-display tracking-wide">{group.name}</h1>
         {group.privacy === "closed" && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{t("groupPrivacyClosed")}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{t("groupPrivacyPrivate")}</span>
         )}
       </div>
 
