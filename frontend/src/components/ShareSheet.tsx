@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useAuth } from "@/contexts/AuthContext";
 import { api, User } from "@/lib/api";
 import { displayName } from "@/lib/utils";
 
@@ -28,19 +29,20 @@ export default function ShareSheet({
   sentToastKey = "postSharedToUser",
 }: ShareSheetProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const messagesPanel = useMessagesPanelOptional();
   const [search, setSearch] = useState("");
 
   const { data: conversations = [] } = useQuery({
     queryKey: ["conversations"],
     queryFn: () => api.getConversations(),
-    enabled: open,
+    enabled: open && Boolean(user),
   });
 
   const { data: searchResults = [] } = useQuery({
     queryKey: ["users-search", search],
     queryFn: () => api.searchUsers(search),
-    enabled: open && search.trim().length >= 2,
+    enabled: open && Boolean(user) && search.trim().length >= 2,
   });
 
   const sendToUser = useMutation({
@@ -115,6 +117,7 @@ export default function ShareSheet({
           )}
         </div>
 
+        {user && (
         <div className="space-y-2">
           <p className="text-sm font-medium">{t("sendToUser")}</p>
           <Input
@@ -142,6 +145,7 @@ export default function ShareSheet({
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );

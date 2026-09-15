@@ -9,14 +9,13 @@ import PostCard from "@/components/PostCard";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import VehiclePlaceholder from "@/components/VehiclePlaceholder";
+import VehicleCard from "@/components/VehicleCard";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Post, Vehicle } from "@/lib/api";
 import { getBusinessProfilePath } from "@/lib/businessProfile";
-import { mediaUrl } from "@/lib/media";
 import { cn, displayName, formatHandle } from "@/lib/utils";
 
 type Tab = "posts" | "saved" | "garage";
@@ -204,23 +203,7 @@ export default function ProfilePage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {garage.map((v: Vehicle) => (
-              <Link
-                key={v.id}
-                to={`/vehicles/${v.id}`}
-                className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-              >
-                <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
-                  {v.image_urls?.[0] ? (
-                    <img src={mediaUrl(v.image_urls[0])} alt="" className="w-full h-32 object-cover" />
-                  ) : (
-                    <VehiclePlaceholder className="h-32" />
-                  )}
-                  <CardContent className="pt-3 pb-4">
-                    <p className="font-semibold">{v.year && `${v.year} `}{v.make} {v.model}</p>
-                    {v.engine && <p className="text-xs text-muted-foreground">{v.engine}</p>}
-                  </CardContent>
-                </Card>
-              </Link>
+              <VehicleCard key={v.id} vehicle={v} showPrimary={isOwnProfile} />
             ))}
           </div>
         )

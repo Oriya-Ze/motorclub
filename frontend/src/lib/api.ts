@@ -459,6 +459,14 @@ class ApiClient {
     return this.request<Vehicle>(`/garage/${vehicleId}`);
   }
 
+  getVehiclePosts(vehicleId: string) {
+    return this.request<Post[]>(`/garage/${vehicleId}/posts`);
+  }
+
+  searchVehicles(q: string) {
+    return this.request<Vehicle[]>(`/garage/search?q=${encodeURIComponent(q)}`);
+  }
+
   createVehicle(data: Partial<Vehicle>) {
     return this.request<Vehicle>("/garage", { method: "POST", body: JSON.stringify(data) });
   }

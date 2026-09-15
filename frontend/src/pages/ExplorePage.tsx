@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Hash } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import ExploreHashtagPanel from "@/components/explore/ExploreHashtagPanel";
@@ -10,11 +11,14 @@ import { parseExploreTab, type ExploreTab } from "@/components/explore/types";
 import PageHeading from "@/components/PageHeading";
 import UserSearch from "@/components/UserSearch";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
 
 export default function ExplorePage() {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
+  const [vehicleQuery, setVehicleQuery] = useState("");
+  const vehicleSearch = vehicleQuery.trim();
   const tag = params.get("tag")?.trim() || "";
   const tab = parseExploreTab(params.get("tab"));
 
@@ -28,9 +32,16 @@ export default function ExplorePage() {
     queryFn: () => api.trendingHashtags(),
   });
 
+  const { data: searchedVehicles = [], isLoading: searchLoading } = useQuery({
+    queryKey: ["garage-search", vehicleSearch],
+    queryFn: () => api.searchVehicles(vehicleSearch),
+    enabled: tab === "vehicles" && vehicleSearch.length >= 2,
+  });
+
   const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
     queryKey: ["explore-vehicles"],
     queryFn: () => api.exploreVehicles(),
+    enabled: tab === "vehicles",
   });
 
   const { data: tagPosts = [], isLoading: tagPostsLoading } = useQuery({
@@ -110,7 +121,27 @@ export default function ExplorePage() {
       {tab === "vehicles" && (
         <section className="space-y-3">
           <h2 className="font-display text-xl tracking-wide">{t("exploreGarages")}</h2>
-          <ExploreVehicleCarousel vehicles={vehicles} isLoading={vehiclesLoading} />
+          <Input
+            value={vehicleQuery}
+            onChange={(e) => setVehicleQuery(e.target.value)}
+            placeholder={t("garage.searchVehicles")}
+            className="h-11"
+          />
+          <ExploreVehicleCarousel
+            vehicles={
+              vehicleSearch.length >= 2
+                ? searchedVehicles.map((v) => ({
+                    id: v.id,
+                    make: v.make,
+                    model: v.model,
+                    year: v.year,
+                    thumbnail: v.image_urls?.[0],
+                    owner: v.owner,
+                  }))
+                : vehicles
+            }
+            isLoading={vehicleSearch.length >= 2 ? searchLoading : vehiclesLoading}
+          />
         </section>
       )}
 

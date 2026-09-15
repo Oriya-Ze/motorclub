@@ -6,7 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, get_user_model, user_to_public
+from app.deps import get_current_user, get_optional_user_model, get_user_model, user_to_public
+from app.services.visibility import can_view_profile_content
 from app.media.image_assets import build_image_media_map
 from app.models import Notification, Post, Story, User, Vehicle
 from app.schemas import NotificationResponse, StoryCreate, StoryResponse
@@ -165,20 +166,28 @@ async def trending_hashtags(db: AsyncSession = Depends(get_db), _=Depends(get_cu
 
 
 @explore_router.get("/vehicles")
-async def explore_vehicles(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def explore_vehicles(
+    db: AsyncSession = Depends(get_db),
+    viewer: User | None = Depends(get_optional_user_model),
+):
     result = await db.execute(
-        select(Vehicle).where(Vehicle.image_urls != None).order_by(Vehicle.created_at.desc()).limit(20)
+        select(Vehicle).where(Vehicle.image_urls != None).order_by(Vehicle.created_at.desc()).limit(40)
     )
     vehicles = result.scalars().all()
     items = []
+    viewer_id = viewer.id if viewer else None
     for v in vehicles:
         owner = await db.get(User, v.user_id)
+        if not owner or not await can_view_profile_content(db, owner.id, viewer_id):
+            continue
         items.append({
             "id": str(v.id),
             "make": v.make,
             "model": v.model,
             "year": v.year,
             "thumbnail": v.image_urls[0] if v.image_urls else None,
-            "owner": user_to_public(owner) if owner else None,
+            "owner": user_to_public(owner),
         })
+        if len(items) >= 20:
+            break
     return items

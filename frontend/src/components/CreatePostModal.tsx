@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, Video, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -24,6 +25,7 @@ interface CreatePostModalProps {
   open: boolean;
   onClose: () => void;
   initialVehicleId?: string;
+  onPublished?: () => void;
 }
 
 type PostMediaDraft =
@@ -47,7 +49,7 @@ function formatVideoUploadError(err: unknown, t: (key: string, opts?: Record<str
   return t("error");
 }
 
-export default function CreatePostModal({ open, onClose, initialVehicleId }: CreatePostModalProps) {
+export default function CreatePostModal({ open, onClose, initialVehicleId, onPublished }: CreatePostModalProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -160,6 +162,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId }: Cre
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["vehicle-posts"] });
       toast.success(t("publish"));
       for (const url of previewUrlsRef.current) URL.revokeObjectURL(url);
       previewUrlsRef.current = [];
@@ -167,6 +170,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId }: Cre
       setLocation("");
       setMedia([]);
       setVehicleId("");
+      onPublished?.();
       onClose();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -301,20 +305,51 @@ export default function CreatePostModal({ open, onClose, initialVehicleId }: Cre
             disabled={isUploading}
           />
 
-          {vehicles.length > 0 && (
-            <select
-              value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)}
-              disabled={isUploading}
-              className="w-full h-10 bg-muted/30 border border-border rounded-xl px-3 text-sm disabled:opacity-60"
+          {vehicles.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{t("garage.linkVehicle")}</p>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+                <button
+                  type="button"
+                  onClick={() => setVehicleId("")}
+                  className={`shrink-0 px-3 py-2 rounded-xl border text-sm ${
+                    !vehicleId ? "border-primary bg-primary/10" : "border-border"
+                  }`}
+                >
+                  {t("garage.noVehicle")}
+                </button>
+                {vehicles.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setVehicleId(v.id)}
+                    className={`shrink-0 flex items-center gap-2 px-2 py-1.5 rounded-xl border text-sm ${
+                      vehicleId === v.id ? "border-primary bg-primary/10" : "border-border"
+                    }`}
+                  >
+                    {v.image_urls?.[0] ? (
+                      <img src={mediaUrl(v.image_urls[0])} alt="" className="w-8 h-8 rounded-md object-cover" />
+                    ) : (
+                      <span className="w-8 h-8 rounded-md bg-muted inline-flex items-center justify-center text-[10px]">
+                        {v.make.slice(0, 1)}
+                      </span>
+                    )}
+                    <span className="whitespace-nowrap">
+                      {v.year ? `${v.year} ` : ""}
+                      {v.make} {v.model}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <Link
+              to="/garage"
+              onClick={onClose}
+              className="text-sm text-primary hover:underline text-start"
             >
-              <option value="">{t("garage.linkVehicle")}</option>
-              {vehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.year ? `${v.year} ` : ""}{v.make} {v.model}
-                </option>
-              ))}
-            </select>
+              {t("garage.addToPostCta")}
+            </Link>
           )}
 
           <Button

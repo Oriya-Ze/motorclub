@@ -57,7 +57,7 @@ export default function ExploreVehicleCarousel({ vehicles, isLoading }: ExploreV
           {v.thumbnail ? (
             <img
               src={mediaUrl(v.thumbnail)}
-              alt=""
+              alt={`${v.year ? `${v.year} ` : ""}${v.make} ${v.model}`}
               className="w-20 h-20 object-cover rounded-xl shrink-0 ring-2 ring-[#F5D033]/25"
             />
           ) : (

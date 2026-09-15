@@ -40,12 +40,14 @@ function AuthenticatedLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createVehicleId, setCreateVehicleId] = useState<string | undefined>();
+  const [createReturnTo, setCreateReturnTo] = useState<string | undefined>();
 
   useEffect(() => {
-    const state = location.state as { openCreatePost?: boolean; vehicleId?: string } | null;
+    const state = location.state as { openCreatePost?: boolean; vehicleId?: string; returnTo?: string } | null;
     if (!state?.openCreatePost) return;
     setShowCreate(true);
     setCreateVehicleId(state.vehicleId);
+    setCreateReturnTo(state.returnTo);
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
@@ -188,8 +190,12 @@ function AuthenticatedLayout() {
         onClose={() => {
           setShowCreate(false);
           setCreateVehicleId(undefined);
+          setCreateReturnTo(undefined);
         }}
         initialVehicleId={createVehicleId}
+        onPublished={() => {
+          if (createReturnTo) navigate(createReturnTo);
+        }}
       />
     </>
   );

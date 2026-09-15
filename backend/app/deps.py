@@ -44,6 +44,16 @@ async def get_optional_user(
         return None
 
 
+async def get_optional_user_model(
+    auth: AuthUser | None = Depends(get_optional_user),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    if not auth:
+        return None
+    result = await db.execute(select(User).where(User.id == auth.id))
+    return result.scalar_one_or_none()
+
+
 async def get_user_model(user: AuthUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> User:
     result = await db.execute(select(User).where(User.id == user.id))
     db_user = result.scalar_one_or_none()

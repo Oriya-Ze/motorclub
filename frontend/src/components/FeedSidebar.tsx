@@ -39,9 +39,14 @@ export default function FeedSidebar() {
       {primaryVehicle && (
         <Card>
           <CardContent className="pt-5 space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <Car className="w-4 h-4 text-primary" />
-              {t("garage.myGarage")}
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span className="inline-flex items-center gap-2">
+                <Car className="w-4 h-4 text-primary" />
+                {t("garage.myGarage")}
+              </span>
+              <Link to="/garage" className="text-xs font-medium text-muted-foreground hover:text-primary">
+                {t("garage.viewGarage")}
+              </Link>
             </div>
             <Link to={`/vehicles/${primaryVehicle.id}`} className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
               {primaryVehicle.image_urls?.[0] ? (

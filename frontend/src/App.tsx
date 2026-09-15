@@ -46,6 +46,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/privacy-policy" element={<LegalPage type="privacy" />} />
           <Route path="/terms-of-service" element={<LegalPage type="terms" />} />
+          <Route path="/vehicles/:vehicleId" element={<VehiclePage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
@@ -58,7 +59,6 @@ export default function App() {
             <Route path="workshops/:userId" element={<WorkshopRedirect />} />
             <Route path="services/:userId" element={<BusinessProfilePage />} />
             <Route path="garage" element={<GaragePage />} />
-            <Route path="vehicles/:vehicleId" element={<VehiclePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="stories/create" element={<CreateStoryPage />} />
             <Route path="community" element={<CommunityPage />} />
