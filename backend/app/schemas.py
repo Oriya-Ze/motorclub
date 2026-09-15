@@ -383,6 +383,7 @@ class VehicleModShop(BaseModel):
     full_name: str
     username: str | None = None
     business_type: str | None = None
+    profile_picture_url: str | None = None
 
 
 class VehicleModItem(BaseModel):

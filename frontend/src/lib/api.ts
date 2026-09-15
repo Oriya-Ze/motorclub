@@ -179,6 +179,7 @@ export interface VehicleModShop {
   full_name: string;
   username?: string | null;
   business_type?: string | null;
+  profile_picture_url?: string | null;
 }
 
 export type VehicleModCategory = "engine" | "suspension" | "exterior" | "audio" | "other";

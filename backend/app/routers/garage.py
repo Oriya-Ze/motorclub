@@ -116,6 +116,7 @@ async def _hydrate_mod_items(db: AsyncSession, items: list[dict]) -> list[Vehicl
                 full_name=user.full_name,
                 username=user.username,
                 business_type=user.business_type,
+                profile_picture_url=user.profile_picture_url,
             )
         else:
             shop_id = None

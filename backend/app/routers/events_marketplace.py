@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.business_types import WORKSHOP_BUSINESS_TYPES
@@ -303,14 +303,26 @@ def _list_businesses_query(
     if business_type:
         query = query.where(User.business_type == business_type)
     if q:
-        term = f"%{q.strip()}%"
+        stem = q.strip()
+        term = f"%{stem}%"
+        prefix = f"{stem}%"
         query = query.where(
-            (User.full_name.ilike(term))
-            | (User.username.ilike(term))
-            | (User.business_description.ilike(term))
-            | (User.business_address.ilike(term))
-            | (User.business_phone.ilike(term))
+            or_(
+                User.full_name.ilike(term),
+                User.username.ilike(term),
+                User.business_description.ilike(term),
+                User.business_address.ilike(term),
+            )
         )
+        return query.order_by(
+            case(
+                (User.full_name.ilike(prefix), 0),
+                (User.username.ilike(prefix), 1),
+                (User.full_name.ilike(term), 2),
+                else_=3,
+            ),
+            User.full_name,
+        ).limit(20)
     return query.order_by(User.full_name)
 
 

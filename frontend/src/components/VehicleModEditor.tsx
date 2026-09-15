@@ -1,11 +1,13 @@
-import { Plus, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Plus, Search, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { api, VehicleModCategory, VehicleModItem } from "@/lib/api";
+import { cn, displayName, formatHandle } from "@/lib/utils";
 
 const CATEGORIES: VehicleModCategory[] = ["engine", "suspension", "exterior", "audio", "other"];
 
@@ -28,7 +30,6 @@ type Props = {
 
 export default function VehicleModEditor({ items, onChange, disabled }: Props) {
   const { t } = useTranslation();
-  const [shopQuery, setShopQuery] = useState<Record<string, string>>({});
 
   const update = (index: number, patch: Partial<VehicleModItem>) => {
     onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -83,17 +84,14 @@ export default function VehicleModEditor({ items, onChange, disabled }: Props) {
               />
             </div>
             <ShopPicker
-              query={shopQuery[id] ?? item.shop?.full_name ?? ""}
-              onQueryChange={(q) => setShopQuery((prev) => ({ ...prev, [id]: q }))}
               selected={item.shop}
               disabled={disabled}
-              onSelect={(shop) => {
+              onSelect={(shop) =>
                 update(index, {
                   shop_id: shop?.id ?? null,
                   shop: shop,
-                });
-                setShopQuery((prev) => ({ ...prev, [id]: shop?.full_name ?? "" }));
-              }}
+                })
+              }
             />
             <button
               type="button"
@@ -112,72 +110,153 @@ export default function VehicleModEditor({ items, onChange, disabled }: Props) {
 }
 
 function ShopPicker({
-  query,
-  onQueryChange,
   selected,
   onSelect,
   disabled,
 }: {
-  query: string;
-  onQueryChange: (q: string) => void;
   selected?: VehicleModItem["shop"];
   onSelect: (shop: VehicleModItem["shop"] | null) => void;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
+  const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), 250);
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data: results = [] } = useQuery({
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const { data: results = [], isFetching } = useQuery({
     queryKey: ["business-search", debounced],
     queryFn: () => api.getBusinesses({ q: debounced }),
-    enabled: debounced.length >= 2 && !selected,
+    enabled: debounced.length >= 1 && !selected,
   });
 
   if (selected) {
     return (
-      <div className="flex items-center justify-between gap-2 text-xs bg-muted/40 rounded-lg px-3 py-2">
-        <span className="truncate">{t("garage.taggedShop", { name: selected.full_name })}</span>
-        <button type="button" disabled={disabled} onClick={() => onSelect(null)} aria-label={t("garage.clearShop")}>
-          <X className="w-3.5 h-3.5" />
+      <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-2.5 py-2">
+        <Avatar
+          user={{ id: selected.id, full_name: selected.full_name, profile_picture_url: selected.profile_picture_url }}
+          size="sm"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate">{displayName(selected)}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {selected.business_type
+              ? t(`businessCategories.${selected.business_type}`, { defaultValue: formatHandle(selected) })
+              : formatHandle(selected)}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => {
+            onSelect(null);
+            setQuery("");
+            setDebounced("");
+          }}
+          className="p-1 text-muted-foreground hover:text-foreground"
+          aria-label={t("garage.clearShop")}
+        >
+          <X className="w-4 h-4" />
         </button>
       </div>
     );
   }
 
+  const showDropdown = open && debounced.length >= 1;
+
   return (
-    <div className="space-y-1">
-      <Input
-        value={query}
-        disabled={disabled}
-        placeholder={t("garage.searchShop")}
-        onChange={(e) => onQueryChange(e.target.value)}
-      />
-      {debounced.length >= 2 && results.length > 0 && (
-        <ul className="border border-border rounded-lg overflow-hidden max-h-36 overflow-y-auto">
-          {results.slice(0, 6).map((shop) => (
-            <li key={shop.id}>
-              <button
-                type="button"
-                className="w-full text-start px-3 py-2 text-sm hover:bg-muted/60"
-                onClick={() =>
-                  onSelect({
-                    id: shop.id,
-                    full_name: shop.full_name,
-                    username: shop.username,
-                    business_type: shop.business_type,
-                  })
-                }
-              >
-                {shop.full_name}
-              </button>
-            </li>
-          ))}
-        </ul>
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="search"
+          value={query}
+          disabled={disabled}
+          placeholder={t("garage.searchShop")}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          className={cn(
+            "flex h-11 w-full rounded-xl border border-input bg-background/50 ps-9 pe-9 py-2 text-sm",
+            "text-foreground placeholder:text-muted-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+          )}
+        />
+        {query && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              setQuery("");
+              setDebounced("");
+              setOpen(false);
+            }}
+            className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {showDropdown && (
+        <div className="absolute top-full mt-1 w-full z-50 glass-card rounded-xl border border-border/50 shadow-lg overflow-hidden">
+          {isFetching ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">...</p>
+          ) : results.length === 0 ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">{t("noSearchResults")}</p>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto">
+              {results.map((shop) => (
+                <li key={shop.id}>
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-start"
+                    onClick={() => {
+                      onSelect({
+                        id: shop.id,
+                        full_name: shop.full_name,
+                        username: shop.username,
+                        business_type: shop.business_type,
+                        profile_picture_url: shop.profile_picture_url,
+                      });
+                      setQuery("");
+                      setDebounced("");
+                      setOpen(false);
+                    }}
+                  >
+                    <Avatar user={shop} size="sm" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{displayName(shop)}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {shop.business_type
+                          ? t(`businessCategories.${shop.business_type}`, { defaultValue: formatHandle(shop) })
+                          : formatHandle(shop)}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
