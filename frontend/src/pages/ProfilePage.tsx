@@ -6,7 +6,6 @@ import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
-import VehicleDetailModal from "@/components/VehicleDetailModal";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -32,7 +31,6 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>(
     initialTab === "garage" || initialTab === "saved" ? initialTab : "posts"
   );
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     const urlTab = searchParams.get("tab");
@@ -206,10 +204,9 @@ export default function ProfilePage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {garage.map((v: Vehicle) => (
-              <button
+              <Link
                 key={v.id}
-                type="button"
-                onClick={() => setSelectedVehicle(v)}
+                to={`/vehicles/${v.id}`}
                 className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
                 <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
@@ -223,7 +220,7 @@ export default function ProfilePage() {
                     {v.engine && <p className="text-xs text-muted-foreground">{v.engine}</p>}
                   </CardContent>
                 </Card>
-              </button>
+              </Link>
             ))}
           </div>
         )
@@ -237,14 +234,6 @@ export default function ProfilePage() {
         <div className="text-center py-12 text-muted-foreground">{t("profile.noPosts")}</div>
       ) : (
         posts.map((post: Post) => <PostCard key={post.id} post={post} />)
-      )}
-
-      {selectedVehicle && (
-        <VehicleDetailModal
-          vehicle={selectedVehicle}
-          onClose={() => setSelectedVehicle(null)}
-          editable={isOwnProfile}
-        />
       )}
     </div>
   );

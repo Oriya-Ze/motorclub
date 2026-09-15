@@ -2,10 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, Car, Plus, Star, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
-import VehicleDetailModal from "@/components/VehicleDetailModal";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -23,7 +22,6 @@ export default function GaragePage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
-  const [selected, setSelected] = useState<Vehicle | null>(null);
   const [form, setForm] = useState({
     makeId: "",
     modelId: "",
@@ -106,11 +104,9 @@ export default function GaragePage() {
 
   useEffect(() => {
     const state = location.state as { vehicleId?: string } | null;
-    if (!state?.vehicleId || !vehicles.length) return;
-    const vehicle = vehicles.find((v) => v.id === state.vehicleId);
-    if (vehicle) setSelected(vehicle);
-    navigate(location.pathname, { replace: true, state: {} });
-  }, [location.state, vehicles, navigate, location.pathname]);
+    if (!state?.vehicleId) return;
+    navigate(`/vehicles/${state.vehicleId}`, { replace: true });
+  }, [location.state, navigate]);
 
   const primary = vehicles.find((v) => v.is_primary);
   const others = vehicles.filter((v) => v.id !== primary?.id);
@@ -155,15 +151,10 @@ export default function GaragePage() {
     imageUpload.handleSelect(files);
   };
 
-  const handleCreatePost = (vehicleId: string) => {
-    navigate("/", { state: { openCreatePost: true, vehicleId } });
-  };
-
   const renderVehicleCard = (v: Vehicle, featured = false) => (
-    <button
+    <Link
       key={v.id}
-      type="button"
-      onClick={() => setSelected(v)}
+      to={`/vehicles/${v.id}`}
       className={cn(
         "text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         featured && "sm:col-span-2"
@@ -213,7 +204,7 @@ export default function GaragePage() {
           </div>
         </CardContent>
       </Card>
-    </button>
+    </Link>
   );
 
   return (
@@ -411,15 +402,6 @@ export default function GaragePage() {
             </div>
           )}
         </div>
-      )}
-
-      {selected && (
-        <VehicleDetailModal
-          vehicle={selected}
-          onClose={() => setSelected(null)}
-          editable
-          onCreatePost={handleCreatePost}
-        />
       )}
       </div>
     </>

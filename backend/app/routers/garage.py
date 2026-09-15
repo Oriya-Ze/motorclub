@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import Post, User, Vehicle
-from app.schemas import VehicleCreate, VehicleResponse, VehicleUpdate
+from app.schemas import VehicleCreate, VehicleDetailResponse, VehicleResponse, VehicleUpdate
 
 router = APIRouter(prefix="/garage", tags=["garage"])
 
@@ -110,3 +110,19 @@ async def search_vehicles(
         ).limit(20)
     )
     return [_vehicle_response(v) for v in result.scalars().all()]
+
+
+@router.get("/{vehicle_id}", response_model=VehicleDetailResponse)
+async def get_vehicle(
+    vehicle_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    vehicle = await db.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    owner = await db.get(User, vehicle.user_id)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    base = _vehicle_response(vehicle)
+    return VehicleDetailResponse(**base.model_dump(), owner=user_to_public(owner))

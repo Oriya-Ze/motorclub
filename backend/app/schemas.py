@@ -444,6 +444,10 @@ class VehicleResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VehicleDetailResponse(VehicleResponse):
+    owner: UserPublic
+
+
 class NotificationResponse(BaseModel):
     id: UUID
     user_id: UUID

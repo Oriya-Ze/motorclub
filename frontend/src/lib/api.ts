@@ -188,6 +188,7 @@ export interface Vehicle {
   image_urls?: string[] | null;
   is_primary: boolean;
   created_at: string;
+  owner?: User;
 }
 
 export interface VehicleCatalogMake {
@@ -452,6 +453,10 @@ class ApiClient {
 
   getUserGarage(userId: string) {
     return this.request<Vehicle[]>(`/garage/user/${userId}`);
+  }
+
+  getVehicle(vehicleId: string) {
+    return this.request<Vehicle>(`/garage/${vehicleId}`);
   }
 
   createVehicle(data: Partial<Vehicle>) {

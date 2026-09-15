@@ -27,6 +27,7 @@ import AdminBusinessRequestsPage from "@/pages/AdminBusinessRequestsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import BusinessProfilePage from "@/pages/BusinessProfilePage";
 import CommunityPage from "@/pages/CommunityPage";
+import VehiclePage from "@/pages/VehiclePage";
 
 function WorkshopRedirect() {
   const { userId } = useParams();
@@ -57,6 +58,7 @@ export default function App() {
             <Route path="workshops/:userId" element={<WorkshopRedirect />} />
             <Route path="services/:userId" element={<BusinessProfilePage />} />
             <Route path="garage" element={<GaragePage />} />
+            <Route path="vehicles/:vehicleId" element={<VehiclePage />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="stories/create" element={<CreateStoryPage />} />
             <Route path="community" element={<CommunityPage />} />

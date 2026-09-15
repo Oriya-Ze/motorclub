@@ -26,7 +26,7 @@ export default function VehicleBadge({ label, vehicleId, className }: VehicleBad
 
   if (vehicleId) {
     return (
-      <Link to="/garage" state={{ vehicleId }} className="inline-block">
+      <Link to={`/vehicles/${vehicleId}`} className="inline-block">
         {badge}
       </Link>
     );

@@ -43,7 +43,7 @@ export default function FeedSidebar() {
               <Car className="w-4 h-4 text-primary" />
               {t("garage.myGarage")}
             </div>
-            <Link to="/profile?tab=garage" className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
+            <Link to={`/vehicles/${primaryVehicle.id}`} className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
               {primaryVehicle.image_urls?.[0] ? (
                 <img src={mediaUrl(primaryVehicle.image_urls[0])} alt="" className="w-full h-28 object-cover" />
               ) : (

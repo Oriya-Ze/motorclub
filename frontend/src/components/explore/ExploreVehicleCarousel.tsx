@@ -51,7 +51,7 @@ export default function ExploreVehicleCarousel({ vehicles, isLoading }: ExploreV
       {vehicles.map((v) => (
         <Link
           key={v.id}
-          to={v.owner ? `/profile/${v.owner.id}` : "#"}
+          to={`/vehicles/${v.id}`}
           className="snap-start shrink-0 w-[min(82vw,300px)] md:w-auto flex gap-3 glass-card rounded-2xl p-3 hover:shadow-glow transition-shadow"
         >
           {v.thumbnail ? (
