@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import CreateFab from "@/components/CreateFab";
-import LanguageToggle from "@/components/LanguageToggle";
 import CreatePostModal from "@/components/CreatePostModal";
 import MobileHeaderActions from "@/components/MobileHeaderActions";
 import { MessagesPanelProvider, MessagesSideButton } from "@/components/MessagesPanel";
@@ -84,7 +83,6 @@ function AuthenticatedLayout() {
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              <LanguageToggle />
               <MobileHeaderActions />
               <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-muted/50 hidden md:flex">
                 <Bell className="w-5 h-5" />
@@ -232,10 +230,7 @@ function GuestLayout() {
             <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
             <span className="font-bold text-lg font-display tracking-wide">{t("appName")}</span>
           </Link>
-          <div className="flex items-center gap-1">
-            <LanguageToggle />
-            <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
-          </div>
+          <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
         </div>
       </header>
       <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">
