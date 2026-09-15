@@ -54,12 +54,16 @@ export default function VehicleCard({ vehicle: v, featured = false, showPrimary 
           </div>
         </div>
         <CardContent className="pt-4">
-          <h3 className={cn("font-bold", featured ? "text-xl" : "text-lg")}>{title}</h3>
-          {v.trim && <p className="text-sm text-muted-foreground">{v.trim}</p>}
+          <h3 className={cn("font-bold", featured ? "text-xl" : "text-lg")}>{v.nickname?.trim() || title}</h3>
+          {v.nickname?.trim() ? (
+            <p className="text-sm text-muted-foreground">{title}{v.trim ? ` · ${v.trim}` : ""}</p>
+          ) : (
+            v.trim && <p className="text-sm text-muted-foreground">{v.trim}</p>
+          )}
           <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
             {v.color && <span>{v.color}</span>}
             {v.engine && <span>{v.engine}</span>}
-            {v.mods && (
+            {((v.mod_items && v.mod_items.length > 0) || v.mods) && (
               <span className="inline-flex items-center gap-1 text-primary">
                 <Wrench className="w-3 h-3" />
                 {t("garage.hasMods")}

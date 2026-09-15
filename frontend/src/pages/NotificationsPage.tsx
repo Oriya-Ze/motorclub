@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, Heart, MessageCircle, UserPlus, Users, X } from "lucide-react";
+import { Bell, Check, Eye, Heart, MessageCircle, UserPlus, Users, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -19,6 +19,9 @@ const iconMap: Record<string, typeof Bell> = {
   group_join_request: Users,
   group_join_accepted: Users,
   group_join_rejected: Users,
+  vehicle_follow: UserPlus,
+  vehicle_spot: Eye,
+  vehicle_post: MessageCircle,
 };
 
 export default function NotificationsPage() {
@@ -75,6 +78,9 @@ export default function NotificationsPage() {
     if (n.type === "follow_request") return t("notifications.followRequest", { name });
     if (n.type === "follow_accepted") return t("notifications.followAccepted", { name });
     if (n.type === "follow_rejected") return t("notifications.followRejected", { name });
+    if (n.type === "vehicle_follow") return t("notifications.vehicleFollow", { name });
+    if (n.type === "vehicle_spot") return t("notifications.vehicleSpot", { name });
+    if (n.type === "vehicle_post") return t("notifications.vehiclePost", { name });
     return n.title;
   };
 
@@ -145,7 +151,7 @@ export default function NotificationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">{titleFor(n)}</p>
-                  {n.type !== "follow" && n.type !== "follow_request" && n.type !== "follow_accepted" && n.type !== "follow_rejected" && n.body && (
+                  {n.type !== "follow" && n.type !== "follow_request" && n.type !== "follow_accepted" && n.type !== "follow_rejected" && n.type !== "vehicle_follow" && n.type !== "vehicle_spot" && n.type !== "vehicle_post" && n.body && (
                     <p className="text-sm text-muted-foreground mt-0.5 truncate">{n.body}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">

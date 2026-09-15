@@ -378,6 +378,22 @@ class MessageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VehicleModShop(BaseModel):
+    id: UUID
+    full_name: str
+    username: str | None = None
+    business_type: str | None = None
+
+
+class VehicleModItem(BaseModel):
+    id: str | None = None
+    category: str = "other"
+    name: str = Field(min_length=1, max_length=120)
+    brand: str | None = Field(default=None, max_length=80)
+    shop_id: UUID | None = None
+    shop: VehicleModShop | None = None
+
+
 class VehicleCreate(BaseModel):
     make: str = Field(min_length=1, max_length=100)
     model: str = Field(min_length=1, max_length=100)
@@ -387,6 +403,10 @@ class VehicleCreate(BaseModel):
     engine: str | None = None
     description: str | None = None
     mods: str | None = None
+    nickname: str | None = Field(default=None, max_length=40)
+    walkaround_url: str | None = None
+    sound_url: str | None = None
+    mod_items: list[VehicleModItem] | None = None
     image_urls: list[str] | None = None
     is_primary: bool = False
 
@@ -400,6 +420,10 @@ class VehicleUpdate(BaseModel):
     engine: str | None = None
     description: str | None = None
     mods: str | None = None
+    nickname: str | None = Field(default=None, max_length=40)
+    walkaround_url: str | None = None
+    sound_url: str | None = None
+    mod_items: list[VehicleModItem] | None = None
     image_urls: list[str] | None = None
     is_primary: bool | None = None
 
@@ -437,6 +461,10 @@ class VehicleResponse(BaseModel):
     engine: str | None
     description: str | None
     mods: str | None
+    nickname: str | None = None
+    walkaround_url: str | None = None
+    sound_url: str | None = None
+    mod_items: list[VehicleModItem] | None = None
     image_urls: list[str] | None
     is_primary: bool
     created_at: datetime
@@ -446,6 +474,20 @@ class VehicleResponse(BaseModel):
 
 class VehicleDetailResponse(VehicleResponse):
     owner: UserPublic
+    follower_count: int = 0
+    is_following: bool = False
+    spot_count: int = 0
+    has_spotted: bool = False
+
+
+class VehicleFollowResponse(BaseModel):
+    following: bool
+    follower_count: int
+
+
+class VehicleSpotResponse(BaseModel):
+    spotted: bool
+    spot_count: int
 
 
 class NotificationResponse(BaseModel):

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
-from app.models import Comment, Post, PostLike, SavedPost, User
+from app.models import Comment, Post, PostLike, SavedPost, User, Vehicle, VehicleFollower
 from app.routers.social import create_notification
 from app.media.image_assets import build_image_media_map
 from app.media.video_assets import build_video_media_map
@@ -225,6 +225,29 @@ async def create_post(
         hashtags=tags if tags else None,
     )
     db.add(post)
+    await db.flush()
+    if post.vehicle_id:
+        vehicle = await db.get(Vehicle, post.vehicle_id)
+        follower_ids = (
+            await db.execute(
+                select(VehicleFollower.user_id)
+                .where(VehicleFollower.vehicle_id == post.vehicle_id, VehicleFollower.user_id != user.id)
+                .limit(50)
+            )
+        ).scalars().all()
+        label = (vehicle.nickname if vehicle else None) or (
+            f"{vehicle.make} {vehicle.model}" if vehicle else "a vehicle"
+        )
+        for follower_id in follower_ids:
+            await create_notification(
+                db,
+                follower_id,
+                user.id,
+                "vehicle_post",
+                f"{user.full_name} posted about {label}",
+                body=user.full_name,
+                link=f"/posts/{post.id}",
+            )
     await db.commit()
     await db.refresh(post)
     return await _post_to_response(db, post, user.id)

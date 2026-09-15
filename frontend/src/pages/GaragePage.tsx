@@ -6,13 +6,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import EmptyState from "@/components/EmptyState";
 import VehicleCard from "@/components/VehicleCard";
+import VehicleModEditor from "@/components/VehicleModEditor";
 import VehiclePhotoEditor from "@/components/VehiclePhotoEditor";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { api, VehicleCatalogVariant } from "@/lib/api";
+import { api, VehicleCatalogVariant, VehicleModItem } from "@/lib/api";
 
 const emptyForm = {
   makeId: "",
@@ -25,7 +26,8 @@ const emptyForm = {
   color: "",
   engine: "",
   description: "",
-  mods: "",
+  nickname: "",
+  mods: [] as VehicleModItem[],
   manual: false,
 };
 
@@ -129,7 +131,8 @@ export default function GaragePage() {
         color: form.color || undefined,
         engine: form.engine || undefined,
         description: form.description || undefined,
-        mods: form.mods || undefined,
+        nickname: form.nickname.trim() || undefined,
+        mod_items: form.mods.filter((item) => item.name.trim()),
         image_urls: images.length ? images : undefined,
         is_primary: vehicles.length === 0,
       }),
@@ -181,6 +184,7 @@ export default function GaragePage() {
                         manual: e.target.checked,
                         color: form.color,
                         description: form.description,
+                        nickname: form.nickname,
                         mods: form.mods,
                       })
                     }
@@ -322,19 +326,24 @@ export default function GaragePage() {
             {step === 2 && (
               <div className="space-y-3">
                 <VehiclePhotoEditor urls={images} onChange={setImages} disabled={createVehicle.isPending} />
+                <Input
+                  placeholder={t("garage.nicknamePlaceholder")}
+                  value={form.nickname}
+                  maxLength={40}
+                  onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+                />
+                <p className="text-[11px] text-muted-foreground -mt-2">{t("garage.nicknameOptional")}</p>
                 <textarea
-                  placeholder={t("garage.description")}
+                  placeholder={t("garage.storyPlaceholder")}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
                   className="w-full bg-muted/30 border border-border rounded-xl px-4 py-2 text-sm resize-none"
                 />
-                <textarea
-                  placeholder={t("garage.mods")}
-                  value={form.mods}
-                  onChange={(e) => setForm({ ...form, mods: e.target.value })}
-                  rows={2}
-                  className="w-full bg-muted/30 border border-border rounded-xl px-4 py-2 text-sm resize-none"
+                <VehicleModEditor
+                  items={form.mods}
+                  onChange={(mods) => setForm({ ...form, mods })}
+                  disabled={createVehicle.isPending}
                 />
               </div>
             )}

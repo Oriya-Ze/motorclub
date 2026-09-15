@@ -174,6 +174,24 @@ export interface GroupMessage {
   author: User;
 }
 
+export interface VehicleModShop {
+  id: string;
+  full_name: string;
+  username?: string | null;
+  business_type?: string | null;
+}
+
+export type VehicleModCategory = "engine" | "suspension" | "exterior" | "audio" | "other";
+
+export interface VehicleModItem {
+  id?: string;
+  category: VehicleModCategory;
+  name: string;
+  brand?: string | null;
+  shop_id?: string | null;
+  shop?: VehicleModShop | null;
+}
+
 export interface Vehicle {
   id: string;
   user_id: string;
@@ -185,10 +203,18 @@ export interface Vehicle {
   engine?: string | null;
   description?: string | null;
   mods?: string | null;
+  nickname?: string | null;
+  walkaround_url?: string | null;
+  sound_url?: string | null;
+  mod_items?: VehicleModItem[] | null;
   image_urls?: string[] | null;
   is_primary: boolean;
   created_at: string;
   owner?: User;
+  follower_count?: number;
+  is_following?: boolean;
+  spot_count?: number;
+  has_spotted?: boolean;
 }
 
 export interface VehicleCatalogMake {
@@ -461,6 +487,28 @@ class ApiClient {
 
   getVehiclePosts(vehicleId: string) {
     return this.request<Post[]>(`/garage/${vehicleId}/posts`);
+  }
+
+  getSimilarVehicles(vehicleId: string) {
+    return this.request<Vehicle[]>(`/garage/${vehicleId}/similar`);
+  }
+
+  followVehicle(vehicleId: string) {
+    return this.request<{ following: boolean; follower_count: number }>(`/garage/${vehicleId}/follow`, {
+      method: "POST",
+    });
+  }
+
+  unfollowVehicle(vehicleId: string) {
+    return this.request<{ following: boolean; follower_count: number }>(`/garage/${vehicleId}/follow`, {
+      method: "DELETE",
+    });
+  }
+
+  spotVehicle(vehicleId: string) {
+    return this.request<{ spotted: boolean; spot_count: number }>(`/garage/${vehicleId}/spot`, {
+      method: "POST",
+    });
   }
 
   searchVehicles(q: string) {

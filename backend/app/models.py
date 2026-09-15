@@ -86,8 +86,32 @@ class Vehicle(Base):
     engine: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     mods: Mapped[str | None] = mapped_column(Text, nullable=True)
+    nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    walkaround_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    sound_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    mod_items: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     image_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class VehicleFollower(Base):
+    __tablename__ = "vehicle_followers"
+    __table_args__ = (UniqueConstraint("vehicle_id", "user_id", name="uq_vehicle_followers_pair"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class VehicleSpot(Base):
+    __tablename__ = "vehicle_spots"
+    __table_args__ = (UniqueConstraint("vehicle_id", "user_id", name="uq_vehicle_spots_pair"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("vehicles.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
