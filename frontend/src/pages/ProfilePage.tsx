@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bookmark, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
+import { Bookmark, Building2, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
@@ -38,10 +38,6 @@ export default function ProfilePage() {
 
   const profileUserId = userId ?? authUser?.id;
   const isOwnProfile = Boolean(authUser && profileUserId === authUser.id);
-
-  if (isOwnProfile && authUser?.account_type === "business" && !userId) {
-    return <Navigate to={getBusinessProfilePath(authUser.business_type, authUser.id)} replace />;
-  }
 
   const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ["user", profileUserId],
@@ -162,6 +158,14 @@ export default function ProfilePage() {
                       {t("sendMessage")}
                     </Button>
                   </>
+                )}
+                {profile.account_type === "business" && (
+                  <Link to={getBusinessProfilePath(profile.business_type, profile.id)}>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <Building2 className="w-4 h-4" />
+                      {isOwnProfile ? t("profile.myBusiness") : t("profile.businessPage")}
+                    </Button>
+                  </Link>
                 )}
               </div>
             </div>

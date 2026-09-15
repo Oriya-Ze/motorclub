@@ -7,6 +7,7 @@ import {
   Phone,
   Share2,
   Star,
+  User,
   Wrench,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -342,14 +343,22 @@ export default function BusinessProfilePage() {
             </div>
           </div>
 
-          {!isOwn && authUser && (
-            <div className="flex flex-wrap gap-2">
-              <FollowButton userId={userId!} />
-              <Button size="sm" variant="outline" disabled={messageMutation.isPending} onClick={() => messageMutation.mutate()}>
-                {t("workshops.message")}
+          <div className="flex flex-wrap gap-2">
+            <Link to={`/profile/${business.id}`}>
+              <Button size="sm" variant="outline" className="gap-1.5">
+                <User className="w-4 h-4" />
+                {isOwn ? t("businessProfile.myMemberProfile") : t("businessProfile.memberProfile")}
               </Button>
-            </div>
-          )}
+            </Link>
+            {!isOwn && authUser && (
+              <>
+                <FollowButton userId={userId!} />
+                <Button size="sm" variant="outline" disabled={messageMutation.isPending} onClick={() => messageMutation.mutate()}>
+                  {t("workshops.message")}
+                </Button>
+              </>
+            )}
+          </div>
 
           {business.business_description && (
             <p className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed whitespace-pre-wrap">

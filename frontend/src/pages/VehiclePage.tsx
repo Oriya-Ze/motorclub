@@ -16,7 +16,6 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Vehicle } from "@/lib/api";
-import { getBusinessProfilePath } from "@/lib/businessProfile";
 import { displayName, formatHandle } from "@/lib/utils";
 
 function SpecItem({ label, value }: { label: string; value: string }) {
@@ -112,11 +111,7 @@ export default function VehiclePage() {
   const title = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ");
   const photoCount = vehicle.image_urls?.length ?? 0;
   const vehicleUrl = `${window.location.origin}/vehicles/${vehicle.id}`;
-  const ownerPath = owner
-    ? owner.account_type === "business"
-      ? getBusinessProfilePath(owner.business_type, owner.id)
-      : `/profile/${owner.id}`
-    : "/";
+  const ownerPath = owner ? `/profile/${owner.id}` : "/";
 
   const startEdit = () => {
     setDraft({
