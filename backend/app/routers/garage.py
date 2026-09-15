@@ -33,9 +33,10 @@ def _blank_to_none(value: str | None) -> str | None:
     return trimmed or None
 
 
-def _normalize_mod_items(items: list[VehicleModItem] | None) -> list[dict]:
+def _normalize_mod_items(items: list[VehicleModItem] | list[dict] | None) -> list[dict]:
     out: list[dict] = []
-    for item in items or []:
+    for raw in items or []:
+        item = raw if isinstance(raw, VehicleModItem) else VehicleModItem.model_validate(raw)
         name = (item.name or "").strip()
         if not name:
             continue
@@ -62,6 +63,9 @@ def _shop_uuid(raw: object | None) -> uuid.UUID | None:
         return uuid.UUID(str(raw))
     except ValueError:
         return None
+
+
+def _legacy_mod_items(mods: str | None) -> list[dict]:
     text = (mods or "").strip()
     if not text:
         return []
@@ -275,7 +279,7 @@ async def update_vehicle(
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
     data = body.model_dump(exclude_unset=True)
-    mod_items = data.pop("mod_items", None)
+    data.pop("mod_items", None)
     if "nickname" in data:
         data["nickname"] = _blank_to_none(data["nickname"])
     if "walkaround_url" in data:
@@ -285,7 +289,7 @@ async def update_vehicle(
     for field, value in data.items():
         setattr(vehicle, field, value)
     if "mod_items" in body.model_fields_set:
-        _apply_mod_items(vehicle, mod_items)
+        _apply_mod_items(vehicle, body.mod_items)
     if data.get("is_primary"):
         await _unset_other_primaries(db, user.id, vehicle.id)
     await db.commit()
