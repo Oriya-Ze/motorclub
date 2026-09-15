@@ -327,7 +327,12 @@ export default function SettingsPage() {
                       <Eye className="w-4 h-4 text-primary" />
                       <h3 className="font-semibold">{t("privacy")}</h3>
                     </div>
-                    <Toggle label={t("profilePublic")} checked={settings.profile_public} onChange={(v) => handleToggle("profile_public", v)} description={t("settingsProfilePublicDesc")} />
+                    <Toggle
+                      label={t("profile.privateAccount")}
+                      checked={!settings.profile_public}
+                      onChange={(v) => handleToggle("profile_public", !v)}
+                      description={t("settingsProfilePrivateDesc")}
+                    />
                   </CardContent>
                 </Card>
 
