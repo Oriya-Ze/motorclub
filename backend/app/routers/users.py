@@ -8,15 +8,32 @@ from app.business_types import is_valid_business_type
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import BusinessUpgradeRequest, Follower, Post, ProfileSettings, User
+from app.routers.social import create_notification
 from app.schemas import (
     BusinessUpgradeRequestCreate,
     BusinessUpgradeRequestResponse,
+    FollowRequestResponse,
+    FollowStatusResponse,
     ProfileUpdate,
     SettingsResponse,
     SettingsUpdate,
     UserPublic,
 )
 from app.services.business_upgrade import get_latest_request, submit_business_upgrade_request
+
+FOLLOW_ACCEPTED = "accepted"
+FOLLOW_PENDING = "pending"
+
+
+def _display_name(user: User) -> str:
+    name = (user.full_name or user.username or "").strip()
+    return name or "Someone"
+
+
+def _follow_payload(row: Follower | None) -> dict[str, object]:
+    if not row:
+        return {"following": False, "status": "none"}
+    return {"following": row.status == FOLLOW_ACCEPTED, "status": row.status}
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -126,7 +143,96 @@ async def get_user_posts(
     return [{"id": str(p.id), "content": p.content, "created_at": p.created_at.isoformat()} for p in result.scalars()]
 
 
-@router.post("/{user_id}/follow")
+@router.get("/me/follow-requests", response_model=list[FollowRequestResponse])
+async def list_follow_requests(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    result = await db.execute(
+        select(Follower)
+        .where(Follower.following_id == user.id, Follower.status == FOLLOW_PENDING)
+        .order_by(Follower.created_at.asc())
+    )
+    responses: list[FollowRequestResponse] = []
+    for row in result.scalars().all():
+        requester = await db.get(User, row.follower_id)
+        if not requester:
+            continue
+        responses.append(
+            FollowRequestResponse(
+                user_id=row.follower_id,
+                created_at=row.created_at,
+                user=user_to_public(requester),
+            )
+        )
+    return responses
+
+
+@router.post("/me/follow-requests/{follower_id}/approve")
+async def approve_follow_request(
+    follower_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    row = await db.scalar(
+        select(Follower).where(
+            Follower.follower_id == follower_id,
+            Follower.following_id == user.id,
+            Follower.status == FOLLOW_PENDING,
+        )
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Follow request not found")
+
+    requester = await db.get(User, follower_id)
+    row.status = FOLLOW_ACCEPTED
+    if requester:
+        await create_notification(
+            db,
+            follower_id,
+            user.id,
+            "follow_accepted",
+            f"{_display_name(user)} accepted your follow request",
+            body=_display_name(user),
+            link=f"/users/{user.id}",
+        )
+    await db.commit()
+    return {"status": FOLLOW_ACCEPTED}
+
+
+@router.post("/me/follow-requests/{follower_id}/reject")
+async def reject_follow_request(
+    follower_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    row = await db.scalar(
+        select(Follower).where(
+            Follower.follower_id == follower_id,
+            Follower.following_id == user.id,
+            Follower.status == FOLLOW_PENDING,
+        )
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Follow request not found")
+
+    requester = await db.get(User, follower_id)
+    await db.delete(row)
+    if requester:
+        await create_notification(
+            db,
+            follower_id,
+            user.id,
+            "follow_rejected",
+            f"{_display_name(user)} declined your follow request",
+            body=_display_name(user),
+            link=f"/users/{user.id}",
+        )
+    await db.commit()
+    return {"status": "rejected"}
+
+
+@router.post("/{user_id}/follow", response_model=FollowStatusResponse)
 async def follow_user(
     user_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -143,19 +249,31 @@ async def follow_user(
         select(Follower).where(Follower.follower_id == user.id, Follower.following_id == user_id)
     )
     if existing:
+        was_pending = existing.status == FOLLOW_PENDING
         await db.delete(existing)
         await db.commit()
-        return {"following": False}
+        return FollowStatusResponse(following=False, status="cancelled" if was_pending else "none")
 
-    db.add(Follower(follower_id=user.id, following_id=user_id))
+    db.add(Follower(follower_id=user.id, following_id=user_id, status=FOLLOW_PENDING))
+    await create_notification(
+        db,
+        user_id,
+        user.id,
+        "follow_request",
+        f"{_display_name(user)} wants to follow you",
+        body=_display_name(user),
+        link=f"/users/{user.id}",
+    )
     await db.commit()
-    return {"following": True}
+    return FollowStatusResponse(following=False, status=FOLLOW_PENDING)
 
 
 @router.get("/{user_id}/followers/count")
 async def followers_count(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     count = await db.scalar(
-        select(func.count()).select_from(Follower).where(Follower.following_id == user_id)
+        select(func.count()).select_from(Follower).where(
+            Follower.following_id == user_id, Follower.status == FOLLOW_ACCEPTED
+        )
     )
     return {"count": count or 0}
 
@@ -163,24 +281,26 @@ async def followers_count(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 @router.get("/{user_id}/following/count")
 async def following_count(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     count = await db.scalar(
-        select(func.count()).select_from(Follower).where(Follower.follower_id == user_id)
+        select(func.count()).select_from(Follower).where(
+            Follower.follower_id == user_id, Follower.status == FOLLOW_ACCEPTED
+        )
     )
     return {"count": count or 0}
 
 
-@router.get("/{user_id}/follow/status")
+@router.get("/{user_id}/follow/status", response_model=FollowStatusResponse)
 async def follow_status(
     user_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
     if user_id == user.id:
-        return {"following": False}
+        return FollowStatusResponse(following=False, status="none")
 
     existing = await db.scalar(
         select(Follower).where(Follower.follower_id == user.id, Follower.following_id == user_id)
     )
-    return {"following": existing is not None}
+    return FollowStatusResponse(**_follow_payload(existing))
 
 
 @router.post("/me/business-upgrade", response_model=BusinessUpgradeRequestResponse)

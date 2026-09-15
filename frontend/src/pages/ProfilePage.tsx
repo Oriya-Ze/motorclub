@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Bookmark, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
 import VehicleDetailModal from "@/components/VehicleDetailModal";
 import Avatar from "@/components/Avatar";
+import FollowButton from "@/components/FollowButton";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
@@ -27,7 +28,6 @@ export default function ProfilePage() {
   const [searchParams] = useSearchParams();
   const messagesPanel = useMessagesPanelOptional();
   const { user: authUser } = useAuth();
-  const queryClient = useQueryClient();
   const initialTab = searchParams.get("tab");
   const [tab, setTab] = useState<Tab>(
     initialTab === "garage" || initialTab === "saved" ? initialTab : "posts"
@@ -82,22 +82,6 @@ export default function ProfilePage() {
     queryKey: ["following-count", profileUserId],
     queryFn: () => api.getFollowingCount(profileUserId!),
     enabled: Boolean(profileUserId),
-  });
-
-  const { data: followStatus } = useQuery({
-    queryKey: ["follow-status", profileUserId],
-    queryFn: () => api.getFollowStatus(profileUserId!),
-    enabled: Boolean(profileUserId && !isOwnProfile),
-  });
-
-  const followMutation = useMutation({
-    mutationFn: () => api.followUser(profileUserId!),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["follow-status", profileUserId], data);
-      queryClient.invalidateQueries({ queryKey: ["followers-count", profileUserId] });
-      toast.success(data.following ? t("profile.followSuccess") : t("profile.unfollowSuccess"));
-    },
-    onError: (err: Error) => toast.error(err.message),
   });
 
   const messageMutation = useMutation({
@@ -172,9 +156,7 @@ export default function ProfilePage() {
                   </>
                 ) : (
                   <>
-                    <Button size="sm" variant={followStatus?.following ? "outline" : "default"} disabled={followMutation.isPending} onClick={() => followMutation.mutate()}>
-                      {followStatus?.following ? t("profile.unfollow") : t("profile.follow")}
-                    </Button>
+                    <FollowButton userId={profileUserId!} />
                     <Button size="sm" variant="outline" disabled={messageMutation.isPending} onClick={() => messageMutation.mutate()}>
                       <Mail className="w-4 h-4" />
                       {t("sendMessage")}

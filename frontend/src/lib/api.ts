@@ -223,6 +223,17 @@ export interface Notification {
   created_at: string;
 }
 
+export interface FollowStatus {
+  following: boolean;
+  status: "none" | "pending" | "accepted" | "cancelled" | string;
+}
+
+export interface FollowRequest {
+  user_id: string;
+  created_at: string;
+  user: User;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -920,11 +931,23 @@ class ApiClient {
   }
 
   followUser(userId: string) {
-    return this.request<{ following: boolean }>(`/users/${userId}/follow`, { method: "POST" });
+    return this.request<FollowStatus>(`/users/${userId}/follow`, { method: "POST" });
   }
 
   getFollowStatus(userId: string) {
-    return this.request<{ following: boolean }>(`/users/${userId}/follow/status`);
+    return this.request<FollowStatus>(`/users/${userId}/follow/status`);
+  }
+
+  getFollowRequests() {
+    return this.request<FollowRequest[]>("/users/me/follow-requests");
+  }
+
+  approveFollowRequest(followerId: string) {
+    return this.request<{ status: string }>(`/users/me/follow-requests/${followerId}/approve`, { method: "POST" });
+  }
+
+  rejectFollowRequest(followerId: string) {
+    return this.request<{ status: string }>(`/users/me/follow-requests/${followerId}/reject`, { method: "POST" });
   }
 
   getFollowersCount(userId: string) {

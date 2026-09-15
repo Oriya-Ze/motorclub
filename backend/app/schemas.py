@@ -169,6 +169,17 @@ class GroupResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FollowStatusResponse(BaseModel):
+    following: bool
+    status: str
+
+
+class FollowRequestResponse(BaseModel):
+    user_id: UUID
+    created_at: datetime
+    user: UserPublic
+
+
 class GroupMemberResponse(BaseModel):
     user_id: UUID
     role: str

@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
@@ -149,21 +150,6 @@ export default function BusinessProfilePage() {
     }
     setReviewFormReady(true);
   }, [authUser, myReview, reviewFormReady, reviewsLoading]);
-
-  const { data: followStatus } = useQuery({
-    queryKey: ["follow-status", userId],
-    queryFn: () => api.getFollowStatus(userId!),
-    enabled: Boolean(userId && authUser && userId !== authUser.id),
-  });
-
-  const followMutation = useMutation({
-    mutationFn: () => api.followUser(userId!),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["follow-status", userId], data);
-      toast.success(data.following ? t("profile.followSuccess") : t("profile.unfollowSuccess"));
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
 
   const messageMutation = useMutation({
     mutationFn: () => api.startConversation(userId!),
@@ -358,14 +344,7 @@ export default function BusinessProfilePage() {
 
           {!isOwn && authUser && (
             <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant={followStatus?.following ? "outline" : "default"}
-                disabled={followMutation.isPending}
-                onClick={() => followMutation.mutate()}
-              >
-                {followStatus?.following ? t("profile.unfollow") : t("profile.follow")}
-              </Button>
+              <FollowButton userId={userId!} />
               <Button size="sm" variant="outline" disabled={messageMutation.isPending} onClick={() => messageMutation.mutate()}>
                 {t("workshops.message")}
               </Button>

@@ -65,7 +65,7 @@ const EXACT_ERROR_KEYS: Record<string, string> = {
   "Only group managers can view join requests": "apiErrors.groupJoinRequestsForbidden",
   "Only group managers can approve join requests": "apiErrors.groupJoinApproveForbidden",
   "Only group managers can reject join requests": "apiErrors.groupJoinRejectForbidden",
-  "Join request not found": "apiErrors.joinRequestNotFound",
+  "Follow request not found": "apiErrors.followRequestNotFound",
   "Use the leave endpoint to leave the group": "apiErrors.useLeaveEndpoint",
   "Member not found": "apiErrors.memberNotFound",
   "Cannot remove the group owner": "apiErrors.cannotRemoveOwner",
