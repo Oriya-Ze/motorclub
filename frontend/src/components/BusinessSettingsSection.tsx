@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Check, Clock, ExternalLink, ImagePlus, MapPin, Package, Pencil, Plus, Star, Trash2, Wrench } from "lucide-react";
+import { BarChart3, Clock, ExternalLink, ImagePlus, MapPin, Package, Pencil, Plus, Trash2, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import CreateProductModal from "@/components/CreateProductModal";
 import EditProductModal from "@/components/EditProductModal";
 import Avatar from "@/components/Avatar";
-import VerifiedBadge from "@/components/VerifiedBadge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,7 +22,6 @@ import {
   mapsEmbedUrl,
 } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
-import { cn } from "@/lib/utils";
 
 export default function BusinessSettingsSection() {
   const { t } = useTranslation();
@@ -165,81 +163,19 @@ export default function BusinessSettingsSection() {
 
   if (!user || user.account_type !== "business") return null;
 
-  const categoryLabel = user.business_type
-    ? t(`businessCategories.${user.business_type}`, { defaultValue: user.business_type })
-    : null;
-
   const profilePath = getBusinessProfilePath(user.business_type, user.id);
-  const previewSpecializations = [
-    businessType ? t(`businessCategories.${businessType}`, { defaultValue: businessType }) : null,
-    ...certifications.split(",").map((s) => s.trim()).filter(Boolean),
-  ].filter(Boolean) as string[];
-  const previewRating =
-    analytics?.rating_avg != null && analytics.review_count > 0
-      ? Number(analytics.rating_avg).toFixed(1)
-      : null;
 
   return (
     <div className="space-y-6">
       {coverUpload.cropModal}
       {avatarUpload.cropModal}
 
-      {/* Live preview */}
-      <div className="rounded-2xl border border-border/60 overflow-hidden shadow-sm">
-        <div className="relative h-24 sm:h-28 bg-gradient-to-l from-primary/25 via-primary/10 to-muted/30">
-          {coverImageUrl ? (
-            <img src={mediaUrl(coverImageUrl)} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
-        </div>
-        <div className="px-4 pb-4 pt-0">
-          <div className="flex items-end gap-3 -mt-10">
-            <Avatar
-              user={{ id: user.id, full_name: businessName, profile_picture_url: profilePictureUrl }}
-              size="xl"
-              preview
-              className="border-4 border-card ring-2 ring-primary/15 bg-card shrink-0"
-            />
-            <div className="flex-1 min-w-0 pb-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-display text-lg truncate">{businessName || t("businessUpgradeForm.businessName")}</p>
-                {user.is_verified && <VerifiedBadge className="w-4 h-4 text-primary" />}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  {previewRating ?? "—"}
-                </span>
-                {categoryLabel && (
-                  <span className="text-xs text-primary truncate">{categoryLabel}</span>
-                )}
-              </div>
-            </div>
-          </div>
-          {businessDescription && (
-            <p className="text-xs text-muted-foreground mt-3 line-clamp-2">{businessDescription}</p>
-          )}
-          {previewSpecializations.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {previewSpecializations.slice(0, 4).map((item) => (
-                <span key={item} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Check className="w-3 h-3 text-emerald-500" strokeWidth={3} />
-                  {item}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="px-4 pb-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-3">
-          <p className="text-xs text-muted-foreground">{t("businessSettings.publicProfileHint")}</p>
-          <Link to={profilePath}>
-            <Button variant="outline" size="sm" className="gap-2">
-              <ExternalLink className="w-4 h-4" />
-              {t("businessSettings.viewPublicProfile")}
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <Link to={profilePath}>
+        <Button variant="outline" size="sm" className="gap-2">
+          <ExternalLink className="w-4 h-4" />
+          {t("businessSettings.viewPublicProfile")}
+        </Button>
+      </Link>
 
       {analytics && (
         <div className="rounded-xl border border-border/50 p-4 space-y-3">
