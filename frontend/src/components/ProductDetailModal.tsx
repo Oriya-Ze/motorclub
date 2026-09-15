@@ -1,10 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { Mail, X } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import MediaLightbox from "@/components/MediaLightbox";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { api, Product } from "@/lib/api";
@@ -20,6 +22,9 @@ interface ProductDetailModalProps {
 export default function ProductDetailModal({ product, onClose }: ProductDetailModalProps) {
   const { t } = useTranslation();
   const messagesPanel = useMessagesPanelOptional();
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const photos = product.image_urls ?? [];
 
   const contactSeller = useMutation({
     mutationFn: () => api.startConversation(product.business_id),
@@ -31,6 +36,7 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
   });
 
   return (
+    <>
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-glow">
@@ -42,8 +48,10 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
         </div>
 
         <div className="p-4 space-y-4">
-          {product.image_urls?.[0] ? (
-            <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-56 object-cover rounded-xl" />
+          {photos[0] ? (
+            <button type="button" className="block w-full" onClick={() => { setPhotoIdx(0); setPhotoOpen(true); }} aria-label={t("viewFullMedia")}>
+              <img src={mediaUrl(photos[0])} alt={product.name} className="w-full h-56 object-cover rounded-xl" />
+            </button>
           ) : (
             <VehiclePlaceholder className="h-56 rounded-xl" />
           )}
@@ -79,5 +87,13 @@ export default function ProductDetailModal({ product, onClose }: ProductDetailMo
         </div>
       </div>
     </div>
+    <MediaLightbox
+      open={photoOpen}
+      items={photos.map((url) => ({ kind: "image" as const, src: mediaUrl(url), alt: product.name }))}
+      index={photoIdx}
+      onClose={() => setPhotoOpen(false)}
+      onIndexChange={setPhotoIdx}
+    />
+    </>
   );
 }

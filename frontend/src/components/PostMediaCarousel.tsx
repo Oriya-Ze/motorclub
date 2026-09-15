@@ -1,6 +1,7 @@
-import { Loader2, Volume2, VolumeX } from "lucide-react";
-import { useId, useRef, useState, type MouseEvent } from "react";
+import { Expand, Loader2, Volume2, VolumeX } from "lucide-react";
+import { useId, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
+import MediaLightbox, { type FullMediaItem } from "@/components/MediaLightbox";
 import { useFeedVideoAutoplay } from "@/hooks/useFeedVideoAutoplay";
 import { pickImageUrl, pickVideoPlaybackUrl, type PostMediaItem } from "@/lib/postMedia";
 import { mediaUrl } from "@/lib/media";
@@ -18,13 +19,25 @@ interface MediaSlideProps {
   mode: "feed" | "detail";
   autoplayEnabled: boolean;
   isActiveSlide: boolean;
+  onOpenFull: () => void;
 }
 
 function stopClick(e: MouseEvent) {
   e.stopPropagation();
 }
 
-function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlideProps) {
+function toLightboxItems(items: PostMediaItem[]): FullMediaItem[] {
+  return items.map((item) => {
+    if (item.type === "video") {
+      const src = pickVideoPlaybackUrl(item, "detail");
+      const poster = item.video?.poster_key ? mediaUrl(item.video.poster_key) : undefined;
+      return { kind: "video" as const, src: mediaUrl(src || item.url), poster };
+    }
+    return { kind: "image" as const, src: mediaUrl(pickImageUrl(item, "detail")) };
+  });
+}
+
+function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull }: MediaSlideProps) {
   const { t } = useTranslation();
   const id = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,22 +45,22 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlidePr
   const [muted, setMuted] = useState(true);
   const isDetail = mode === "detail";
   const shouldAutoplay = autoplayEnabled || isDetail;
-
-  if (item.type !== "video") return null;
-
-  const playbackUrl = pickVideoPlaybackUrl(item, mode);
-  const posterKey = item.video?.poster_key;
-  const isFailed = item.video?.status === "failed";
+  const videoItem = item.type === "video" ? item : null;
+  const playbackUrl = videoItem ? pickVideoPlaybackUrl(videoItem, mode) : null;
+  const posterKey = videoItem?.video?.poster_key;
+  const isFailed = videoItem?.video?.status === "failed";
   const showPosterOnly = !playbackUrl && Boolean(posterKey);
   const hasProcessedVariants = Boolean(
-    item.video?.url_480p || item.video?.url_720p || item.video?.url_1080p,
+    videoItem?.video?.url_480p || videoItem?.video?.url_720p || videoItem?.video?.url_1080p,
   );
   const isProcessing =
-    (item.video?.status === "uploaded" || item.video?.status === "processing") &&
+    (videoItem?.video?.status === "uploaded" || videoItem?.video?.status === "processing") &&
     !hasProcessedVariants &&
     showPosterOnly;
 
   useFeedVideoAutoplay(id, containerRef, videoRef, shouldAutoplay && Boolean(playbackUrl), isActiveSlide);
+
+  if (!videoItem) return null;
 
   return (
     <div
@@ -76,7 +89,6 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlidePr
           playsInline
           loop
           preload="metadata"
-          onClick={stopClick}
         />
       ) : null}
 
@@ -93,6 +105,19 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlidePr
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60 px-4 text-center text-sm text-white">
           {t("videoProcessingFailed")}
         </div>
+      )}
+
+      {isDetail && (
+        <button
+          type="button"
+          className="absolute inset-0 z-[5]"
+          onClick={(e) => {
+            stopClick(e);
+            videoRef.current?.pause();
+            onOpenFull();
+          }}
+          aria-label={t("viewFullMedia")}
+        />
       )}
 
       {playbackUrl && (
@@ -112,12 +137,12 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide }: MediaSlidePr
   );
 }
 
-function ImageSlide({ item, mode }: Pick<MediaSlideProps, "item" | "mode">) {
+function ImageSlide({ item, mode, onOpenFull }: Pick<MediaSlideProps, "item" | "mode" | "onOpenFull">) {
+  const { t } = useTranslation();
   const isDetail = mode === "detail";
   if (item.type !== "image") return null;
   const src = pickImageUrl(item, mode);
-
-  return (
+  const img = (
     <img
       src={mediaUrl(src)}
       alt=""
@@ -128,6 +153,22 @@ function ImageSlide({ item, mode }: Pick<MediaSlideProps, "item" | "mode">) {
       loading="lazy"
     />
   );
+
+  if (!isDetail) return img;
+
+  return (
+    <button
+      type="button"
+      className="block w-full"
+      onClick={(e) => {
+        stopClick(e);
+        onOpenFull();
+      }}
+      aria-label={t("viewFullMedia")}
+    >
+      {img}
+    </button>
+  );
 }
 
 export default function PostMediaCarousel({
@@ -135,7 +176,10 @@ export default function PostMediaCarousel({
   mode = "feed",
   className,
 }: PostMediaCarouselProps) {
+  const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+  const lightboxItems = useMemo(() => toLightboxItems(items), [items]);
   if (!items.length) return null;
 
   const isDetail = mode === "detail";
@@ -148,11 +192,31 @@ export default function PostMediaCarousel({
           key={`video-${idx}-${activeItem.url}`}
           item={activeItem}
           mode={mode}
-          autoplayEnabled={!isDetail}
-          isActiveSlide
+          autoplayEnabled={!isDetail && !lightbox}
+          isActiveSlide={!lightbox}
+          onOpenFull={() => setLightbox(true)}
         />
       ) : (
-        <ImageSlide key={`image-${idx}-${activeItem.url}`} item={activeItem} mode={mode} />
+        <ImageSlide
+          key={`image-${idx}-${activeItem.url}`}
+          item={activeItem}
+          mode={mode}
+          onOpenFull={() => setLightbox(true)}
+        />
+      )}
+
+      {isDetail && (
+        <button
+          type="button"
+          onClick={(e) => {
+            stopClick(e);
+            setLightbox(true);
+          }}
+          className="absolute top-3 start-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white"
+          aria-label={t("viewFullMedia")}
+        >
+          <Expand className="h-4 w-4" />
+        </button>
       )}
 
       {items.length > 1 && (
@@ -177,7 +241,7 @@ export default function PostMediaCarousel({
                 setIdx(idx - 1);
               }}
               className="absolute left-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-lg text-white"
-              aria-label="Previous"
+              aria-label={t("prevMedia")}
             >
               ‹
             </button>
@@ -190,13 +254,21 @@ export default function PostMediaCarousel({
                 setIdx(idx + 1);
               }}
               className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-lg text-white"
-              aria-label="Next"
+              aria-label={t("nextMedia")}
             >
               ›
             </button>
           )}
         </>
       )}
+
+      <MediaLightbox
+        open={lightbox}
+        items={lightboxItems}
+        index={idx}
+        onClose={() => setLightbox(false)}
+        onIndexChange={(next) => setIdx(Math.max(0, Math.min(items.length - 1, next)))}
+      />
     </div>
   );
 }
