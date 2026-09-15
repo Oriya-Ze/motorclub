@@ -1,16 +1,23 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
-/** Warm common caches after login so navigation feels instant. */
-export function prefetchAppData(queryClient: QueryClient) {
-  void queryClient.prefetchQuery({
+const PAGE_SIZE = 10;
+
+function prefetchFeed(queryClient: QueryClient) {
+  void queryClient.prefetchInfiniteQuery({
     queryKey: ["posts"],
-    queryFn: () => api.getPosts(),
+    queryFn: ({ pageParam }) => api.getPosts({ skip: pageParam, limit: PAGE_SIZE }),
+    initialPageParam: 0,
   });
   void queryClient.prefetchQuery({
     queryKey: ["stories"],
     queryFn: () => api.getStories(),
   });
+}
+
+/** Warm common caches after login so navigation feels instant. */
+export function prefetchAppData(queryClient: QueryClient) {
+  prefetchFeed(queryClient);
   void queryClient.prefetchQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
@@ -18,10 +25,7 @@ export function prefetchAppData(queryClient: QueryClient) {
 }
 
 const routePrefetch: Record<string, (qc: QueryClient) => void> = {
-  "/": (qc) => {
-    void qc.prefetchQuery({ queryKey: ["posts"], queryFn: () => api.getPosts() });
-    void qc.prefetchQuery({ queryKey: ["stories"], queryFn: () => api.getStories() });
-  },
+  "/": prefetchFeed,
   "/explore": (qc) => {
     void qc.prefetchQuery({ queryKey: ["explore-posts"], queryFn: () => api.explorePosts() });
     void qc.prefetchQuery({ queryKey: ["explore-vehicles"], queryFn: () => api.exploreVehicles() });

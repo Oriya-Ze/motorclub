@@ -35,7 +35,7 @@ export default function FeedPage() {
     refetchOnWindowFocus: false,
   });
 
-  const posts = data?.pages.flat() ?? [];
+  const posts = data?.pages?.flat() ?? [];
 
   useEffect(() => {
     const el = loadMoreRef.current;
