@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
+import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { Button } from "@/components/ui/Button";
@@ -24,7 +25,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { api } from "@/lib/api";
+import { api, BusinessTaggedWork } from "@/lib/api";
 import {
   DAY_KEYS,
   getBusinessListPath,
@@ -35,7 +36,7 @@ import {
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-type Tab = "posts" | "services" | "reviews";
+type Tab = "posts" | "services" | "works" | "reviews";
 
 function StarRating({ value, onChange, readonly }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
   return (
@@ -118,6 +119,12 @@ export default function BusinessProfilePage() {
     queryKey: ["business-services", userId],
     queryFn: () => api.getBusinessServices(userId!),
     enabled: Boolean(userId) && tab === "services",
+  });
+
+  const { data: works = [], isLoading: worksLoading } = useQuery({
+    queryKey: ["business-works", userId],
+    queryFn: () => api.getBusinessWorks(userId!),
+    enabled: Boolean(userId) && tab === "works",
   });
 
   const { data: posts = [], isLoading: postsLoading } = useQuery({
@@ -237,10 +244,12 @@ export default function BusinessProfilePage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "posts", label: t("workshops.posts") },
     { id: "services", label: t("businessProfile.services") },
+    { id: "works", label: t("businessProfile.works") },
     { id: "reviews", label: t("businessProfile.reviews") },
   ];
 
-  const loading = tab === "posts" ? postsLoading : tab === "services" ? servicesLoading : reviewsLoading;
+  const loading =
+    tab === "posts" ? postsLoading : tab === "services" ? servicesLoading : tab === "works" ? worksLoading : reviewsLoading;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-20 md:pb-8">
@@ -467,6 +476,19 @@ export default function BusinessProfilePage() {
         ) : (
           <div className="space-y-4">{posts.map((post) => <PostCard key={post.id} post={post} />)}</div>
         )
+      ) : tab === "works" ? (
+        works.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60 px-4">
+            <p>{t("businessProfile.noWorks")}</p>
+            <p className="text-xs mt-2">{t("businessProfile.worksHint")}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {works.map((work) => (
+              <WorkCard key={work.vehicle_id} work={work} />
+            ))}
+          </div>
+        )
       ) : tab === "services" ? (
         services.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60">
@@ -545,5 +567,26 @@ export default function BusinessProfilePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function WorkCard({ work }: { work: BusinessTaggedWork }) {
+  const subtitle = work.title !== work.catalog ? work.catalog : work.owner_name;
+  return (
+    <Link
+      to={`/vehicles/${work.vehicle_id}`}
+      className="group rounded-xl overflow-hidden border border-border/50 bg-card hover:border-primary/40 transition-colors text-start"
+    >
+      {work.image_url ? (
+        <img src={mediaUrl(work.image_url)} alt="" className="w-full h-24 object-cover" />
+      ) : (
+        <VehiclePlaceholder className="h-24" iconClassName="w-8 h-8" />
+      )}
+      <div className="px-2 py-1.5 space-y-0.5">
+        <p className="text-xs font-semibold truncate">{work.title}</p>
+        {subtitle ? <p className="text-[10px] text-muted-foreground truncate">{subtitle}</p> : null}
+        <p className="text-[10px] text-primary truncate">{work.mod_name}</p>
+      </div>
+    </Link>
   );
 }

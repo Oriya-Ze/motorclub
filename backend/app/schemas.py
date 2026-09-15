@@ -382,6 +382,7 @@ class VehicleModShop(BaseModel):
     id: UUID
     full_name: str
     username: str | None = None
+    account_type: str | None = None
     business_type: str | None = None
     profile_picture_url: str | None = None
 
@@ -489,6 +490,16 @@ class VehicleFollowResponse(BaseModel):
 class VehicleSpotResponse(BaseModel):
     spotted: bool
     spot_count: int
+
+
+class BusinessTaggedWork(BaseModel):
+    vehicle_id: UUID
+    title: str
+    catalog: str
+    image_url: str | None = None
+    mod_name: str
+    mod_category: str
+    owner_name: str | None = None
 
 
 class NotificationResponse(BaseModel):

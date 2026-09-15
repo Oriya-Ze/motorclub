@@ -140,8 +140,8 @@ function ShopPicker({
   }, []);
 
   const { data: results = [], isFetching } = useQuery({
-    queryKey: ["business-search", debounced],
-    queryFn: () => api.getBusinesses({ q: debounced }),
+    queryKey: ["user-search", debounced],
+    queryFn: () => api.searchUsers(debounced, { accountType: "business" }),
     enabled: debounced.length >= 1 && !selected,
   });
 
@@ -155,7 +155,7 @@ function ShopPicker({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium truncate">{displayName(selected)}</p>
           <p className="text-xs text-muted-foreground truncate">
-            {selected.business_type
+            {selected.account_type === "business" && selected.business_type
               ? t(`businessCategories.${selected.business_type}`, { defaultValue: formatHandle(selected) })
               : formatHandle(selected)}
           </p>
@@ -234,6 +234,7 @@ function ShopPicker({
                         id: shop.id,
                         full_name: shop.full_name,
                         username: shop.username,
+                        account_type: shop.account_type,
                         business_type: shop.business_type,
                         profile_picture_url: shop.profile_picture_url,
                       });
@@ -246,7 +247,7 @@ function ShopPicker({
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">{displayName(shop)}</p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {shop.business_type
+                        {shop.account_type === "business" && shop.business_type
                           ? t(`businessCategories.${shop.business_type}`, { defaultValue: formatHandle(shop) })
                           : formatHandle(shop)}
                       </p>

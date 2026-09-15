@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.business_types import is_valid_business_type
@@ -49,18 +49,28 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def search_users(
     q: str = Query(min_length=1, max_length=100),
     limit: int = Query(default=20, ge=1, le=50),
+    account_type: str | None = Query(default=None, max_length=20),
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    pattern = f"%{q.strip()}%"
+    stem = q.strip()
+    pattern = f"%{stem}%"
+    prefix = f"{stem}%"
+    query = select(User).where(
+        User.is_active.is_(True),
+        or_(User.username.ilike(pattern), User.full_name.ilike(pattern)),
+    )
+    if account_type:
+        query = query.where(User.account_type == account_type)
     result = await db.execute(
-        select(User)
-        .where(
-            User.is_active.is_(True),
-            or_(User.username.ilike(pattern), User.full_name.ilike(pattern)),
-        )
-        .order_by(User.full_name)
-        .limit(limit)
+        query.order_by(
+            case(
+                (User.full_name.ilike(prefix), 0),
+                (User.username.ilike(prefix), 1),
+                else_=2,
+            ),
+            User.full_name,
+        ).limit(limit)
     )
     return [user_to_public(u) for u in result.scalars().all()]
 

@@ -391,7 +391,11 @@ export default function VehiclePage() {
                         </p>
                         {item.shop && (
                           <Link
-                            to={getBusinessProfilePath(item.shop.business_type, item.shop.id)}
+                            to={
+                              item.shop.account_type === "business"
+                                ? getBusinessProfilePath(item.shop.business_type, item.shop.id)
+                                : `/profile/${item.shop.id}`
+                            }
                             className="text-xs text-muted-foreground hover:text-primary"
                           >
                             {t("garage.doneAt", { name: item.shop.full_name })}

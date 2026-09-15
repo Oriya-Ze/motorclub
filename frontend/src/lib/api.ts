@@ -178,6 +178,7 @@ export interface VehicleModShop {
   id: string;
   full_name: string;
   username?: string | null;
+  account_type?: string | null;
   business_type?: string | null;
   profile_picture_url?: string | null;
 }
@@ -191,6 +192,16 @@ export interface VehicleModItem {
   brand?: string | null;
   shop_id?: string | null;
   shop?: VehicleModShop | null;
+}
+
+export interface BusinessTaggedWork {
+  vehicle_id: string;
+  title: string;
+  catalog: string;
+  image_url?: string | null;
+  mod_name: string;
+  mod_category: string;
+  owner_name?: string | null;
 }
 
 export interface Vehicle {
@@ -596,8 +607,10 @@ class ApiClient {
     return this.request<{ deleted: boolean }>(`/posts/${postId}`, { method: "DELETE" });
   }
 
-  searchUsers(q: string) {
-    return this.request<User[]>(`/users/search?q=${encodeURIComponent(q)}`);
+  searchUsers(q: string, opts?: { accountType?: string }) {
+    const params = new URLSearchParams({ q });
+    if (opts?.accountType) params.set("account_type", opts.accountType);
+    return this.request<User[]>(`/users/search?${params}`);
   }
 
   getGroups() {
@@ -885,6 +898,10 @@ class ApiClient {
 
   getBusinessServices(userId: string) {
     return this.request<import("@/lib/businessProfile").BusinessService[]>(`/business/${userId}/services`);
+  }
+
+  getBusinessWorks(userId: string) {
+    return this.request<BusinessTaggedWork[]>(`/business/${userId}/works`);
   }
 
   getMyBusinessServices() {

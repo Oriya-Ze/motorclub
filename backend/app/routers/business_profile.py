@@ -8,8 +8,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, get_user_model, user_to_public
-from app.models import BusinessReview, BusinessService, BusinessView, User
+from app.deps import get_current_user, get_optional_user_model, get_user_model, user_to_public
+from app.models import BusinessReview, BusinessService, BusinessView, User, Vehicle
 from app.schemas import (
     BusinessAnalyticsResponse,
     BusinessReviewCreate,
@@ -17,9 +17,11 @@ from app.schemas import (
     BusinessServiceCreate,
     BusinessServiceResponse,
     BusinessServiceUpdate,
+    BusinessTaggedWork,
     BusinessViewCreate,
 )
 from app.services.business_public import business_public_dict, review_stats
+from app.services.visibility import can_view_profile_content
 
 router = APIRouter(prefix="/business", tags=["business-profile"])
 
@@ -173,6 +175,56 @@ async def list_business_services(
         .order_by(BusinessService.sort_order, BusinessService.created_at)
     )
     return [BusinessServiceResponse.model_validate(s) for s in result.scalars().all()]
+
+
+@router.get("/{user_id}/works", response_model=list[BusinessTaggedWork])
+async def list_business_works(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    viewer: User | None = Depends(get_optional_user_model),
+    _=Depends(get_current_user),
+):
+    await _get_active_business(db, user_id)
+    shop_id = str(user_id)
+    result = await db.execute(
+        select(Vehicle)
+        .where(Vehicle.mod_items.contains([{"shop_id": shop_id}]))
+        .order_by(Vehicle.created_at.desc())
+        .limit(24)
+    )
+    works: list[BusinessTaggedWork] = []
+    for vehicle in result.scalars().all():
+        if not await can_view_profile_content(db, vehicle.user_id, viewer.id if viewer else None):
+            continue
+        tagged = [
+            item
+            for item in (vehicle.mod_items or [])
+            if isinstance(item, dict) and str(item.get("shop_id") or "") == shop_id and item.get("name")
+        ]
+        if not tagged:
+            continue
+        owner = await db.get(User, vehicle.user_id)
+        catalog = " ".join(str(part) for part in [vehicle.year, vehicle.make, vehicle.model] if part)
+        title = (vehicle.nickname or "").strip() or catalog
+        first = tagged[0]
+        extra = len(tagged) - 1
+        mod_name = str(first["name"])
+        if extra > 0:
+            mod_name = f"{mod_name} +{extra}"
+        works.append(
+            BusinessTaggedWork(
+                vehicle_id=vehicle.id,
+                title=title,
+                catalog=catalog,
+                image_url=vehicle.image_urls[0] if vehicle.image_urls else None,
+                mod_name=mod_name,
+                mod_category=str(first.get("category") or "other"),
+                owner_name=owner.full_name if owner else None,
+            )
+        )
+        if len(works) >= 8:
+            break
+    return works
 
 
 @router.get("/{user_id}/reviews", response_model=list[BusinessReviewResponse])
