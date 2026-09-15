@@ -26,6 +26,7 @@ class UserPublic(BaseModel):
     service_area: dict | None = None
     is_verified: bool = False
     is_admin: bool = False
+    profile_public: bool = True
 
     model_config = {"from_attributes": True}
 

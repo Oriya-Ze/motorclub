@@ -27,6 +27,7 @@ export interface User {
   cover_image_url?: string | null;
   is_verified: boolean;
   is_admin?: boolean;
+  profile_public?: boolean;
 }
 
 export interface AuthResponse {

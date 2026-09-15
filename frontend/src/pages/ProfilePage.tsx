@@ -126,6 +126,9 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <p className="text-muted-foreground">{formatHandle(profile)}</p>
+                {profile.profile_public === false && (
+                  <p className="text-xs text-muted-foreground mt-1">{t("profile.privateAccount")}</p>
+                )}
               </div>
 
               <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-medium">

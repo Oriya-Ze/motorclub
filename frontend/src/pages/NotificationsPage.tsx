@@ -71,6 +71,7 @@ export default function NotificationsPage() {
 
   const titleFor = (n: Notification) => {
     const name = n.body || "";
+    if (n.type === "follow") return t("notifications.followNew", { name });
     if (n.type === "follow_request") return t("notifications.followRequest", { name });
     if (n.type === "follow_accepted") return t("notifications.followAccepted", { name });
     if (n.type === "follow_rejected") return t("notifications.followRejected", { name });
@@ -144,7 +145,7 @@ export default function NotificationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm">{titleFor(n)}</p>
-                  {n.type !== "follow_request" && n.type !== "follow_accepted" && n.type !== "follow_rejected" && n.body && (
+                  {n.type !== "follow" && n.type !== "follow_request" && n.type !== "follow_accepted" && n.type !== "follow_rejected" && n.body && (
                     <p className="text-sm text-muted-foreground mt-0.5 truncate">{n.body}</p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">

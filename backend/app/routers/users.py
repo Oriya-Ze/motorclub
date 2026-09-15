@@ -35,6 +35,13 @@ def _follow_payload(row: Follower | None) -> dict[str, object]:
         return {"following": False, "status": "none"}
     return {"following": row.status == FOLLOW_ACCEPTED, "status": row.status}
 
+
+async def _profile_is_public(db: AsyncSession, user_id: uuid.UUID) -> bool:
+    settings = await db.scalar(select(ProfileSettings).where(ProfileSettings.user_id == user_id))
+    if settings is None:
+        return True
+    return settings.profile_public
+
 router = APIRouter(prefix="/users", tags=["users"])
 
 
@@ -63,7 +70,8 @@ async def get_user(user_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Dep
     user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user_to_public(user)
+    public = await _profile_is_public(db, user_id)
+    return user_to_public(user).model_copy(update={"profile_public": public})
 
 
 @router.patch("/me", response_model=UserPublic)
@@ -124,8 +132,28 @@ async def update_settings(
     if not settings:
         settings = ProfileSettings(user_id=user.id)
         db.add(settings)
+    was_public = settings.profile_public
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(settings, field, value)
+    became_public = (not was_public) and settings.profile_public
+    if became_public:
+        pending = await db.execute(
+            select(Follower).where(
+                Follower.following_id == user.id,
+                Follower.status == FOLLOW_PENDING,
+            )
+        )
+        for row in pending.scalars().all():
+            row.status = FOLLOW_ACCEPTED
+            await create_notification(
+                db,
+                row.follower_id,
+                user.id,
+                "follow_accepted",
+                f"{_display_name(user)} accepted your follow request",
+                body=_display_name(user),
+                link=f"/users/{user.id}",
+            )
     await db.commit()
     await db.refresh(settings)
     return SettingsResponse.model_validate(settings)
@@ -254,7 +282,22 @@ async def follow_user(
         await db.commit()
         return FollowStatusResponse(following=False, status="cancelled" if was_pending else "none")
 
-    db.add(Follower(follower_id=user.id, following_id=user_id, status=FOLLOW_PENDING))
+    is_public = await _profile_is_public(db, user_id)
+    status = FOLLOW_ACCEPTED if is_public else FOLLOW_PENDING
+    db.add(Follower(follower_id=user.id, following_id=user_id, status=status))
+    if is_public:
+        await create_notification(
+            db,
+            user_id,
+            user.id,
+            "follow",
+            f"{_display_name(user)} started following you",
+            body=_display_name(user),
+            link=f"/users/{user.id}",
+        )
+        await db.commit()
+        return FollowStatusResponse(following=True, status=FOLLOW_ACCEPTED)
+
     await create_notification(
         db,
         user_id,
