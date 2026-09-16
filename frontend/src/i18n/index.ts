@@ -254,8 +254,9 @@ const resources = {
       allCategories: "כל הקטגוריות",
       garage: {
         nav: "מוסך",
-        myGarage: "המוסך שלי",
-        title: "המוסך שלי",
+        myGarage: "הכלים שלי",
+        tools: "כלים",
+        title: "הכלים שלי",
         subtitle: "נהל את הרכבים שלך",
         add: "הוסף רכב",
         make: "יצרן",
@@ -1058,8 +1059,9 @@ const resources = {
       allCategories: "All categories",
       garage: {
         nav: "Garage",
-        myGarage: "My Garage",
-        title: "My Garage",
+        myGarage: "My rides",
+        tools: "Rides",
+        title: "My rides",
         subtitle: "Manage your vehicles",
         add: "Add vehicle",
         make: "Make",

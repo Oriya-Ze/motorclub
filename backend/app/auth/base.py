@@ -15,6 +15,7 @@ class AuthUser:
 @dataclass
 class AuthTokens:
     access_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
     expires_in: int | None = None
 
@@ -42,4 +43,12 @@ class AuthProvider(ABC):
 
     @abstractmethod
     async def change_password(self, user_id: UUID, current_password: str, new_password: str) -> None:
+        pass
+
+    @abstractmethod
+    async def refresh_tokens(self, refresh_token: str, access_token: str | None = None) -> AuthTokens:
+        pass
+
+    @abstractmethod
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
         pass

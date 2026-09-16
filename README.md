@@ -188,7 +188,8 @@ pytest tests/test_media_validation.py tests/test_media_storage_local.py tests/te
 | `AUTH_PROVIDER` | No | `local` (JWT) or `cognito`. First AWS dev deployment uses `local` |
 | `JWT_SECRET` | Yes when `AUTH_PROVIDER=local` and not `local` env | At least 32 characters; must not use insecure defaults |
 | `JWT_ALGORITHM` | No | Default: `HS256` |
-| `JWT_EXPIRE_MINUTES` | No | Default: `1440` |
+| `JWT_EXPIRE_MINUTES` | No | Access token lifetime in minutes. Default: `30` |
+| `JWT_REFRESH_EXPIRE_DAYS` | No | Local refresh token lifetime in days. Default: `30` |
 | `BACKEND_CORS_ORIGINS` | Yes outside `local` | Comma-separated allowed origins |
 | `UPLOAD_DIR` | No | Local upload directory. Default: `./uploads` |
 | `MEDIA_STORAGE_PROVIDER` | No | `local` (multipart to `UPLOAD_DIR`) or `s3` (presigned PUT). Default: `local` |

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_auth_provider
 from app.auth.cognito import CognitoAuthProvider
-from app.auth.local import LocalAuthProvider, _create_access_token
+from app.auth.base import AuthTokens
 from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
@@ -17,19 +17,32 @@ from app.schemas import (
     ConfirmSignUpRequest,
     ForgotPasswordRequest,
     LoginRequest,
+    LogoutRequest,
     OAuthCallbackRequest,
     OAuthConfigResponse,
     RegisterRequest,
+    RefreshRequest,
     ResendConfirmationRequest,
     ResetPasswordRequest,
     UserPublic,
     UsernameCheckResponse,
 )
 from app.services.auth_lookup import check_username_availability
+from app.services.refresh_tokens import issue_session
 from app.services.turnstile import verify_turnstile_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
+
+
+def _session_response(user: User, tokens: AuthTokens) -> AuthResponse:
+    return AuthResponse(
+        user=user_to_public(user),
+        access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
+        token_type=tokens.token_type,
+        expires_in=tokens.expires_in,
+    )
 
 
 async def _require_captcha(request: Request, token: str | None) -> None:
@@ -80,13 +93,8 @@ async def register(body: RegisterRequest, request: Request, db: AsyncSession = D
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()
 
-    tokens = _create_access_token(user.id, user.email)
-    return AuthResponse(
-        user=user_to_public(user),
-        access_token=tokens.access_token,
-        token_type=tokens.token_type,
-        expires_in=tokens.expires_in,
-    )
+    tokens = await issue_session(db, user)
+    return _session_response(user, tokens)
 
 
 @router.post("/confirm", response_model=AuthResponse)
@@ -101,12 +109,7 @@ async def confirm_sign_up(body: ConfirmSignUpRequest, request: Request, db: Asyn
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()
 
-    return AuthResponse(
-        user=user_to_public(user),
-        access_token=tokens.access_token,
-        token_type=tokens.token_type,
-        expires_in=tokens.expires_in,
-    )
+    return _session_response(user, tokens)
 
 
 @router.post("/resend-confirmation")
@@ -148,12 +151,7 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()
 
-    return AuthResponse(
-        user=user_to_public(user),
-        access_token=tokens.access_token,
-        token_type=tokens.token_type,
-        expires_in=tokens.expires_in,
-    )
+    return _session_response(user, tokens)
 
 
 @router.get("/oauth/config", response_model=OAuthConfigResponse)
@@ -181,12 +179,27 @@ async def oauth_callback(body: OAuthCallbackRequest, db: AsyncSession = Depends(
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()
 
+    return _session_response(user, tokens)
+
+
+@router.post("/refresh", response_model=AuthResponse)
+async def refresh_session(body: RefreshRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    await enforce_rate_limit(request, "auth:refresh", limit=60, window_seconds=3600)
+    provider = get_auth_provider(db)
+    tokens = await provider.refresh_tokens(body.refresh_token, body.access_token)
     return AuthResponse(
-        user=user_to_public(user),
         access_token=tokens.access_token,
+        refresh_token=tokens.refresh_token,
         token_type=tokens.token_type,
         expires_in=tokens.expires_in,
     )
+
+
+@router.post("/logout")
+async def logout(body: LogoutRequest, db: AsyncSession = Depends(get_db)):
+    provider = get_auth_provider(db)
+    await provider.revoke_refresh_token(body.refresh_token)
+    return {"message": "Logged out"}
 
 
 @router.get("/me", response_model=UserPublic)

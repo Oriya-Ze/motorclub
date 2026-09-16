@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     auth_provider: Literal["local", "cognito"] = "local"
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 1440
+    jwt_expire_minutes: int = 30
+    jwt_refresh_expire_days: int = 30
     aws_region: str = "eu-central-1"
     cognito_user_pool_id: str = ""
     cognito_client_id: str = ""

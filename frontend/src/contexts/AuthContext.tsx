@@ -41,9 +41,7 @@ function cacheUser(user: User | null) {
 }
 
 function applyAuthResponse(res: AuthResponse, setUser: (user: User | null) => void) {
-  if (res.access_token) {
-    api.setToken(res.access_token);
-  }
+  api.applyAuthResponse(res);
   if (res.user) {
     setUser(res.user);
     cacheUser(res.user);
@@ -112,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    api.setToken(null);
+    void api.logoutSession();
     setUser(null);
     cacheUser(null);
   };

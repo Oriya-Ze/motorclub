@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
@@ -19,6 +18,7 @@ from app.config import settings
 from app.logging_config import get_logger
 from app.models import ProfileSettings, User
 from app.services.auth_lookup import check_registration_availability, resolve_login_email
+from app.services.refresh_tokens import issue_session, revoke_session, rotate_session
 
 logger = get_logger(__name__)
 
@@ -31,13 +31,6 @@ def _hash_password(password: str) -> str:
 
 def _verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain[:72], hashed)
-
-
-def _create_access_token(user_id: uuid.UUID, email: str) -> AuthTokens:
-    expire = datetime.now(UTC) + timedelta(minutes=settings.jwt_expire_minutes)
-    payload = {"sub": str(user_id), "email": email, "exp": expire}
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-    return AuthTokens(access_token=token, expires_in=settings.jwt_expire_minutes * 60)
 
 
 class LocalAuthProvider(AuthProvider):
@@ -96,7 +89,7 @@ class LocalAuthProvider(AuthProvider):
         if not _verify_password(password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
-        tokens = _create_access_token(user.id, user.email)
+        tokens = await issue_session(self.db, user)
         return self._to_auth_user(user), tokens
 
     async def verify_token(self, token: str) -> AuthUser:
@@ -131,3 +124,9 @@ class LocalAuthProvider(AuthProvider):
         validate_password_for_registration(new_password, user.email, user.username)
         user.password_hash = _hash_password(new_password)
         await self.db.commit()
+
+    async def refresh_tokens(self, refresh_token: str, access_token: str | None = None) -> AuthTokens:
+        return await rotate_session(self.db, refresh_token)
+
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        await revoke_session(self.db, refresh_token)

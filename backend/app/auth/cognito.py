@@ -42,6 +42,17 @@ def _is_uuid_like(value: str) -> bool:
         return False
 
 
+def _username_from_access_token(token: str | None) -> str | None:
+    if not token:
+        return None
+    try:
+        claims = jwt.get_unverified_claims(token)
+    except JWTError:
+        return None
+    username = (claims.get("username") or claims.get("email") or "").strip()
+    return username or None
+
+
 def _needs_better_username(username: str | None, cognito_sub: str | None) -> bool:
     cleaned = (username or "").strip()
     if not cleaned:
@@ -488,6 +499,7 @@ class CognitoAuthProvider(AuthProvider):
             "AccessToken": auth_result["access_token"],
             "ExpiresIn": auth_result.get("expires_in"),
             "IdToken": auth_result.get("id_token"),
+            "RefreshToken": auth_result.get("refresh_token"),
         }
         return await self._complete_auth_from_tokens(normalized)
 
@@ -522,6 +534,7 @@ class CognitoAuthProvider(AuthProvider):
         auth_user = self._to_auth_user(user)
         tokens = AuthTokens(
             access_token=access_token,
+            refresh_token=auth_result.get("RefreshToken") or auth_result.get("refresh_token"),
             expires_in=auth_result.get("ExpiresIn") or auth_result.get("expires_in"),
         )
         return auth_user, tokens
@@ -581,6 +594,86 @@ class CognitoAuthProvider(AuthProvider):
             PreviousPassword=current_password,
             ProposedPassword=new_password,
             AccessToken=access_token,
+        )
+
+    async def refresh_tokens(self, refresh_token: str, access_token: str | None = None) -> AuthTokens:
+        oauth_tokens = await self._refresh_via_oauth(refresh_token)
+        if oauth_tokens:
+            return oauth_tokens
+
+        username = _username_from_access_token(access_token)
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        return self._refresh_via_initiate_auth(refresh_token, username)
+
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
+        client = self._cognito_client()
+        try:
+            kwargs = {
+                "Token": refresh_token,
+                "ClientId": settings.cognito_client_id,
+            }
+            if settings.cognito_client_secret:
+                kwargs["ClientSecret"] = settings.cognito_client_secret
+            client.revoke_token(**kwargs)
+        except Exception:
+            return
+
+    async def _refresh_via_oauth(self, refresh_token: str) -> AuthTokens | None:
+        if not settings.cognito_domain:
+            return None
+        token_url = (
+            f"https://{settings.cognito_domain}.auth.{settings.aws_region}.amazoncognito.com/oauth2/token"
+        )
+        data = {
+            "grant_type": "refresh_token",
+            "client_id": settings.cognito_client_id,
+            "refresh_token": refresh_token,
+        }
+        if settings.cognito_client_secret:
+            data["client_secret"] = settings.cognito_client_secret
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                token_url,
+                data=data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+        if response.status_code != 200:
+            return None
+        body = response.json()
+        access = body.get("access_token")
+        if not access:
+            return None
+        return AuthTokens(
+            access_token=access,
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_in=body.get("expires_in"),
+        )
+
+    def _refresh_via_initiate_auth(self, refresh_token: str, username: str) -> AuthTokens:
+        client = self._cognito_client()
+        params = {"REFRESH_TOKEN": refresh_token}
+        if settings.cognito_client_secret:
+            params["SECRET_HASH"] = self._secret_hash(username)
+        try:
+            response = client.initiate_auth(
+                ClientId=settings.cognito_client_id,
+                AuthFlow="REFRESH_TOKEN_AUTH",
+                AuthParameters=params,
+            )
+        except client.exceptions.NotAuthorizedException:
+            raise HTTPException(status_code=401, detail="Invalid refresh token") from None
+        except Exception as exc:
+            raise HTTPException(status_code=401, detail="Invalid refresh token") from exc
+
+        result = response.get("AuthenticationResult") or {}
+        access = result.get("AccessToken")
+        if not access:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        return AuthTokens(
+            access_token=access,
+            refresh_token=result.get("RefreshToken") or refresh_token,
+            expires_in=result.get("ExpiresIn"),
         )
 
     def _secret_hash(self, username: str) -> str:

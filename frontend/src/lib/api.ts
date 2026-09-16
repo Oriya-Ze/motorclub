@@ -33,6 +33,7 @@ export interface User {
 export interface AuthResponse {
   user?: User | null;
   access_token?: string | null;
+  refresh_token?: string | null;
   token_type?: string;
   expires_in?: number;
   confirmation_required?: boolean;
@@ -302,11 +303,27 @@ export interface Story {
 
 class ApiClient {
   private token: string | null = localStorage.getItem("access_token");
+  private refreshToken: string | null = localStorage.getItem("refresh_token");
+  private refreshInFlight: Promise<boolean> | null = null;
 
   setToken(token: string | null) {
     this.token = token;
     if (token) localStorage.setItem("access_token", token);
-    else localStorage.removeItem("access_token");
+    else {
+      localStorage.removeItem("access_token");
+      this.setRefreshToken(null);
+    }
+  }
+
+  setRefreshToken(token: string | null) {
+    this.refreshToken = token;
+    if (token) localStorage.setItem("refresh_token", token);
+    else localStorage.removeItem("refresh_token");
+  }
+
+  applyAuthResponse(res: Pick<AuthResponse, "access_token" | "refresh_token">) {
+    if (res.access_token) this.setToken(res.access_token);
+    if (res.refresh_token) this.setRefreshToken(res.refresh_token);
   }
 
   getToken() {
@@ -325,7 +342,40 @@ class ApiClient {
     return fallback;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async refreshAccess(): Promise<boolean> {
+    if (!this.refreshToken) return false;
+    if (this.refreshInFlight) return this.refreshInFlight;
+
+    this.refreshInFlight = (async () => {
+      try {
+        const response = await fetch(`${API_URL}/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            refresh_token: this.refreshToken,
+            access_token: this.token,
+          }),
+        });
+        if (!response.ok) return false;
+        const data = (await response.json()) as AuthResponse;
+        if (!data.access_token) return false;
+        this.token = data.access_token;
+        localStorage.setItem("access_token", data.access_token);
+        if (data.refresh_token) this.setRefreshToken(data.refresh_token);
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+
+    try {
+      return await this.refreshInFlight;
+    } finally {
+      this.refreshInFlight = null;
+    }
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}, skipRefresh = false): Promise<T> {
     const isForm = options.body instanceof FormData;
     const headers: Record<string, string> = {
       ...(isForm ? {} : { "Content-Type": "application/json" }),
@@ -336,6 +386,23 @@ class ApiClient {
     const response = await fetch(`${API_URL}${path}`, { ...options, headers });
 
     if (response.status === 401) {
+      const pathOnly = path.split("?")[0];
+      const canRefresh =
+        !skipRefresh &&
+        Boolean(this.refreshToken) &&
+        pathOnly !== "/auth/login" &&
+        pathOnly !== "/auth/register" &&
+        pathOnly !== "/auth/confirm" &&
+        pathOnly !== "/auth/refresh" &&
+        pathOnly !== "/auth/logout" &&
+        pathOnly !== "/auth/forgot-password" &&
+        pathOnly !== "/auth/reset-password" &&
+        pathOnly !== "/auth/oauth/callback" &&
+        pathOnly !== "/auth/resend-confirmation";
+      if (canRefresh) {
+        const refreshed = await this.refreshAccess();
+        if (refreshed) return this.request<T>(path, options, true);
+      }
       const errorBody = await response.json().catch(() => null);
       const message = this.errorMessageFromBody(errorBody, "Unauthorized");
       this.setToken(null);
@@ -395,6 +462,21 @@ class ApiClient {
 
   oauthCallback(data: { code: string; redirect_uri: string }) {
     return this.request<AuthResponse>("/auth/oauth/callback", { method: "POST", body: JSON.stringify(data) });
+  }
+
+  async logoutSession() {
+    const refreshToken = this.refreshToken;
+    try {
+      if (refreshToken) {
+        await fetch(`${API_URL}/auth/logout`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+      }
+    } finally {
+      this.setToken(null);
+    }
   }
 
   me() {

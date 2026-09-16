@@ -45,6 +45,15 @@ class LoginRequest(BaseModel):
     captcha_token: str | None = None
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=20, max_length=4096)
+    access_token: str | None = Field(default=None, max_length=8192)
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str = Field(min_length=20, max_length=4096)
+
+
 class UsernameCheckResponse(BaseModel):
     username: str
     valid: bool
@@ -55,6 +64,7 @@ class UsernameCheckResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserPublic | None = None
     access_token: str | None = None
+    refresh_token: str | None = None
     token_type: str = "bearer"
     expires_in: int | None = None
     confirmation_required: bool = False

@@ -93,7 +93,7 @@ export default function ProfilePage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "posts", label: t("profile.posts") },
     ...(isOwnProfile ? [{ id: "saved" as Tab, label: t("savedPosts") }] : []),
-    { id: "garage", label: t("garage.myGarage") },
+    { id: "garage", label: isOwnProfile ? t("garage.myGarage") : t("garage.tools") },
   ];
 
   const loading = tab === "posts" ? postsLoading : tab === "saved" ? savedLoading : garageLoading;
