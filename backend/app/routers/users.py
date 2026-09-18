@@ -19,7 +19,7 @@ from app.schemas import (
     SettingsUpdate,
     UserPublic,
 )
-from app.services.business_upgrade import get_latest_request, submit_business_upgrade_request
+from app.services.visibility import can_view_profile_content
 
 FOLLOW_ACCEPTED = "accepted"
 FOLLOW_PENDING = "pending"
@@ -339,6 +339,56 @@ async def following_count(user_id: uuid.UUID, db: AsyncSession = Depends(get_db)
         )
     )
     return {"count": count or 0}
+
+
+async def _require_follow_list(db: AsyncSession, user_id: uuid.UUID, viewer: User) -> None:
+    target = await db.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not await can_view_profile_content(db, user_id, viewer.id):
+        raise HTTPException(status_code=403, detail="Followers are private")
+
+
+@router.get("/{user_id}/followers", response_model=list[UserPublic])
+async def list_followers(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    viewer: User = Depends(get_user_model),
+):
+    await _require_follow_list(db, user_id, viewer)
+    result = await db.execute(
+        select(User)
+        .join(Follower, Follower.follower_id == User.id)
+        .where(
+            Follower.following_id == user_id,
+            Follower.status == FOLLOW_ACCEPTED,
+            User.is_active.is_(True),
+        )
+        .order_by(Follower.created_at.desc())
+        .limit(200)
+    )
+    return [user_to_public(u) for u in result.scalars().all()]
+
+
+@router.get("/{user_id}/following", response_model=list[UserPublic])
+async def list_following(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    viewer: User = Depends(get_user_model),
+):
+    await _require_follow_list(db, user_id, viewer)
+    result = await db.execute(
+        select(User)
+        .join(Follower, Follower.following_id == User.id)
+        .where(
+            Follower.follower_id == user_id,
+            Follower.status == FOLLOW_ACCEPTED,
+            User.is_active.is_(True),
+        )
+        .order_by(Follower.created_at.desc())
+        .limit(200)
+    )
+    return [user_to_public(u) for u in result.scalars().all()]
 
 
 @router.get("/{user_id}/follow/status", response_model=FollowStatusResponse)

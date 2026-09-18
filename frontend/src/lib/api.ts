@@ -1119,6 +1119,14 @@ class ApiClient {
   getFollowingCount(userId: string) {
     return this.request<{ count: number }>(`/users/${userId}/following/count`);
   }
+
+  getFollowers(userId: string) {
+    return this.request<User[]>(`/users/${userId}/followers`);
+  }
+
+  getFollowing(userId: string) {
+    return this.request<User[]>(`/users/${userId}/following`);
+  }
 }
 
 export const api = new ApiClient();

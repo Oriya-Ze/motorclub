@@ -27,6 +27,8 @@ export default function FollowButton({ userId, size = "sm" }: Props) {
         status: data.status === "cancelled" ? "none" : data.status,
       });
       queryClient.invalidateQueries({ queryKey: ["followers-count", userId] });
+      queryClient.invalidateQueries({ queryKey: ["followers"] });
+      queryClient.invalidateQueries({ queryKey: ["following"] });
       queryClient.invalidateQueries({ queryKey: ["follow-requests"] });
       if (data.status === "pending") toast.success(t("profile.followRequested"));
       else if (data.status === "cancelled") toast.success(t("profile.followRequestCancelled"));

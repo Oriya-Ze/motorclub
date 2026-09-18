@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bookmark, Building2, Car, Mail, User as UserIcon, Warehouse } from "lucide-react";
+import { Bookmark, Building2, Car, Mail, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import PostCard from "@/components/PostCard";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
+import FollowersSheet from "@/components/FollowersSheet";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import VehicleCard from "@/components/VehicleCard";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
@@ -30,6 +31,7 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>(
     initialTab === "garage" || initialTab === "saved" ? initialTab : "posts"
   );
+  const [followList, setFollowList] = useState<"followers" | "following" | null>(null);
 
   useEffect(() => {
     const urlTab = searchParams.get("tab");
@@ -134,22 +136,19 @@ export default function ProfilePage() {
                   <p className="text-xl font-bold">{postCount}</p>
                   <p className="text-xs text-muted-foreground">{t("profile.posts")}</p>
                 </div>
-                <div className="text-center">
+                <button type="button" onClick={() => setFollowList("followers")} className="text-center">
                   <p className="text-xl font-bold">{followersData?.count ?? 0}</p>
                   <p className="text-xs text-muted-foreground">{t("profile.followers")}</p>
-                </div>
-                <div className="text-center">
+                </button>
+                <button type="button" onClick={() => setFollowList("following")} className="text-center">
                   <p className="text-xl font-bold">{followingData?.count ?? 0}</p>
                   <p className="text-xs text-muted-foreground">{t("profile.following")}</p>
-                </div>
+                </button>
               </div>
 
               <div className="pt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
                 {isOwnProfile ? (
-                  <>
-                    <Link to="/settings"><Button variant="outline" size="sm">{t("profile.editProfile")}</Button></Link>
-                    <Link to="/garage"><Button variant="outline" size="sm"><Warehouse className="w-4 h-4" />{t("garage.viewGarage")}</Button></Link>
-                  </>
+                  <Link to="/settings"><Button variant="outline" size="sm">{t("profile.editProfile")}</Button></Link>
                 ) : (
                   <>
                     <FollowButton userId={profileUserId!} />
@@ -221,6 +220,15 @@ export default function ProfilePage() {
         <div className="text-center py-12 text-muted-foreground">{t("profile.noPosts")}</div>
       ) : (
         posts.map((post: Post) => <PostCard key={post.id} post={post} />)
+      )}
+
+      {followList && (
+        <FollowersSheet
+          open
+          kind={followList}
+          userId={profileUserId!}
+          onClose={() => setFollowList(null)}
+        />
       )}
     </div>
   );
