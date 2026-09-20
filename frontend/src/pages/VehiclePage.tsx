@@ -455,7 +455,7 @@ export default function VehiclePage() {
                     <PenLine className="w-4 h-4 me-1" />
                     {t("garage.postAbout")}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={startEdit}>
+                  <Button size="sm" variant="outline" onClick={() => startEdit()}>
                     {t("garage.edit")}
                   </Button>
                   {!vehicle.is_primary && (
