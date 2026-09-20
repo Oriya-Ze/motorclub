@@ -185,7 +185,7 @@ export default function VehiclePage() {
     year: "numeric",
   });
 
-  const startEdit = () => {
+  const startEdit = (opts?: { addFirstMod?: boolean }) => {
     setDraft({
       make: vehicle.make,
       model: vehicle.model,
@@ -197,7 +197,11 @@ export default function VehiclePage() {
       nickname: vehicle.nickname ?? "",
       walkaround_url: vehicle.walkaround_url ?? "",
       sound_url: vehicle.sound_url ?? "",
-      mod_items: mods.length ? mods : [],
+      mod_items: mods.length
+        ? mods
+        : opts?.addFirstMod
+          ? [{ id: crypto.randomUUID(), category: "other", name: "", brand: "", shop_id: null, shop: null }]
+          : [],
       image_urls: vehicle.image_urls ?? [],
     });
     setEditing(true);
@@ -381,7 +385,7 @@ export default function VehiclePage() {
                 </div>
               )}
 
-              {mods.length > 0 && (
+              {mods.length > 0 ? (
                 <div className="space-y-2">
                   <h2 className="text-sm font-semibold">{t("garage.buildSheet")}</h2>
                   <ul className="space-y-2">
@@ -407,7 +411,16 @@ export default function VehiclePage() {
                     ))}
                   </ul>
                 </div>
-              )}
+              ) : isOwner ? (
+                <div className="space-y-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4">
+                  <h2 className="text-sm font-semibold">{t("garage.buildSheet")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("garage.addFirstModHint")}</p>
+                  <Button size="sm" type="button" onClick={() => startEdit({ addFirstMod: true })}>
+                    <Wrench className="w-4 h-4 me-1" />
+                    {t("garage.addFirstMod")}
+                  </Button>
+                </div>
+              ) : null}
 
               {(vehicle.walkaround_url || vehicle.sound_url) && (
                 <div className="grid gap-3 sm:grid-cols-2">

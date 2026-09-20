@@ -1,4 +1,4 @@
-import { Bike, Building2, Camera, Wrench } from "lucide-react";
+import { Bike, Building2, Camera, ChevronLeft, Wrench } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -169,8 +169,47 @@ function SamplePassport() {
             ))}
           </ul>
         </div>
+
+        <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/20 p-4">
+          <h3 className="text-sm font-semibold">{t("landing.chainTitle")}</h3>
+          <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-2 text-xs sm:text-sm">
+            <ChainStep label={t("landing.chainVehicle")} value={t("landing.sampleNickname")} />
+            <li className="list-none flex items-center" aria-hidden>
+              <ChevronLeft className="w-4 h-4 text-muted-foreground shrink-0 rtl:rotate-180" />
+            </li>
+            <ChainStep label={t("landing.chainMod")} value={t("landing.sampleModExhaust")} />
+            <li className="list-none flex items-center" aria-hidden>
+              <ChevronLeft className="w-4 h-4 text-muted-foreground shrink-0 rtl:rotate-180" />
+            </li>
+            <ChainStep label={t("landing.chainShop")} value={t("landing.sampleShopExhaust")} />
+            <li className="list-none flex items-center" aria-hidden>
+              <ChevronLeft className="w-4 h-4 text-muted-foreground shrink-0 rtl:rotate-180" />
+            </li>
+            <ChainStep label={t("landing.chainWorks")} value={t("landing.moreWork1")} />
+          </ol>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-2.5">
+              <p className="text-[11px] text-muted-foreground">{t("landing.sampleShopExhaust")}</p>
+              <p className="text-sm font-medium mt-0.5">{t("landing.moreWork1")}</p>
+            </div>
+            <div className="rounded-xl border border-border/40 bg-background/60 px-3 py-2.5">
+              <p className="text-[11px] text-muted-foreground">{t("landing.sampleShopExhaust")}</p>
+              <p className="text-sm font-medium mt-0.5">{t("landing.moreWork2")}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">{t("landing.moreWorkHint")}</p>
+        </div>
       </div>
     </section>
+  );
+}
+
+function ChainStep({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="min-w-0 rounded-xl border border-border/50 bg-background/70 px-2.5 py-1.5">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="font-medium leading-snug">{value}</p>
+    </li>
   );
 }
 
