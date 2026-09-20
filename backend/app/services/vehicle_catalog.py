@@ -7,9 +7,12 @@ import json
 import logging
 import time
 import zlib
-from app.services.vehicle_brands import canonical_make
+from collections import defaultdict
+from dataclasses import dataclass
 
 import httpx
+
+from app.services.vehicle_brands import canonical_make
 
 logger = logging.getLogger(__name__)
 
