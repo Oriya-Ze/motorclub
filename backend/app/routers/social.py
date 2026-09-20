@@ -17,6 +17,21 @@ stories_router = APIRouter(prefix="/stories", tags=["stories"])
 explore_router = APIRouter(prefix="/explore", tags=["explore"])
 
 
+def _mod_preview(vehicle: Vehicle) -> dict | None:
+    stored = vehicle.mod_items if isinstance(vehicle.mod_items, list) else []
+    for item in stored:
+        if not isinstance(item, dict):
+            continue
+        name = (item.get("name") or "").strip()
+        if not name:
+            continue
+        return {"name": name[:120], "shop_id": item.get("shop_id"), "shop_name": None}
+    text = (vehicle.mods or "").strip()
+    if text:
+        return {"name": text[:120], "shop_id": None, "shop_name": None}
+    return None
+
+
 @notifications_router.get("", response_model=list[NotificationResponse])
 async def list_notifications(
     db: AsyncSession = Depends(get_db),
@@ -174,9 +189,38 @@ async def explore_vehicles(
         select(Vehicle).where(Vehicle.image_urls != None).order_by(Vehicle.created_at.desc()).limit(40)
     )
     vehicles = result.scalars().all()
+    previews: list[dict | None] = [_mod_preview(v) for v in vehicles]
+    shop_ids: list[uuid.UUID] = []
+    for preview in previews:
+        raw = (preview or {}).get("shop_id")
+        if not raw:
+            continue
+        try:
+            shop_ids.append(uuid.UUID(str(raw)))
+        except ValueError:
+            continue
+    shops: dict[uuid.UUID, User] = {}
+    if shop_ids:
+        shop_rows = await db.execute(
+            select(User).where(User.id.in_(shop_ids), User.account_type == "business", User.is_active.is_(True))
+        )
+        shops = {user.id: user for user in shop_rows.scalars().all()}
+    for preview in previews:
+        if not preview or not preview.get("shop_id"):
+            continue
+        try:
+            shop = shops.get(uuid.UUID(str(preview["shop_id"])))
+        except ValueError:
+            shop = None
+        if shop:
+            preview["shop_name"] = shop.full_name
+            preview["shop_id"] = str(shop.id)
+        else:
+            preview["shop_id"] = None
+
     items = []
     viewer_id = viewer.id if viewer else None
-    for v in vehicles:
+    for v, preview in zip(vehicles, previews, strict=True):
         owner = await db.get(User, v.user_id)
         if not owner or not await can_view_profile_content(db, owner.id, viewer_id):
             continue
@@ -186,8 +230,10 @@ async def explore_vehicles(
             "model": v.model,
             "year": v.year,
             "nickname": v.nickname,
+            "description": (v.description or "").strip() or None,
             "thumbnail": v.image_urls[0] if v.image_urls else None,
-            "has_mods": bool(v.mod_items or (v.mods or "").strip()),
+            "has_mods": bool(preview),
+            "mod_preview": preview,
             "owner": user_to_public(owner),
         })
         if len(items) >= 20:

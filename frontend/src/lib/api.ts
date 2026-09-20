@@ -30,6 +30,25 @@ export interface User {
   profile_public?: boolean;
 }
 
+export interface ExploreVehicleModPreview {
+  name: string;
+  shop_id?: string | null;
+  shop_name?: string | null;
+}
+
+export interface ExploreVehicle {
+  id: string;
+  make: string;
+  model: string;
+  year?: number | null;
+  nickname?: string | null;
+  description?: string | null;
+  thumbnail?: string | null;
+  has_mods?: boolean;
+  mod_preview?: ExploreVehicleModPreview | null;
+  owner?: User | null;
+}
+
 export interface AuthResponse {
   user?: User | null;
   access_token?: string | null;
@@ -667,16 +686,7 @@ class ApiClient {
   }
 
   exploreVehicles() {
-    return this.request<Array<{
-      id: string;
-      make: string;
-      model: string;
-      year?: number;
-      nickname?: string | null;
-      thumbnail?: string;
-      has_mods?: boolean;
-      owner?: User;
-    }>>("/explore/vehicles");
+    return this.request<ExploreVehicle[]>("/explore/vehicles");
   }
 
   toggleLike(postId: string) {
