@@ -213,6 +213,7 @@ export default function VehiclePage() {
         {!editing && (
           <VehicleImageCarousel
             urls={vehicle.image_urls ?? []}
+            imageMedia={vehicle.image_media}
             className="rounded-none"
             imageClassName="rounded-none h-64 sm:h-80"
             alt={title}
@@ -223,6 +224,7 @@ export default function VehiclePage() {
             <div className="space-y-3">
               <VehiclePhotoEditor
                 urls={draft.image_urls ?? []}
+                imageMedia={vehicle.image_media}
                 onChange={(image_urls) => setDraft({ ...draft, image_urls })}
                 disabled={saveEdit.isPending}
               />

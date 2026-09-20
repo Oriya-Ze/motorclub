@@ -240,6 +240,7 @@ export interface Vehicle {
   sound_url?: string | null;
   mod_items?: VehicleModItem[] | null;
   image_urls?: string[] | null;
+  image_media?: ImageMedia[] | null;
   is_primary: boolean;
   created_at: string;
   owner?: User;

@@ -2,15 +2,18 @@ import { ChevronLeft, ChevronRight, Star, Trash2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useImageCropUpload } from "@/hooks/useImageCropUpload";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
+import type { ImageMedia } from "@/lib/api";
 
 type Props = {
   urls: string[];
+  imageMedia?: ImageMedia[] | null;
   onChange: (urls: string[]) => void;
   disabled?: boolean;
 };
 
-export default function VehiclePhotoEditor({ urls, onChange, disabled }: Props) {
+export default function VehiclePhotoEditor({ urls, imageMedia, onChange, disabled }: Props) {
   const { t } = useTranslation();
   const upload = useImageCropUpload({
     purpose: "vehicle",
@@ -44,7 +47,7 @@ export default function VehiclePhotoEditor({ urls, onChange, disabled }: Props) 
           {urls.map((url, i) => (
             <div key={`${url}-${i}`} className="relative shrink-0">
               <img
-                src={mediaUrl(url)}
+                src={mediaUrl(pickStoredImageUrl(url, imageMedia, "feed"))}
                 alt={t("garage.photoIndex", { n: i + 1, total: urls.length })}
                 className="w-20 h-20 object-cover rounded-lg"
               />

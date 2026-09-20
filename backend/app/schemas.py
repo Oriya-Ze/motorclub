@@ -478,6 +478,7 @@ class VehicleResponse(BaseModel):
     sound_url: str | None = None
     mod_items: list[VehicleModItem] | None = None
     image_urls: list[str] | None
+    image_media: list[ImageMediaResponse] | None = None
     is_primary: bool
     created_at: datetime
 

@@ -1,13 +1,20 @@
-import { Building2, Car, Wrench } from "lucide-react";
+import { Bike, Building2, Camera, Wrench } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import VehicleImageCarousel from "@/components/VehicleImageCarousel";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { Button } from "@/components/ui/Button";
 import { api, type ExploreVehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { formatHandle } from "@/lib/utils";
+
+const DEMO_PHOTOS = [
+  "/landing/landing-911-hero.jpg",
+  "/landing/landing-911-rear.jpg",
+  "/landing/landing-911-detail.jpg",
+];
 
 function vehicleScore(vehicle: ExploreVehicle): number {
   const preview = vehicle.mod_preview;
@@ -30,9 +37,7 @@ export default function LandingPage() {
     staleTime: 60_000,
   });
 
-  const ranked = [...vehicles].sort((a, b) => vehicleScore(b) - vehicleScore(a));
-  const featured = ranked[0];
-  const showcase = ranked.slice(1, 4);
+  const showcase = [...vehicles].sort((a, b) => vehicleScore(b) - vehicleScore(a)).slice(0, 3);
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 pb-8">
@@ -55,14 +60,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {isLoading ? (
-        <div className="h-56 sm:h-72 rounded-3xl bg-muted/40 animate-pulse" />
-      ) : featured ? (
-        <FeaturedVehicle vehicle={featured} />
-      ) : null}
+      <SamplePassport />
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <Pillar icon={Car} title={t("landing.pillarPassportTitle")} body={t("landing.pillarPassportBody")} />
+        <Pillar icon={Bike} title={t("landing.pillarPassportTitle")} body={t("landing.pillarPassportBody")} />
         <Pillar icon={Wrench} title={t("landing.pillarBuildTitle")} body={t("landing.pillarBuildBody")} />
         <Pillar icon={Building2} title={t("landing.pillarShopTitle")} body={t("landing.pillarShopBody")} />
       </section>
@@ -78,9 +79,9 @@ export default function LandingPage() {
               <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />
             ))}
           </div>
-        ) : !featured ? (
+        ) : showcase.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">{t("landing.passportsEmpty")}</p>
-        ) : showcase.length === 0 ? null : (
+        ) : (
           <div className="grid gap-3 sm:grid-cols-3">
             {showcase.map((v) => (
               <VehicleCard key={v.id} vehicle={v} />
@@ -98,53 +99,87 @@ export default function LandingPage() {
   );
 }
 
-function FeaturedVehicle({ vehicle }: { vehicle: ExploreVehicle }) {
+function SamplePassport() {
   const { t } = useTranslation();
-  const title = vehicleTitle(vehicle);
-  const displayName = vehicle.nickname?.trim() || title;
-  const description = vehicle.description?.trim();
-  const preview = vehicle.mod_preview;
+  const mods = [
+    { name: t("landing.sampleModExhaust"), shop: t("landing.sampleShopExhaust"), category: t("garage.modCategory.engine") },
+    { name: t("landing.sampleModSuspension"), shop: t("landing.sampleShopSuspension"), category: t("garage.modCategory.suspension") },
+    { name: t("landing.sampleModDetail"), shop: t("landing.sampleShopDetail"), category: t("garage.modCategory.exterior") },
+  ];
 
   return (
-    <Link
-      to={`/vehicles/${vehicle.id}`}
-      className="block glass-card rounded-3xl overflow-hidden hover:shadow-glow transition-shadow"
-    >
-      {vehicle.thumbnail ? (
-        <img
-          src={mediaUrl(vehicle.thumbnail)}
-          alt={displayName}
-          className="w-full h-56 sm:h-72 object-cover"
-        />
-      ) : (
-        <VehiclePlaceholder className="w-full h-56 sm:h-72" iconClassName="w-16 h-16" />
-      )}
-      <div className="p-4 sm:p-5 space-y-2">
-        <h2 className="text-xl font-semibold leading-snug">{displayName}</h2>
-        {vehicle.nickname?.trim() ? (
-          <p className="text-sm text-muted-foreground">{title}</p>
-        ) : null}
-        {description ? (
-          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{description}</p>
-        ) : null}
-        {preview?.name ? (
-          <p className="text-sm text-primary inline-flex items-center gap-1.5">
-            <Wrench className="w-4 h-4 shrink-0" />
-            <span className="line-clamp-1">
-              {preview.shop_name
-                ? t("landing.modByShop", { mod: preview.name, shop: preview.shop_name })
-                : preview.name}
-            </span>
-          </p>
-        ) : null}
-        {vehicle.owner && (
-          <p className="text-xs text-muted-foreground inline-flex items-center gap-1 truncate">
-            {formatHandle(vehicle.owner)}
-            {vehicle.owner.is_verified && <VerifiedBadge className="w-3.5 h-3.5" />}
-          </p>
-        )}
+    <section className="glass-card rounded-3xl overflow-hidden">
+      <VehicleImageCarousel
+        urls={DEMO_PHOTOS}
+        className="rounded-none"
+        imageClassName="rounded-none h-56 sm:h-80"
+        alt={t("landing.sampleNickname")}
+      />
+      <div className="p-4 sm:p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-display tracking-wide">{t("landing.sampleNickname")}</h2>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                {t("landing.sampleBadge")}
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">{t("landing.sampleCatalog")}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+            {t("garage.followersCount", { count: 1284 })}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+            {t("garage.spotCount", { count: 56 })}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
+            <Camera className="w-3.5 h-3.5" />
+            {t("garage.photoCount", { count: DEMO_PHOTOS.length })}
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+            <Wrench className="w-3.5 h-3.5" />
+            {t("garage.hasMods")}
+          </span>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-2">
+          <SpecItem label={t("garage.year")} value="2023" />
+          <SpecItem label={t("garage.color")} value={t("landing.sampleColor")} />
+          <SpecItem label={t("garage.engine")} value={t("landing.sampleEngine")} />
+          <SpecItem label={t("garage.trim")} value="Carrera S" />
+        </dl>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-1">{t("garage.story")}</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">{t("landing.sampleStory")}</p>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold">{t("garage.buildSheet")}</h3>
+          <ul className="space-y-2">
+            {mods.map((mod) => (
+              <li key={mod.name} className="rounded-xl border border-border/50 px-3 py-2.5">
+                <p className="text-[11px] text-primary font-medium">{mod.category}</p>
+                <p className="text-sm font-medium">{mod.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{mod.shop}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-    </Link>
+    </section>
+  );
+}
+
+function SpecItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-muted/30 rounded-xl px-3 py-2.5 border border-border/40">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium text-sm mt-0.5">{value}</dd>
+    </div>
   );
 }
 
@@ -190,7 +225,7 @@ function Pillar({
   title,
   body,
 }: {
-  icon: typeof Car;
+  icon: typeof Bike;
   title: string;
   body: string;
 }) {

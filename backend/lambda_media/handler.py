@@ -109,7 +109,7 @@ def _process_video(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUI
     logger.info("Processed video %s", media_id)
 
 
-def _process_image(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUID) -> None:
+def _process_image(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUID, purpose: str) -> None:
     prefix = f"users/{user_id}/images/{media_id}"
     is_gif = key.lower().endswith(".gif")
     variant_keys = {
@@ -132,6 +132,9 @@ def _process_image(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUI
         if not is_gif:
             _upload_file(bucket, variant_keys["display"], outputs["display"], "image/webp")
 
+    drop_original = (not is_gif) and purpose in {"vehicles", "posts"}
+    if drop_original:
+        s3.delete_object(Bucket=bucket, Key=key)
     set_status(
         media_id,
         "ready",
@@ -139,6 +142,7 @@ def _process_image(bucket: str, key: str, user_id: uuid.UUID, media_id: uuid.UUI
             "thumb": variant_keys["thumb"],
             "display": variant_keys["display"],
         },
+        clear_original=drop_original,
     )
     logger.info("Processed image %s", media_id)
 
@@ -156,7 +160,7 @@ def process_object(bucket: str, key: str) -> None:
     if kind == "video":
         _process_video(bucket, key, user_id, media_id)
         return
-    _process_image(bucket, key, user_id, media_id)
+    _process_image(bucket, key, user_id, media_id, purpose)
 
 
 def handler(event, context):

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 
 export default function FeedSidebar() {
   const { t, i18n } = useTranslation();
@@ -50,7 +51,7 @@ export default function FeedSidebar() {
             </div>
             <Link to={`/vehicles/${primaryVehicle.id}`} className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
               {primaryVehicle.image_urls?.[0] ? (
-                <img src={mediaUrl(primaryVehicle.image_urls[0])} alt="" className="w-full h-28 object-cover" />
+                <img src={mediaUrl(pickStoredImageUrl(primaryVehicle.image_urls[0], primaryVehicle.image_media, "feed"))} alt="" className="w-full h-28 object-cover" />
               ) : (
                 <div className="w-full h-28 bg-asphalt flex items-center justify-center">
                   <Car className="w-8 h-8 text-muted-foreground/40" />

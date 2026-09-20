@@ -4,16 +4,19 @@ import { useTranslation } from "react-i18next";
 import MediaLightbox from "@/components/MediaLightbox";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
+import type { ImageMedia } from "@/lib/api";
 
 interface VehicleImageCarouselProps {
   urls: string[];
+  imageMedia?: ImageMedia[] | null;
   className?: string;
   imageClassName?: string;
   alt?: string;
 }
 
-export default function VehicleImageCarousel({ urls, className, imageClassName, alt }: VehicleImageCarouselProps) {
+export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt }: VehicleImageCarouselProps) {
   const { t, i18n } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -57,7 +60,7 @@ export default function VehicleImageCarousel({ urls, className, imageClassName, 
           aria-label={t("viewFullMedia")}
         >
           <img
-            src={mediaUrl(urls[idx])}
+            src={mediaUrl(pickStoredImageUrl(urls[idx], imageMedia, "detail"))}
             alt={t("garage.photoIndex", { n: idx + 1, total: urls.length, name: label })}
             className={cn("w-full h-56 sm:h-64 object-cover rounded-xl bg-asphalt", imageClassName)}
             draggable={false}
@@ -119,7 +122,7 @@ export default function VehicleImageCarousel({ urls, className, imageClassName, 
         open={lightbox}
         items={urls.map((url) => ({
           kind: "image" as const,
-          src: mediaUrl(url),
+          src: mediaUrl(pickStoredImageUrl(url, imageMedia, "detail")),
           alt: label,
         }))}
         index={idx}

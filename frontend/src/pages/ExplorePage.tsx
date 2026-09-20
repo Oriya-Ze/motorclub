@@ -13,6 +13,7 @@ import UserSearch from "@/components/UserSearch";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 
 export default function ExplorePage() {
   const { t } = useTranslation();
@@ -135,7 +136,7 @@ export default function ExplorePage() {
                     make: v.make,
                     model: v.model,
                     year: v.year,
-                    thumbnail: v.image_urls?.[0],
+                    thumbnail: pickStoredImageUrl(v.image_urls?.[0], v.image_media, "feed") || undefined,
                     owner: v.owner,
                   }))
                 : vehicles

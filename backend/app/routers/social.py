@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user, get_optional_user_model, get_user_model, user_to_public
 from app.services.visibility import can_view_profile_content
-from app.media.image_assets import build_image_media_map
+from app.media.image_assets import build_image_media_map, public_image_key
 from app.models import Notification, Post, Story, User, Vehicle
 from app.schemas import NotificationResponse, StoryCreate, StoryResponse
 
@@ -218,12 +218,21 @@ async def explore_vehicles(
         else:
             preview["shop_id"] = None
 
-    items = []
+    visible: list[tuple[Vehicle, User, dict | None]] = []
     viewer_id = viewer.id if viewer else None
     for v, preview in zip(vehicles, previews, strict=True):
         owner = await db.get(User, v.user_id)
         if not owner or not await can_view_profile_content(db, owner.id, viewer_id):
             continue
+        visible.append((v, owner, preview))
+        if len(visible) >= 20:
+            break
+    first_keys = [v.image_urls[0] for v, _, _ in visible if v.image_urls]
+    image_media_map = await build_image_media_map(db, list(dict.fromkeys(first_keys)))
+    items = []
+    for v, owner, preview in visible:
+        source = v.image_urls[0] if v.image_urls else None
+        media = image_media_map.get(source) if source else None
         items.append({
             "id": str(v.id),
             "make": v.make,
@@ -231,11 +240,9 @@ async def explore_vehicles(
             "year": v.year,
             "nickname": v.nickname,
             "description": (v.description or "").strip() or None,
-            "thumbnail": v.image_urls[0] if v.image_urls else None,
+            "thumbnail": public_image_key(media, source),
             "has_mods": bool(preview),
             "mod_preview": preview,
             "owner": user_to_public(owner),
         })
-        if len(items) >= 20:
-            break
     return items

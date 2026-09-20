@@ -31,6 +31,15 @@ export function pickVideoPlaybackUrl(
   return item.url;
 }
 
+const SOURCE_KEY_RE =
+  /^users\/([0-9a-f-]{36})\/(?:posts|stories|vehicles|avatar|products)\/([0-9a-f-]{36})\.[a-z0-9]+$/i;
+
+export function derivedImageVariantKey(sourceKey: string, variant: "thumb" | "display"): string | null {
+  const match = sourceKey.match(SOURCE_KEY_RE);
+  if (!match) return null;
+  return `users/${match[1]}/images/${match[2]}/${variant}.webp`;
+}
+
 export function pickImageUrl(
   item: Extract<PostMediaItem, { type: "image" }>,
   mode: "feed" | "detail",
@@ -42,7 +51,19 @@ export function pickImageUrl(
     }
     return image.display_key ?? image.thumb_key ?? item.url;
   }
-  return item.url;
+  const variant = mode === "feed" ? "thumb" : "display";
+  if (variant === "thumb" && image?.thumb_key) return image.thumb_key;
+  return derivedImageVariantKey(item.url, variant) ?? item.url;
+}
+
+export function pickStoredImageUrl(
+  sourceKey: string | null | undefined,
+  media: ImageMedia[] | null | undefined,
+  mode: "feed" | "detail",
+): string {
+  if (!sourceKey) return "";
+  const image = media?.find((item) => item.source_key === sourceKey) ?? null;
+  return pickImageUrl({ type: "image", url: sourceKey, image }, mode);
 }
 
 export function postMediaFromPost(

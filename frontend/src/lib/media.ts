@@ -8,6 +8,7 @@ function isStorageKey(ref: string): boolean {
 export function mediaUrl(path: string | null | undefined): string {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("/landing/")) return path;
   if (path.startsWith("/uploads/")) return `${API_BASE}${path}`;
   if (isStorageKey(path)) {
     if (!MEDIA_BASE_URL) {

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_optional_user_model, get_user_model, user_to_public
+from app.media.image_assets import image_media_for_keys
 from app.models import Post, User, Vehicle, VehicleFollower, VehicleSpot
 from app.routers.social import create_notification
 from app.schemas import (
@@ -165,6 +166,7 @@ async def _vehicle_response(db: AsyncSession, v: Vehicle, *, with_shops: bool = 
             if item.get("name")
         ],
         image_urls=v.image_urls,
+        image_media=await image_media_for_keys(db, v.image_urls),
         is_primary=v.is_primary,
         created_at=v.created_at,
     )

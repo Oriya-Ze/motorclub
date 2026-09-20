@@ -5,6 +5,7 @@ import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Vehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -30,7 +31,7 @@ export default function VehicleCard({ vehicle: v, featured = false, showPrimary 
         <div className="relative">
           {v.image_urls?.[0] ? (
             <img
-              src={mediaUrl(v.image_urls[0])}
+              src={mediaUrl(pickStoredImageUrl(v.image_urls[0], v.image_media, "feed"))}
               alt={alt}
               className={cn("w-full object-cover", featured ? "h-52" : "h-40")}
               loading="lazy"

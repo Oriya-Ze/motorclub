@@ -23,8 +23,8 @@ def image_media_response(source_key: str, asset: MediaAsset | None) -> ImageMedi
         return ImageMediaResponse(
             source_key=source_key,
             status="ready",
-            thumb_key=thumb or display or source_key,
-            display_key=display or source_key,
+            thumb_key=thumb or display,
+            display_key=display,
         )
 
     if asset.status == "failed":
@@ -39,7 +39,7 @@ def image_media_response(source_key: str, asset: MediaAsset | None) -> ImageMedi
         source_key=source_key,
         status=asset.status,
         thumb_key=thumb,
-        display_key=asset.original_key or source_key,
+        display_key=thumb or asset.original_key or source_key,
     )
 
 
@@ -49,3 +49,21 @@ async def build_image_media_map(
 ) -> dict[str, ImageMediaResponse]:
     assets = await load_video_assets_for_keys(db, storage_keys)
     return {key: image_media_response(key, assets.get(key)) for key in storage_keys}
+
+
+async def image_media_for_keys(db: AsyncSession, storage_keys: list[str] | None) -> list[ImageMediaResponse] | None:
+    keys = [key for key in (storage_keys or []) if key]
+    if not keys:
+        return None
+    media_map = await build_image_media_map(db, list(dict.fromkeys(keys)))
+    return [media_map[key] for key in keys]
+
+
+def public_image_key(media: ImageMediaResponse | None, source: str | None, *, thumb: bool = True) -> str | None:
+    if not source:
+        return None
+    if not media:
+        return source
+    if thumb:
+        return media.thumb_key or media.display_key or source
+    return media.display_key or media.thumb_key or source

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { useImageCropUpload } from "@/hooks/useImageCropUpload";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 import {
   MAX_VIDEO_BYTES,
   MediaUploadError,
@@ -328,7 +329,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                     }`}
                   >
                     {v.image_urls?.[0] ? (
-                      <img src={mediaUrl(v.image_urls[0])} alt="" className="w-8 h-8 rounded-md object-cover" />
+                      <img src={mediaUrl(pickStoredImageUrl(v.image_urls[0], v.image_media, "feed"))} alt="" className="w-8 h-8 rounded-md object-cover" />
                     ) : (
                       <span className="w-8 h-8 rounded-md bg-muted inline-flex items-center justify-center text-[10px]">
                         {v.make.slice(0, 1)}

@@ -8,6 +8,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.media.image_assets import build_image_media_map, public_image_key
 from app.deps import get_current_user, get_optional_user_model, get_user_model, user_to_public
 from app.models import BusinessReview, BusinessService, BusinessView, User, Vehicle
 from app.schemas import (
@@ -192,7 +193,7 @@ async def list_business_works(
         .order_by(Vehicle.created_at.desc())
         .limit(24)
     )
-    works: list[BusinessTaggedWork] = []
+    rows: list[tuple[Vehicle, str, str, str, str, str | None]] = []
     for vehicle in result.scalars().all():
         if not await can_view_profile_content(db, vehicle.user_id, viewer.id if viewer else None):
             continue
@@ -211,19 +212,26 @@ async def list_business_works(
         mod_name = str(first["name"])
         if extra > 0:
             mod_name = f"{mod_name} +{extra}"
+        rows.append((vehicle, title, catalog, mod_name, str(first.get("category") or "other"), owner.full_name if owner else None))
+        if len(rows) >= 8:
+            break
+    first_keys = [vehicle.image_urls[0] for vehicle, *_ in rows if vehicle.image_urls]
+    image_media_map = await build_image_media_map(db, list(dict.fromkeys(first_keys)))
+    works: list[BusinessTaggedWork] = []
+    for vehicle, title, catalog, mod_name, mod_category, owner_name in rows:
+        source = vehicle.image_urls[0] if vehicle.image_urls else None
+        media = image_media_map.get(source) if source else None
         works.append(
             BusinessTaggedWork(
                 vehicle_id=vehicle.id,
                 title=title,
                 catalog=catalog,
-                image_url=vehicle.image_urls[0] if vehicle.image_urls else None,
+                image_url=public_image_key(media, source),
                 mod_name=mod_name,
-                mod_category=str(first.get("category") or "other"),
-                owner_name=owner.full_name if owner else None,
+                mod_category=mod_category,
+                owner_name=owner_name,
             )
         )
-        if len(works) >= 8:
-            break
     return works
 
 
