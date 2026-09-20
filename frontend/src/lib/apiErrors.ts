@@ -83,6 +83,7 @@ const EXACT_ERROR_KEYS: Record<string, string> = {
   "Vehicle catalog unavailable": "apiErrors.vehicleCatalogUnavailable",
   "Event not found": "apiErrors.eventNotFound",
   "Event is full": "apiErrors.eventFull",
+  "Event has ended": "apiErrors.eventEnded",
   "You are not registered for this event": "apiErrors.eventNotRegistered",
   "Cannot message yourself": "apiErrors.cannotMessageSelf",
   "Conversation not found": "apiErrors.conversationNotFound",

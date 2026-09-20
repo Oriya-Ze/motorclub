@@ -300,6 +300,7 @@ export interface Group {
   name: string;
   description?: string | null;
   privacy?: "public" | "closed";
+  category?: string | null;
   members_count: number;
   is_member: boolean;
   my_status?: string | null;

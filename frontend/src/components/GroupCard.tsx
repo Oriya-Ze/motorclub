@@ -57,9 +57,14 @@ export default function GroupCard({ group }: { group: Group }) {
             {group.description && (
               <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{group.description}</p>
             )}
+            {group.category && t(`groupCategories.${group.category.toLowerCase()}`, { defaultValue: "" }) ? (
+              <p className="text-xs text-primary mt-1">
+                {t(`groupCategories.${group.category.toLowerCase()}`)}
+              </p>
+            ) : null}
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5" />
-              {group.members_count} {t("members")}
+              {t("membersCount", { count: group.members_count })}
               {group.is_member && (
                 <>
                   <span aria-hidden>·</span>

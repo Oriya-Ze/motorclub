@@ -257,7 +257,7 @@ export default function GroupDetailPage() {
               </div>
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 <Users className="w-4 h-4" />
-                {group.members_count} {t("members")}
+                {t("membersCount", { count: group.members_count })}
                 {group.my_role && (
                   <>
                     <span aria-hidden>·</span>
@@ -540,7 +540,7 @@ export default function GroupDetailPage() {
               </div>
               <div className="rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5">
                 <dt className="text-xs text-muted-foreground">{t("members")}</dt>
-                <dd className="font-medium mt-0.5">{group.members_count}</dd>
+                <dd className="font-medium mt-0.5">{t("membersCount", { count: group.members_count })}</dd>
               </div>
               {group.created_at && (
                 <div className="rounded-xl bg-muted/30 border border-border/40 px-3 py-2.5 sm:col-span-2">

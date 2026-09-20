@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Vehicle } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { pickStoredImageUrl } from "@/lib/postMedia";
+import { formatEngineLabel } from "@/lib/formatLabels";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -63,7 +64,7 @@ export default function VehicleCard({ vehicle: v, featured = false, showPrimary 
           )}
           <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
             {v.color && <span>{v.color}</span>}
-            {v.engine && <span>{v.engine}</span>}
+            {v.engine && <span>{formatEngineLabel(v.engine)}</span>}
             {((v.mod_items && v.mod_items.length > 0) || v.mods) && (
               <span className="inline-flex items-center gap-1 text-primary">
                 <Wrench className="w-3 h-3" />

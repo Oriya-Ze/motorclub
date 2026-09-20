@@ -7,8 +7,7 @@ import json
 import logging
 import time
 import zlib
-from dataclasses import dataclass
-from collections import defaultdict
+from app.services.vehicle_brands import canonical_make
 
 import httpx
 
@@ -132,30 +131,40 @@ async def _search_all(*, filters: dict | None = None, fields: list[str] | None =
 def _brand_name(row: dict) -> str:
     tozar = (row.get("tozar") or "").strip()
     if tozar:
-        return tozar
+        return canonical_make(tozar)
     tozeret = (row.get("tozeret_nm") or "").strip()
     if not tozeret:
         return ""
     # Fallback: "קיה קוריאה" -> "קיה"
-    return tozeret.split()[0] if tozeret else ""
+    return canonical_make(tozeret.split()[0] if tozeret else "")
 
 
 def _format_engine(record: dict) -> str:
     parts: list[str] = []
+    seen: set[str] = set()
+
+    def add(part: str | None) -> None:
+        text = str(part or "").strip()
+        if not text:
+            return
+        key = " ".join(text.lower().replace("כ״ס", "כ\"ס").replace("hp", "כ\"ס").split())
+        if key in seen:
+            return
+        seen.add(key)
+        parts.append(text)
+
     cc = record.get("nefah_manoa")
     if cc:
         liters = cc / 1000
-        parts.append(f"{liters:.1f}L" if liters >= 1 else f'{cc} סמ"ק')
-    fuel = record.get("delek_nm")
-    if fuel:
-        parts.append(str(fuel))
+        add(f"{liters:.1f}L" if liters >= 1 else f'{cc} סמ"ק')
+    add(record.get("delek_nm"))
     hp = record.get("koah_sus")
     if hp:
-        parts.append(f'{hp} כ"ס')
+        add(f'{hp} כ"ס')
     tech = record.get("technologiat_hanaa_nm")
     if tech and tech not in ("הנעה רגילה", "לא ידוע", "לא ידוע קוד "):
-        parts.append(str(tech))
-    return " · ".join(parts) if parts else ""
+        add(str(tech))
+    return " · ".join(parts)
 
 
 def _variant_key(record: dict) -> tuple:

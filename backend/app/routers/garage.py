@@ -20,6 +20,7 @@ from app.schemas import (
     VehicleSpotResponse,
     VehicleUpdate,
 )
+from app.services.vehicle_brands import canonical_make, make_match_names, make_search_terms
 from app.services.visibility import can_view_profile_content
 
 router = APIRouter(prefix="/garage", tags=["garage"])
@@ -143,7 +144,7 @@ async def _vehicle_response(db: AsyncSession, v: Vehicle, *, with_shops: bool = 
     return VehicleResponse(
         id=v.id,
         user_id=v.user_id,
-        make=v.make,
+        make=canonical_make(v.make) or v.make,
         model=v.model,
         year=v.year,
         trim=v.trim,
@@ -259,6 +260,8 @@ async def create_vehicle(
     user: User = Depends(get_user_model),
 ):
     data = body.model_dump(exclude={"mod_items", "nickname"})
+    if data.get("make"):
+        data["make"] = canonical_make(data["make"]) or data["make"]
     vehicle = Vehicle(user_id=user.id, **data, nickname=_blank_to_none(body.nickname))
     if body.mod_items is not None:
         _apply_mod_items(vehicle, body.mod_items)
@@ -290,6 +293,8 @@ async def update_vehicle(
         data["walkaround_url"] = _blank_to_none(data["walkaround_url"])
     if "sound_url" in data:
         data["sound_url"] = _blank_to_none(data["sound_url"])
+    if "make" in data and data["make"]:
+        data["make"] = canonical_make(data["make"]) or data["make"]
     for field, value in data.items():
         setattr(vehicle, field, value)
     if "mod_items" in body.model_fields_set:
@@ -321,14 +326,16 @@ async def search_vehicles(
     db: AsyncSession = Depends(get_db),
     viewer: User | None = Depends(get_optional_user_model),
 ):
-    term = f"%{q.strip()}%"
+    q = q.strip()
+    terms = make_search_terms(q)
+    make_filters = [Vehicle.make.ilike(f"%{term}%") for term in terms]
     result = await db.execute(
         select(Vehicle).where(
             or_(
-                Vehicle.make.ilike(term),
-                Vehicle.model.ilike(term),
-                Vehicle.trim.ilike(term),
-                Vehicle.nickname.ilike(term),
+                *make_filters,
+                Vehicle.model.ilike(f"%{q}%"),
+                Vehicle.trim.ilike(f"%{q}%"),
+                Vehicle.nickname.ilike(f"%{q}%"),
             )
         ).limit(40)
     )
@@ -370,11 +377,12 @@ async def similar_vehicles(
 ):
     vehicle, _owner = await _visible_vehicle(db, vehicle_id, viewer)
     year_distance = func.abs(func.coalesce(Vehicle.year, vehicle.year or 0) - (vehicle.year or 0))
+    make_names = [item.lower() for item in make_match_names(vehicle.make)]
     result = await db.execute(
         select(Vehicle)
         .where(
             Vehicle.id != vehicle.id,
-            func.lower(Vehicle.make) == vehicle.make.lower(),
+            func.lower(Vehicle.make).in_(make_names or [vehicle.make.lower()]),
             func.lower(Vehicle.model) == vehicle.model.lower(),
         )
         .order_by(year_distance, Vehicle.created_at.desc())

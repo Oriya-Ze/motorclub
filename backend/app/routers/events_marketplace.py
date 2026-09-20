@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,6 +19,15 @@ workshops_router = APIRouter(prefix="/workshops", tags=["workshops"])
 
 
 from app.services.business_public import business_public_dict, review_stats
+
+
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def event_has_ended(event: Event) -> bool:
+    end = _aware(event.event_end_date or event.event_date)
+    return end < datetime.now(UTC)
 
 
 async def _business_public(db: AsyncSession, u: User) -> dict:
@@ -137,6 +147,8 @@ async def join_event(
     event = await db.get(Event, event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+    if event_has_ended(event):
+        raise HTTPException(status_code=400, detail="Event has ended")
 
     existing = await db.scalar(
         select(EventParticipant).where(

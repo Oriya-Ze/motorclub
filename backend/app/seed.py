@@ -40,7 +40,7 @@ async def seed_database(db: AsyncSession) -> None:
         Event(
             creator_id=admin.id,
             title="מפגש חובבי פורשה",
-            description="מפגש חודשי של חובבי פורשה בمركز הארץ",
+            description="מפגש חודשי של חובבי פורשה במרכז הארץ",
             event_type="meetup",
             location="תל אביב",
             event_date=datetime.now(UTC) + timedelta(days=14),

@@ -11,6 +11,7 @@ from app.services.visibility import can_view_profile_content
 from app.media.image_assets import build_image_media_map, public_image_key
 from app.models import Notification, Post, Story, User, Vehicle
 from app.schemas import NotificationResponse, StoryCreate, StoryResponse
+from app.services.vehicle_brands import canonical_make
 
 notifications_router = APIRouter(prefix="/notifications", tags=["notifications"])
 stories_router = APIRouter(prefix="/stories", tags=["stories"])
@@ -235,7 +236,7 @@ async def explore_vehicles(
         media = image_media_map.get(source) if source else None
         items.append({
             "id": str(v.id),
-            "make": v.make,
+            "make": canonical_make(v.make) or v.make,
             "model": v.model,
             "year": v.year,
             "nickname": v.nickname,

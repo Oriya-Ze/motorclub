@@ -22,6 +22,7 @@ from app.schemas import (
     BusinessViewCreate,
 )
 from app.services.business_public import business_public_dict, review_stats
+from app.services.vehicle_brands import canonical_make
 from app.services.visibility import can_view_profile_content
 
 router = APIRouter(prefix="/business", tags=["business-profile"])
@@ -205,7 +206,7 @@ async def list_business_works(
         if not tagged:
             continue
         owner = await db.get(User, vehicle.user_id)
-        catalog = " ".join(str(part) for part in [vehicle.year, vehicle.make, vehicle.model] if part)
+        catalog = " ".join(str(part) for part in [vehicle.year, canonical_make(vehicle.make) or vehicle.make, vehicle.model] if part)
         title = (vehicle.nickname or "").strip() or catalog
         first = tagged[0]
         extra = len(tagged) - 1
