@@ -185,7 +185,9 @@ async def explore_vehicles(
             "make": v.make,
             "model": v.model,
             "year": v.year,
+            "nickname": v.nickname,
             "thumbnail": v.image_urls[0] if v.image_urls else None,
+            "has_mods": bool(v.mod_items or (v.mods or "").strip()),
             "owner": user_to_public(owner),
         })
         if len(items) >= 20:

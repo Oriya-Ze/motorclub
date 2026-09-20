@@ -7,7 +7,7 @@ import CreateStoryPage from "@/pages/CreateStoryPage";
 import StoryViewerPage from "@/pages/StoryViewerPage";
 import EventsPage from "@/pages/EventsPage";
 import ExplorePage from "@/pages/ExplorePage";
-import FeedPage from "@/pages/FeedPage";
+import HomePage from "@/pages/HomePage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import ForumTopicPage from "@/pages/ForumTopicPage";
@@ -44,6 +44,7 @@ export default function App() {
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
         <Route element={<Layout />}>
+          <Route index element={<HomePage />} />
           <Route path="/privacy-policy" element={<LegalPage type="privacy" />} />
           <Route path="/terms-of-service" element={<LegalPage type="terms" />} />
           <Route path="/vehicles/:vehicleId" element={<VehiclePage />} />
@@ -52,7 +53,6 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="stories/:storyId" element={<StoryViewerPage />} />
           <Route element={<Layout />}>
-            <Route index element={<FeedPage />} />
             <Route path="explore" element={<ExplorePage />} />
             <Route path="posts/:postId" element={<PostPage />} />
             <Route path="workshops" element={<Navigate to="/services" replace />} />

@@ -1,7 +1,7 @@
 import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 export default function AuthPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, register, confirmSignUp, resendConfirmation, loginWithGoogle } = useAuth();
   const { form, mode, setMode, setForm, resetDraft, restoreFromStorage } = useAuthFormDraft();
   const [showPassword, setShowPassword] = useState(false);
@@ -46,7 +47,8 @@ export default function AuthPage() {
 
   useEffect(() => {
     restoreFromStorage();
-  }, [restoreFromStorage]);
+    if (searchParams.get("register") === "1") setMode("register");
+  }, [restoreFromStorage, searchParams, setMode]);
 
   useEffect(() => {
     setOauthConfigLoading(true);

@@ -65,7 +65,7 @@ function AuthenticatedLayout() {
 
   const handleLogout = () => {
     logout();
-    navigate("/auth");
+    navigate("/");
   };
 
   return (
@@ -230,7 +230,10 @@ function GuestLayout() {
             <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
             <span className="font-bold text-lg font-display tracking-wide">{t("appName")}</span>
           </Link>
-          <Link to="/auth"><Button size="sm">{t("login")}</Button></Link>
+          <div className="flex items-center gap-2">
+            <Link to="/auth"><Button variant="outline" size="sm">{t("login")}</Button></Link>
+            <Link to="/auth?register=1"><Button size="sm">{t("register")}</Button></Link>
+          </div>
         </div>
       </header>
       <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">

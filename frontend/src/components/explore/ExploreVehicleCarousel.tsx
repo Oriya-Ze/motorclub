@@ -15,7 +15,9 @@ export interface ExploreVehicleItem {
   make: string;
   model: string;
   year?: number | null;
+  nickname?: string | null;
   thumbnail?: string | null;
+  has_mods?: boolean;
   owner?: User | null;
 }
 

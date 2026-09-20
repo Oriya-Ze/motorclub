@@ -667,7 +667,16 @@ class ApiClient {
   }
 
   exploreVehicles() {
-    return this.request<Array<{ id: string; make: string; model: string; year?: number; thumbnail?: string; owner?: User }>>("/explore/vehicles");
+    return this.request<Array<{
+      id: string;
+      make: string;
+      model: string;
+      year?: number;
+      nickname?: string | null;
+      thumbnail?: string;
+      has_mods?: boolean;
+      owner?: User;
+    }>>("/explore/vehicles");
   }
 
   toggleLike(postId: string) {
