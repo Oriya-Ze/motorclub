@@ -1,12 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Car, Hash } from "lucide-react";
+import { Calendar, Hash } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
-import { pickStoredImageUrl } from "@/lib/postMedia";
 
 export default function FeedSidebar() {
   const { t, i18n } = useTranslation();
@@ -23,51 +21,12 @@ export default function FeedSidebar() {
     staleTime: 120_000,
   });
 
-  const { data: garage = [] } = useQuery({
-    queryKey: ["garage"],
-    queryFn: () => api.getMyGarage(),
-    staleTime: 120_000,
-  });
-
   const upcoming = events
     .filter((e) => new Date(e.event_date) > new Date())
     .slice(0, 3);
 
-  const primaryVehicle = garage.find((v) => v.is_primary) ?? garage[0];
-
   return (
     <aside className="hidden lg:block w-72 shrink-0 space-y-4 sticky top-28 self-start">
-      {primaryVehicle && (
-        <Card>
-          <CardContent className="pt-5 space-y-3">
-            <div className="flex items-center justify-between text-sm font-semibold">
-              <span className="inline-flex items-center gap-2">
-                <Car className="w-4 h-4 text-primary" />
-                {t("garage.myGarage")}
-              </span>
-              <Link to="/garage" className="text-xs font-medium text-muted-foreground hover:text-primary">
-                {t("garage.viewGarage")}
-              </Link>
-            </div>
-            <Link to={`/vehicles/${primaryVehicle.id}`} className="block rounded-xl overflow-hidden border border-border/40 hover:shadow-glow transition-shadow">
-              {primaryVehicle.image_urls?.[0] ? (
-                <img src={mediaUrl(pickStoredImageUrl(primaryVehicle.image_urls[0], primaryVehicle.image_media, "feed"))} alt="" className="w-full h-28 object-cover" />
-              ) : (
-                <div className="w-full h-28 bg-asphalt flex items-center justify-center">
-                  <Car className="w-8 h-8 text-muted-foreground/40" />
-                </div>
-              )}
-              <div className="p-3">
-                <p className="font-medium text-sm">
-                  {primaryVehicle.year && `${primaryVehicle.year} `}
-                  {primaryVehicle.make} {primaryVehicle.model}
-                </p>
-              </div>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
       {upcoming.length > 0 && (
         <Card>
           <CardContent className="pt-5 space-y-3">

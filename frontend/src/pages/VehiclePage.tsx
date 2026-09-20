@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api, Vehicle, VehicleModItem } from "@/lib/api";
 import { getBusinessProfilePath } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
+import { formatEngineLabel } from "@/lib/formatLabels";
 import { displayName, formatHandle } from "@/lib/utils";
 
 function SpecItem({ label, value }: { label: string; value: string }) {
@@ -74,7 +75,7 @@ export default function VehiclePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["garage"] });
       toast.success(t("garage.deleted"));
-      navigate("/garage");
+      navigate("/profile?tab=garage");
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -209,7 +210,7 @@ export default function VehiclePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 pb-20 md:pb-6">
-      <Link to={isOwner ? "/garage" : ownerPath} className="inline-flex text-sm text-muted-foreground hover:text-primary">
+      <Link to={isOwner ? "/profile?tab=garage" : ownerPath} className="inline-flex text-sm text-muted-foreground hover:text-primary">
         {isOwner ? t("garage.title") : t("garage.ownerProfile")}
       </Link>
 
@@ -374,7 +375,7 @@ export default function VehiclePage() {
                 <dl className="grid grid-cols-2 gap-2">
                   {vehicle.year && <SpecItem label={t("garage.year")} value={String(vehicle.year)} />}
                   {vehicle.color && <SpecItem label={t("garage.color")} value={vehicle.color} />}
-                  {vehicle.engine && <SpecItem label={t("garage.engine")} value={vehicle.engine} />}
+                  {vehicle.engine && <SpecItem label={t("garage.engine")} value={formatEngineLabel(vehicle.engine)} />}
                 </dl>
               )}
 

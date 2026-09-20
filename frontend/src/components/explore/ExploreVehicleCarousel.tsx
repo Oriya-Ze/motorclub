@@ -41,7 +41,7 @@ export default function ExploreVehicleCarousel({ vehicles, isLoading }: ExploreV
         title={t("exploreVehiclesEmpty")}
         description={t("exploreVehiclesEmptyDesc")}
         action={
-          <Button onClick={() => navigate("/garage")}>{t("exploreAddVehicle")}</Button>
+          <Button onClick={() => navigate("/profile?tab=garage")}>{t("exploreAddVehicle")}</Button>
         }
         className="py-12"
       />

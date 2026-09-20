@@ -1,10 +1,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bookmark, Building2, Car, Mail, User as UserIcon } from "lucide-react";
+import { Bookmark, Building2, Car, Mail, Plus, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
+import AddVehicleForm from "@/components/AddVehicleForm";
 import PostCard from "@/components/PostCard";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
@@ -32,6 +33,7 @@ export default function ProfilePage() {
     initialTab === "garage" || initialTab === "saved" ? initialTab : "posts"
   );
   const [followList, setFollowList] = useState<"followers" | "following" | null>(null);
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
 
   useEffect(() => {
     const urlTab = searchParams.get("tab");
@@ -195,21 +197,33 @@ export default function ProfilePage() {
           <PostSkeleton />
         </>
       ) : tab === "garage" ? (
-        garage.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            {isOwnProfile ? (
-              <Link to="/garage" className="text-primary hover:underline">{t("garage.add")}</Link>
-            ) : (
-              t("garage.empty")
-            )}
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {garage.map((v: Vehicle) => (
-              <VehicleCard key={v.id} vehicle={v} showPrimary={isOwnProfile} />
-            ))}
-          </div>
-        )
+        <div className="space-y-4">
+          {isOwnProfile && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setShowAddVehicle((open) => !open)}>
+                <Plus className="w-4 h-4 me-1" />
+                {t("garage.add")}
+              </Button>
+            </div>
+          )}
+          {isOwnProfile && showAddVehicle && (
+            <AddVehicleForm
+              existingCount={garage.length}
+              onCreated={() => setShowAddVehicle(false)}
+            />
+          )}
+          {garage.length === 0 && !showAddVehicle ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {isOwnProfile ? t("garage.emptyDesc") : t("garage.empty")}
+            </div>
+          ) : garage.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {garage.map((v: Vehicle) => (
+                <VehicleCard key={v.id} vehicle={v} showPrimary={isOwnProfile} />
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : tab === "saved" ? (
         savedPosts.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">{t("profile.noPosts")}</div>

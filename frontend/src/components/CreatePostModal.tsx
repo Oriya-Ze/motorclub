@@ -345,7 +345,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
             </div>
           ) : (
             <Link
-              to="/garage"
+              to="/profile?tab=garage"
               onClick={onClose}
               className="text-sm text-primary hover:underline text-start"
             >

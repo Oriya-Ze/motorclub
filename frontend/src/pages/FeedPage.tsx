@@ -74,7 +74,7 @@ export default function FeedPage() {
                 <Button onClick={() => navigate("/", { state: { openCreatePost: true } })}>
                   {t("emptyFeedCtaPost")}
                 </Button>
-                <Button variant="outline" onClick={() => navigate("/garage")}>
+                <Button variant="outline" onClick={() => navigate("/profile?tab=garage")}>
                   {t("emptyFeedCtaGarage")}
                 </Button>
               </div>

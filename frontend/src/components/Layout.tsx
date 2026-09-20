@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell, Building2, Calendar, Car, Compass, Home, LogOut, Menu, Plus, Settings,
+  Bell, Building2, Calendar, Compass, Home, LogOut, Menu, MessageSquare, Plus, Settings,
   ShoppingBag, UserCircle, Users, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -22,11 +22,11 @@ import { cn, displayUsername } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "feed", icon: Home },
-  { to: "/garage", label: "garage.myGarage", icon: Car },
   { to: "/explore", label: "explore", icon: Compass },
   { to: "/groups", label: "groups", icon: Users },
   { to: "/events", label: "events", icon: Calendar },
   { to: "/marketplace", label: "marketplace", icon: ShoppingBag },
+  { to: "/forums", label: "forums", icon: MessageSquare },
   { to: "/services", label: "services", icon: Building2 },
 ];
 
@@ -120,15 +120,12 @@ function AuthenticatedLayout() {
                 to={to}
                 end={to === "/"}
                 onMouseEnter={() => prefetchRoute(queryClient, to)}
-                className={({ isActive }) => {
-                  const active =
-                    isActive ||
-                    (to === "/garage" && location.pathname.startsWith("/vehicles/"));
-                  return cn(
+                className={({ isActive }) =>
+                  cn(
                     "nav-link",
-                    active ? "nav-link-active text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-                  );
-                }}
+                    isActive ? "nav-link-active text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  )
+                }
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 {t(label)}
@@ -146,15 +143,12 @@ function AuthenticatedLayout() {
                 to={to}
                 end={to === "/"}
                 onClick={() => setMobileOpen(false)}
-                className={({ isActive }) => {
-                  const active =
-                    isActive ||
-                    (to === "/garage" && location.pathname.startsWith("/vehicles/"));
-                  return cn(
+                className={({ isActive }) =>
+                  cn(
                     "flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium",
-                    active ? "text-primary bg-primary/10" : "text-muted-foreground",
-                  );
-                }}
+                    isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+                  )
+                }
               >
                 <Icon className="w-4 h-4" />
                 {t(label)}
