@@ -14,7 +14,7 @@ import { MessagesPanelProvider, MessagesSideButton } from "@/components/Messages
 import ThemeSync from "@/components/ThemeSync";
 import UserSearch from "@/components/UserSearch";
 import Avatar from "@/components/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
@@ -231,8 +231,8 @@ function GuestLayout() {
             <span className="font-bold text-lg font-display tracking-wide">{t("appName")}</span>
           </Link>
           <div className="flex items-center gap-2">
-            <Link to="/auth"><Button variant="outline" size="sm">{t("login")}</Button></Link>
-            <Link to="/auth?register=1"><Button size="sm">{t("register")}</Button></Link>
+            <Link to="/auth" className={buttonClassName({ variant: "outline", size: "sm" })}>{t("login")}</Link>
+            <Link to="/auth?register=1" className={buttonClassName({ size: "sm" })}>{t("register")}</Link>
           </div>
         </div>
       </header>

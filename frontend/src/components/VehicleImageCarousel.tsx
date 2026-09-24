@@ -14,9 +14,10 @@ interface VehicleImageCarouselProps {
   className?: string;
   imageClassName?: string;
   alt?: string;
+  alts?: string[];
 }
 
-export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt }: VehicleImageCarouselProps) {
+export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts }: VehicleImageCarouselProps) {
   const { t, i18n } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -61,9 +62,11 @@ export default function VehicleImageCarousel({ urls, imageMedia, className, imag
         >
           <img
             src={mediaUrl(pickStoredImageUrl(urls[idx], imageMedia, "detail"))}
-            alt={t("garage.photoIndex", { n: idx + 1, total: urls.length, name: label })}
+            alt={alts?.[idx] || t("garage.photoIndex", { n: idx + 1, total: urls.length, name: label })}
             className={cn("w-full h-56 sm:h-64 object-cover rounded-xl bg-asphalt", imageClassName)}
             draggable={false}
+            decoding="async"
+            fetchPriority={idx === 0 ? "high" : "low"}
           />
         </button>
 
@@ -112,8 +115,8 @@ export default function VehicleImageCarousel({ urls, imageMedia, className, imag
                 />
               ))}
             </div>
-            <span className="absolute top-3 start-3 text-xs font-medium bg-black/50 text-white px-2 py-0.5 rounded-full">
-              {idx + 1} / {urls.length}
+            <span className="absolute top-3 start-3 text-xs font-medium bg-black/55 text-white px-2 py-0.5 rounded-full">
+              {t("garage.photoIndex", { n: idx + 1, total: urls.length })}
             </span>
           </>
         )}
