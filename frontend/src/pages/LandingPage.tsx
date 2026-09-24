@@ -35,8 +35,8 @@ export default function LandingPage() {
   const showCommunity = showcase.length > 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-10 pb-8">
-      <section className="text-center space-y-4 pt-4 sm:pt-8">
+    <div className="max-w-4xl mx-auto space-y-6 pb-8">
+      <section className="text-center space-y-3 pt-2 sm:pt-4">
         <img src="/logo.png" alt="" className="w-16 h-16 rounded-2xl object-cover mx-auto" />
         <h1 className="text-3xl sm:text-4xl font-display tracking-wide">{t("landing.heroTitle")}</h1>
         <p className="text-foreground/80 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">{t("landing.heroBody")}</p>
@@ -59,16 +59,23 @@ export default function LandingPage() {
         </Pillar>
         <Pillar icon={ShoppingBag} title={t("landing.pillarPartsTitle")} body={t("landing.pillarPartsBody")}>
           <TextLink to="/marketplace">{t("landing.pillarPartsLink")}</TextLink>
-          <TextLink to="/marketplace">{t("landing.pillarPartsPublish")}</TextLink>
           <p className="text-xs text-foreground/70">{t("landing.loginRequired")}</p>
         </Pillar>
         <Pillar icon={Building2} title={t("landing.pillarServicesTitle")} body={t("landing.pillarServicesBody")}>
           <TextLink to="/services">{t("landing.pillarServicesLink")}</TextLink>
-          <p className="text-sm text-foreground/80">{t("landing.pillarServicesOwner")}</p>
-          <TextLink to="/settings">{t("landing.pillarServicesPublish")}</TextLink>
           <p className="text-xs text-foreground/70">{t("landing.loginRequired")}</p>
         </Pillar>
       </section>
+      <p className="text-sm text-foreground/75 text-center -mt-3">
+        {t("landing.ownerActions")}{" "}
+        <Link to="/marketplace?create=1" className="text-foreground/80 underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
+          {t("landing.ownerPublishParts")}
+        </Link>
+        {" · "}
+        <Link to="/settings?upgrade=1" className="text-foreground/80 underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
+          {t("landing.ownerShowBusiness")}
+        </Link>
+      </p>
 
       <SamplePassport />
 
@@ -302,7 +309,7 @@ function Pillar({
   children?: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/50 bg-card/40 p-4 space-y-2">
+    <div className="rounded-2xl border border-border/50 bg-card/40 p-3 sm:p-4 space-y-1.5">
       <Icon className="w-5 h-5 text-primary" aria-hidden />
       <h2 className="font-semibold text-base">{title}</h2>
       <p className="text-sm text-foreground/80 leading-relaxed">{body}</p>
@@ -312,7 +319,7 @@ function Pillar({
 }
 
 function TextLink({ to, href, children }: { to?: string; href?: string; children: ReactNode }) {
-  const className = "inline-flex min-h-11 items-center text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md";
+  const className = "inline-flex min-h-10 items-center text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md";
   if (href) {
     return <a href={href} className={className}>{children}</a>;
   }

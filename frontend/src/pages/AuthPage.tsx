@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
+import { authIntent, rememberAuthNext, safeInternalNext } from "@/lib/authNext";
 import { useDebouncedUsernameCheck } from "@/hooks/useDebouncedUsernameCheck";
 import { useAuthFormDraft } from "@/lib/authDraft";
 import {
@@ -22,7 +23,7 @@ export default function AuthPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, register, confirmSignUp, resendConfirmation, loginWithGoogle } = useAuth();
+  const { user, login, register, confirmSignUp, resendConfirmation, loginWithGoogle } = useAuth();
   const { form, mode, setMode, setForm, resetDraft, restoreFromStorage } = useAuthFormDraft();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,6 +45,17 @@ export default function AuthPage() {
     setCaptchaToken(null);
     setCaptchaResetKey((k) => k + 1);
   }, []);
+
+  const nextPath = safeInternalNext(searchParams.get("next"));
+  const intent = authIntent(nextPath);
+
+  useEffect(() => {
+    if (user && nextPath) navigate(nextPath, { replace: true });
+  }, [user, nextPath, navigate]);
+
+  const finishAuth = () => {
+    navigate(nextPath ?? "/", { replace: true });
+  };
 
   useEffect(() => {
     restoreFromStorage();
@@ -69,6 +81,7 @@ export default function AuthPage() {
     }
 
     setGoogleLoading(true);
+    rememberAuthNext(nextPath);
     try {
       await loginWithGoogle();
     } catch (err) {
@@ -128,7 +141,7 @@ export default function AuthPage() {
         await login(form.email.trim(), form.password, captchaToken ?? undefined);
         resetDraft();
         toast.success(t("loginSuccess"));
-        navigate("/", { replace: true });
+        finishAuth();
         return;
       }
 
@@ -150,7 +163,7 @@ export default function AuthPage() {
         });
         resetDraft();
         toast.success(t("confirmSuccess"));
-        navigate("/", { replace: true });
+        finishAuth();
         return;
       }
 
@@ -171,7 +184,7 @@ export default function AuthPage() {
 
       resetDraft();
       toast.success(t("registerSuccess"));
-      navigate("/", { replace: true });
+      finishAuth();
     } catch (err) {
       resetCaptcha();
       toast.error(err instanceof Error ? err.message : t("error"));
@@ -218,7 +231,11 @@ export default function AuthPage() {
               {mode === "confirm" ? t("confirmAccount") : t("welcome")}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              {mode === "confirm" ? t("confirmAccountDesc") : t("appSubtitle")}
+              {intent
+                ? t(`authIntent.${intent}`)
+                : mode === "confirm"
+                  ? t("confirmAccountDesc")
+                  : t("appSubtitle")}
             </p>
           </div>
 
@@ -389,7 +406,7 @@ export default function AuthPage() {
                   {t("agreeTerms")}{" "}
                   <Link
                     to="/privacy-policy"
-                    state={{ returnTo: "/auth" }}
+                    state={{ returnTo: `/auth${searchParams.toString() ? `?${searchParams.toString()}` : ""}` }}
                     className="text-primary hover:underline"
                   >
                     {t("privacyPolicy")}
@@ -397,7 +414,7 @@ export default function AuthPage() {
                   {" "}{t("and")}{" "}
                   <Link
                     to="/terms-of-service"
-                    state={{ returnTo: "/auth" }}
+                    state={{ returnTo: `/auth${searchParams.toString() ? `?${searchParams.toString()}` : ""}` }}
                     className="text-primary hover:underline"
                   >
                     {t("termsOfService")}

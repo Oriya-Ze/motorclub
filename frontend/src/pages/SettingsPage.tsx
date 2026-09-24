@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import BusinessSettingsSection from "@/components/BusinessSettingsSection";
 import BusinessUpgradeModal from "@/components/BusinessUpgradeModal";
@@ -73,6 +73,7 @@ export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [fullName, setFullName] = useState("");
   const [showUpgradeForm, setShowUpgradeForm] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
@@ -95,6 +96,17 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) setFullName(user.full_name ?? "");
   }, [user]);
+
+  useEffect(() => {
+    if (searchParams.get("upgrade") !== "1" || !user) return;
+    if (user.account_type !== "business") {
+      setActiveTab("account");
+      setShowUpgradeForm(true);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete("upgrade");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, user]);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],

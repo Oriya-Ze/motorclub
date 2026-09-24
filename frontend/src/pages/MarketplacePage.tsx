@@ -1,8 +1,8 @@
 import { ShoppingBag } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import CreateProductModal from "@/components/CreateProductModal";
 import EmptyState from "@/components/EmptyState";
 import PageHeading from "@/components/PageHeading";
@@ -10,6 +10,7 @@ import ProductDetailModal from "@/components/ProductDetailModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
@@ -20,6 +21,7 @@ const CATEGORIES = ["vehicles", "spareParts", "accessories", "other"] as const;
 export default function MarketplacePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState<string>("");
   const [selected, setSelected] = useState<Product | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -33,6 +35,15 @@ export default function MarketplacePage() {
   if (isLoading) return <CardGridSkeleton count={4} />;
 
   const isBusiness = user?.account_type === "business";
+
+  useEffect(() => {
+    if (searchParams.get("create") !== "1") return;
+    if (isBusiness) setShowCreate(true);
+    else toast.error(t("landing.publishBusinessOnly"));
+    const next = new URLSearchParams(searchParams);
+    next.delete("create");
+    setSearchParams(next, { replace: true });
+  }, [isBusiness, searchParams, setSearchParams, t]);
 
   return (
     <div className="space-y-4 pb-20 md:pb-6">

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
 import { oauthRedirectUri } from "@/lib/cognitoOAuth";
+import { takeAuthNext } from "@/lib/authNext";
 
 export default function OAuthCallbackPage() {
   const { t } = useTranslation();
@@ -32,7 +33,7 @@ export default function OAuthCallbackPage() {
     completeOAuthLogin({ code, redirect_uri: oauthRedirectUri() })
       .then(() => {
         toast.success(t("loginSuccess"));
-        navigate("/", { replace: true });
+        navigate(takeAuthNext() ?? "/", { replace: true });
       })
       .catch((err: Error) => {
         setError(err.message || t("error"));
