@@ -4,6 +4,10 @@
     <meta charset="UTF-8" />
     <script>
       (function () {
+        if (location.hostname === "motorclub.co.il") {
+          location.replace("https://www.motorclub.co.il" + location.pathname + location.search + location.hash);
+          return;
+        }
         var t = localStorage.getItem("motorclub_theme");
         document.documentElement.classList.toggle("dark", t !== "light");
       })();

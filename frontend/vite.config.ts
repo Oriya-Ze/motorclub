@@ -11,6 +11,7 @@ export default defineConfig({
       includeAssets: ["logo.png", "favicon.png", "icon-192.svg", "icon-512.svg"],
       manifest: false,
       workbox: {
+        importScripts: ["/sw-redirect.js"],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
