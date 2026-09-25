@@ -10,10 +10,11 @@ import { cn, formatHandle } from "@/lib/utils";
 interface UserSearchProps {
   /** Override default profile navigation */
   onUserSelect?: (userId: string) => void;
+  excludeUserId?: string;
   className?: string;
 }
 
-export default function UserSearch({ onUserSelect, className }: UserSearchProps) {
+export default function UserSearch({ onUserSelect, excludeUserId, className }: UserSearchProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -54,6 +55,7 @@ export default function UserSearch({ onUserSelect, className }: UserSearchProps)
   };
 
   const showDropdown = open && debouncedQuery.length >= 1;
+  const visible = excludeUserId ? results.filter((user) => user.id !== excludeUserId) : results;
 
   return (
     <div ref={containerRef} className={cn("relative flex-1 max-w-md w-full", className)}>
@@ -93,11 +95,11 @@ export default function UserSearch({ onUserSelect, className }: UserSearchProps)
         <div className="absolute top-full mt-1 w-full z-50 glass-card rounded-xl border border-border/50 shadow-lg overflow-hidden">
           {isFetching ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">...</p>
-          ) : results.length === 0 ? (
+          ) : visible.length === 0 ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">{t("noSearchResults")}</p>
           ) : (
             <ul className="max-h-64 overflow-y-auto">
-              {results.map((user) => (
+              {visible.map((user) => (
                 <li key={user.id}>
                   <button
                     type="button"

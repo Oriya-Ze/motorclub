@@ -254,7 +254,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           >
             <Bookmark className={cn("w-5 h-5", post.is_saved && "fill-current")} />
           </button>
-          <button type="button" onClick={() => setShowShare(true)} className="text-muted-foreground hover:text-primary">
+          <button type="button" onClick={() => setShowShare(true)} className="text-muted-foreground hover:text-primary" aria-label={t("sharePost")}>
             <Share2 className="w-5 h-5" />
           </button>
         </div>
