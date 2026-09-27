@@ -192,10 +192,33 @@ async function requestUploadInstruction(
   });
 }
 
+function putWithProgress(
+  url: string,
+  body: XMLHttpRequestBodyInit,
+  headers: Record<string, string>,
+  onProgress?: (percent: number) => void,
+): Promise<XMLHttpRequest> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+    xhr.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable || event.total <= 0) return;
+      onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+    xhr.onload = () => resolve(xhr);
+    xhr.onerror = () => reject(new MediaUploadError("Upload failed", "s3_put_failed"));
+    xhr.send(body);
+  });
+}
+
 async function uploadLocalMultipart(
   getToken: () => string | null,
   uploadPath: string,
   file: File,
+  onProgress?: (percent: number) => void,
 ): Promise<UploadMediaResult> {
   const token = getToken();
   if (!token) {
@@ -206,17 +229,25 @@ async function uploadLocalMultipart(
   form.append("file", file);
 
   const url = uploadPath.startsWith("http") ? uploadPath : `${API_BASE}${uploadPath}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
+  const xhr = await new Promise<XMLHttpRequest>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", url);
+    request.setRequestHeader("Authorization", `Bearer ${token}`);
+    request.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable || event.total <= 0) return;
+      onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+    request.onload = () => resolve(request);
+    request.onerror = () => reject(new MediaUploadError("Upload failed", "multipart_failed"));
+    request.send(form);
   });
 
-  if (!response.ok) {
+  if (xhr.status < 200 || xhr.status >= 300) {
+    const response = new Response(xhr.responseText, { status: xhr.status });
     throw new MediaUploadError(await parseApiError(response), "multipart_failed");
   }
 
-  const body = (await response.json()) as { url: string; type: MediaType };
+  const body = JSON.parse(xhr.responseText) as { url: string; type: MediaType };
   return { reference: body.url, mediaType: body.type };
 }
 
@@ -224,20 +255,16 @@ async function uploadToPresignedUrl(
   uploadUrl: string,
   file: File,
   requiredHeaders: Record<string, string>,
+  onProgress?: (percent: number) => void,
 ): Promise<void> {
   const headers = { ...requiredHeaders };
   if (headers["Content-Type"]) {
     headers["Content-Type"] = headers["Content-Type"].split(";", 1)[0].trim();
   }
 
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    headers,
-    body: file,
-  });
-
-  if (!response.ok) {
-    throw new MediaUploadError("Video upload failed", "s3_put_failed");
+  const xhr = await putWithProgress(uploadUrl, file, headers, onProgress);
+  if (xhr.status < 200 || xhr.status >= 300) {
+    throw new MediaUploadError("Upload failed", "s3_put_failed");
   }
 }
 
@@ -248,6 +275,7 @@ export async function uploadMedia(
     request: AuthenticatedRequest;
     getToken: () => string | null;
   },
+  onProgress?: (percent: number) => void,
 ): Promise<UploadMediaResult> {
   let mediaType = validateFileBeforeUpload(file);
   let normalizedFile = normalizeMediaFile(file, mediaType);
@@ -264,14 +292,14 @@ export async function uploadMedia(
 
   if (instruction.upload_method === "multipart") {
     const uploadPath = instruction.upload_path || "/api/v1/uploads";
-    return uploadLocalMultipart(deps.getToken, uploadPath, normalizedFile);
+    return uploadLocalMultipart(deps.getToken, uploadPath, normalizedFile, onProgress);
   }
 
   if (instruction.upload_method === "PUT") {
     if (!instruction.upload_url || !instruction.storage_key) {
       throw new MediaUploadError("Invalid upload instructions", "invalid_instruction");
     }
-    await uploadToPresignedUrl(instruction.upload_url, normalizedFile, instruction.required_headers);
+    await uploadToPresignedUrl(instruction.upload_url, normalizedFile, instruction.required_headers, onProgress);
     return {
       reference: instruction.storage_key,
       mediaType: instruction.media_type,

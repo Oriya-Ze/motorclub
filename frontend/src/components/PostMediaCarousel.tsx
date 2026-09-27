@@ -9,9 +9,10 @@ import { cn } from "@/lib/utils";
 
 interface PostMediaCarouselProps {
   items: PostMediaItem[];
-  /** feed = cropped cover + scroll autoplay; detail = full media within viewport */
+  /** feed = scroll autoplay; detail = full media within viewport. Both keep the file's aspect. */
   mode?: "feed" | "detail";
   className?: string;
+  mediaClassName?: string;
   openSignal?: number;
 }
 
@@ -38,7 +39,7 @@ function toLightboxItems(items: PostMediaItem[]): FullMediaItem[] {
   });
 }
 
-function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull }: MediaSlideProps) {
+function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull, mediaClassName }: MediaSlideProps & { mediaClassName?: string }) {
   const { t } = useTranslation();
   const id = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,15 +67,15 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull }: 
   return (
     <div
       ref={containerRef}
-      className={cn("relative bg-black", isDetail ? "min-h-[200px]" : "aspect-[4/3]")}
+      className={cn("relative bg-black", isDetail ? "min-h-[200px]" : "min-h-[160px]", mediaClassName)}
     >
       {showPosterOnly && posterKey ? (
         <img
           src={mediaUrl(posterKey)}
           alt=""
           className={cn(
-            "w-full h-full",
-            isDetail ? "max-h-[75vh] object-contain mx-auto" : "object-cover",
+            "w-full object-contain mx-auto",
+            isDetail ? "h-full max-h-[75vh]" : "max-h-[min(70vh,640px)]",
           )}
         />
       ) : playbackUrl ? (
@@ -83,8 +84,8 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull }: 
           src={mediaUrl(playbackUrl)}
           poster={posterKey ? mediaUrl(posterKey) : undefined}
           className={cn(
-            "w-full h-full",
-            isDetail ? "max-h-[75vh] object-contain mx-auto" : "object-cover",
+            "w-full object-contain mx-auto",
+            isDetail ? "h-full max-h-[75vh]" : "max-h-[min(70vh,640px)]",
           )}
           muted={muted}
           playsInline
@@ -138,7 +139,7 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull }: 
   );
 }
 
-function ImageSlide({ item, mode, onOpenFull }: Pick<MediaSlideProps, "item" | "mode" | "onOpenFull">) {
+function ImageSlide({ item, mode, onOpenFull, mediaClassName }: Pick<MediaSlideProps, "item" | "mode" | "onOpenFull"> & { mediaClassName?: string }) {
   const { t } = useTranslation();
   const isDetail = mode === "detail";
   if (item.type !== "image") return null;
@@ -149,7 +150,8 @@ function ImageSlide({ item, mode, onOpenFull }: Pick<MediaSlideProps, "item" | "
       alt=""
       className={cn(
         "w-full",
-        isDetail ? "max-h-[75vh] object-contain mx-auto" : "aspect-[4/3] object-cover",
+        isDetail ? "max-h-[75vh] object-contain mx-auto" : "max-h-[min(70vh,640px)] object-contain mx-auto",
+        mediaClassName,
       )}
       loading="lazy"
     />
@@ -176,6 +178,7 @@ export default function PostMediaCarousel({
   items,
   mode = "feed",
   className,
+  mediaClassName,
   openSignal = 0,
 }: PostMediaCarouselProps) {
   const { t } = useTranslation();
@@ -201,6 +204,7 @@ export default function PostMediaCarousel({
           autoplayEnabled={!isDetail && !lightbox}
           isActiveSlide={!lightbox}
           onOpenFull={() => setLightbox(true)}
+          mediaClassName={mediaClassName}
         />
       ) : (
         <ImageSlide
@@ -208,6 +212,7 @@ export default function PostMediaCarousel({
           item={activeItem}
           mode={mode}
           onOpenFull={() => setLightbox(true)}
+          mediaClassName={mediaClassName}
         />
       )}
 

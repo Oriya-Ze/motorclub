@@ -556,11 +556,11 @@ class ApiClient {
     return this.request<{ saved: boolean }>(`/posts/${postId}/save`, { method: "POST" });
   }
 
-  uploadMedia(file: File, purpose: MediaPurpose) {
+  uploadMedia(file: File, purpose: MediaPurpose, onProgress?: (percent: number) => void) {
     return uploadMediaImpl(file, purpose, {
       request: this.request.bind(this),
       getToken: () => this.getToken(),
-    });
+    }, onProgress);
   }
 
   uploadMediaFiles(files: File[], purpose: MediaPurpose) {
