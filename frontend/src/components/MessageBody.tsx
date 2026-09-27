@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 
 const URL_RE = /https?:\/\/[^\s]+/gi;
 
@@ -75,11 +76,17 @@ export function SharedPostPreview({ href }: { href: string }) {
     return <p className="text-xs mt-2 opacity-80">{t("messagePostUnavailable")}</p>;
   }
 
-  const image = data.image_urls?.[0];
+  const imageKey = data.image_urls?.[0]
+    ? pickStoredImageUrl(data.image_urls[0], data.image_media, "feed")
+    : "";
+  const video = data.video_media?.find((item) => item.source_key === data.video_urls?.[0]);
+  const thumb = imageKey || video?.thumb_key || video?.poster_key || "";
   return (
-    <Link to={`/posts/${data.id}`} className="mt-2 block rounded-xl overflow-hidden border border-current/15 bg-background/80 text-foreground">
-      {image ? <img src={mediaUrl(image)} alt="" className="w-full h-24 object-cover" /> : null}
-      <span className="block px-2.5 py-2">
+    <Link to={`/posts/${data.id}`} className="mt-2 flex gap-2 rounded-xl overflow-hidden border border-current/15 bg-background/80 text-foreground">
+      {thumb ? (
+        <img src={mediaUrl(thumb)} alt="" className="w-16 h-16 object-cover shrink-0 bg-muted" />
+      ) : null}
+      <span className="block min-w-0 px-2.5 py-2">
         <span className="block text-xs font-medium truncate">{data.author.full_name}</span>
         {data.content ? <span className="block text-xs text-muted-foreground line-clamp-2">{data.content}</span> : null}
       </span>
