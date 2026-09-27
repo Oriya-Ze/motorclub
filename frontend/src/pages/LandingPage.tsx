@@ -67,11 +67,11 @@ export default function LandingPage() {
         </Pillar>
       </section>
       <p className="text-sm text-foreground/75 text-center -mt-3">
-        {t("landing.ownerActions")}{" "}
         <Link to="/marketplace?create=1" className="text-foreground/80 underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
           {t("landing.ownerPublishParts")}
         </Link>
         {" · "}
+        {t("landing.ownerActions")}{" "}
         <Link to="/settings?upgrade=1" className="text-foreground/80 underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">
           {t("landing.ownerShowBusiness")}
         </Link>

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import BusinessListingBadge from "@/components/BusinessListingBadge";
 import CreateProductModal from "@/components/CreateProductModal";
 import EmptyState from "@/components/EmptyState";
 import PageHeading from "@/components/PageHeading";
@@ -10,8 +11,6 @@ import ProductDetailModal from "@/components/ProductDetailModal";
 import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
@@ -20,7 +19,6 @@ const CATEGORIES = ["vehicles", "spareParts", "accessories", "other"] as const;
 
 export default function MarketplacePage() {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState<string>("");
   const [selected, setSelected] = useState<Product | null>(null);
@@ -32,16 +30,13 @@ export default function MarketplacePage() {
     queryFn: () => api.getProducts({ category: category || undefined }),
   });
 
-  const isBusiness = user?.account_type === "business";
-
   useEffect(() => {
     if (searchParams.get("create") !== "1") return;
-    if (isBusiness) setShowCreate(true);
-    else toast.error(t("landing.publishBusinessOnly"));
+    setShowCreate(true);
     const next = new URLSearchParams(searchParams);
     next.delete("create");
     setSearchParams(next, { replace: true });
-  }, [isBusiness, searchParams, setSearchParams, t]);
+  }, [searchParams, setSearchParams]);
 
   if (isLoading) return <CardGridSkeleton count={4} />;
 
@@ -49,11 +44,9 @@ export default function MarketplacePage() {
     <div className="space-y-4 pb-20 md:pb-6">
       <div className="flex items-center justify-between gap-3">
         <PageHeading>{t("marketplace")}</PageHeading>
-        {isBusiness && (
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            {t("businessSettings.addProduct")}
-          </Button>
-        )}
+        <Button size="sm" onClick={() => setShowCreate(true)}>
+          {t("businessSettings.addProduct")}
+        </Button>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -98,14 +91,24 @@ export default function MarketplacePage() {
             >
               <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
                 {product.image_urls?.[0] && (
-                  <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-40 object-cover" />
+                  <div className="relative">
+                    <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-40 object-cover" />
+                    {product.seller?.account_type === "business" && (
+                      <BusinessListingBadge className="absolute top-2 start-2" />
+                    )}
+                  </div>
                 )}
                 <CardContent className="pt-6">
-                  <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
-                    {t(`categories.${product.category as typeof CATEGORIES[number]}`, {
-                      defaultValue: product.category,
-                    })}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+                      {t(`categories.${product.category as typeof CATEGORIES[number]}`, {
+                        defaultValue: product.category,
+                      })}
+                    </span>
+                    {product.seller?.account_type === "business" && !product.image_urls?.[0] && (
+                      <BusinessListingBadge />
+                    )}
+                  </div>
                   <h3 className="font-semibold mt-3">{product.name}</h3>
                   {product.description && (
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
@@ -118,7 +121,16 @@ export default function MarketplacePage() {
         </div>
       )}
 
-      {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ProductDetailModal
+          product={selected}
+          onClose={() => setSelected(null)}
+          onChanged={() => {
+            void queryClient.invalidateQueries({ queryKey: ["products"] });
+            void queryClient.invalidateQueries({ queryKey: ["my-products"] });
+          }}
+        />
+      )}
 
       <CreateProductModal
         open={showCreate}

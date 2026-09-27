@@ -221,7 +221,7 @@ async def list_products(
     query = (
         select(Product)
         .join(User, Product.business_id == User.id)
-        .where(User.is_active.is_(True), User.account_type == "business")
+        .where(User.is_active.is_(True))
         .order_by(Product.created_at.desc())
     )
     if category:
@@ -238,8 +238,6 @@ async def list_my_products(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    if user.account_type != "business":
-        raise HTTPException(status_code=403, detail="Business account required")
     result = await db.execute(
         select(Product).where(Product.business_id == user.id).order_by(Product.created_at.desc())
     )
@@ -252,8 +250,6 @@ async def create_product(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    if user.account_type != "business":
-        raise HTTPException(status_code=403, detail="Business account required")
     product = Product(
         business_id=user.id,
         name=body.name,
