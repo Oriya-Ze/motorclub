@@ -32,8 +32,6 @@ export default function MarketplacePage() {
     queryFn: () => api.getProducts({ category: category || undefined }),
   });
 
-  if (isLoading) return <CardGridSkeleton count={4} />;
-
   const isBusiness = user?.account_type === "business";
 
   useEffect(() => {
@@ -44,6 +42,8 @@ export default function MarketplacePage() {
     next.delete("create");
     setSearchParams(next, { replace: true });
   }, [isBusiness, searchParams, setSearchParams, t]);
+
+  if (isLoading) return <CardGridSkeleton count={4} />;
 
   return (
     <div className="space-y-4 pb-20 md:pb-6">
