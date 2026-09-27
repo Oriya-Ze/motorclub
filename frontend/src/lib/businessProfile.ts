@@ -84,6 +84,15 @@ export function getBusinessProfilePath(_businessType?: string | null, userId?: s
   return `/services/${userId}`;
 }
 
+export function getUserProfilePath(user: {
+  id: string;
+  account_type?: string | null;
+  business_type?: string | null;
+}): string {
+  if (user.account_type === "business") return getBusinessProfilePath(user.business_type, user.id);
+  return `/profile/${user.id}`;
+}
+
 export function getBusinessListPath(_businessType?: string | null): string {
   return "/services";
 }

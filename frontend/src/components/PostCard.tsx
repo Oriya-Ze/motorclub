@@ -11,6 +11,7 @@ import PostShareSheet from "@/components/PostShareSheet";
 import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { api, Comment, Post } from "@/lib/api";
+import { getUserProfilePath } from "@/lib/businessProfile";
 import { postHasMedia, postMediaFromPost } from "@/lib/postMedia";
 import { cn, displayName, formatHandle, formatRelativeTime } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
@@ -46,6 +47,12 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
   const clickTimer = useRef<number | null>(null);
   const [fullScreenSignal, setFullScreenSignal] = useState(0);
+  const [heartBurst, setHeartBurst] = useState(0);
+  const [liked, setLiked] = useState(Boolean(post.is_liked));
+
+  useEffect(() => {
+    setLiked(Boolean(post.is_liked));
+  }, [post.is_liked]);
 
   const openFullScreen = () => setFullScreenSignal((value) => value + 1);
 
@@ -56,6 +63,8 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
     if (clickTimer.current) {
       window.clearTimeout(clickTimer.current);
       clickTimer.current = null;
+      setLiked(true);
+      setHeartBurst((value) => value + 1);
       if (!post.is_liked) likePost.mutate();
       return;
     }
@@ -171,12 +180,12 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
         aria-label={isFeed ? t("viewPost") : undefined}
       >
         <div className="flex items-center gap-3 px-4 py-3">
-          <Link to={`/profile/${post.author.id}`} onClick={stopClick}>
+          <Link to={getUserProfilePath(post.author)} onClick={stopClick}>
             <Avatar user={post.author} size="md" />
           </Link>
           <div className="flex-1 min-w-0">
             <Link
-              to={`/profile/${post.author.id}`}
+              to={getUserProfilePath(post.author)}
               onClick={stopClick}
               className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-1"
             >
@@ -237,6 +246,11 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
               <p className="whitespace-pre-wrap">{post.content}</p>
             </div>
           ) : null}
+          {heartBurst > 0 && (
+            <div key={heartBurst} className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center" aria-hidden>
+              <Heart className="like-burst h-24 w-24 fill-white text-white drop-shadow-[0_8px_24px_rgba(0,0,0,0.45)]" />
+            </div>
+          )}
         </div>
 
         {hasMedia && post.content && (
@@ -259,10 +273,10 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           <button
             type="button"
             onClick={() => likePost.mutate()}
-            className={cn("flex items-center gap-1.5 text-sm transition-colors", post.is_liked ? "text-primary" : "text-muted-foreground hover:text-primary")}
+            className={cn("flex items-center gap-1.5 text-sm transition-colors", (liked || post.is_liked) ? "text-primary" : "text-muted-foreground hover:text-primary")}
           >
-            <Heart className={cn("w-5 h-5", post.is_liked && "fill-current")} />
-            {post.likes_count}
+            <Heart className={cn("w-5 h-5", (liked || post.is_liked) && "fill-current")} />
+            {post.likes_count + (liked && !post.is_liked ? 1 : 0)}
           </button>
           <button
             type="button"

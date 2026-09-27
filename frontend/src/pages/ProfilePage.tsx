@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bookmark, Building2, Car, Mail, Plus, User as UserIcon } from "lucide-react";
+import { Bookmark, Car, Mail, Plus, User as UserIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
 import { toast } from "sonner";
 import AddVehicleForm from "@/components/AddVehicleForm";
@@ -92,6 +92,12 @@ export default function ProfilePage() {
   if (profileLoading && !profile) return <ProfileSkeleton />;
   if (profileError || !profile) return <div className="text-center py-12 text-muted-foreground">{t("profile.notFound")}</div>;
 
+  if (profile.account_type === "business") {
+    const requested = searchParams.get("tab");
+    const qs = requested === "garage" || requested === "saved" ? `?tab=${requested}` : "";
+    return <Navigate to={`${getBusinessProfilePath(profile.business_type, profile.id)}${qs}`} replace />;
+  }
+
   const accountTypeLabel = profile.account_type === "business" ? t("profile.businessAccount") : t("profile.personalAccount");
 
   const tabs: { id: Tab; label: string }[] = [
@@ -159,14 +165,6 @@ export default function ProfilePage() {
                       {t("sendMessage")}
                     </Button>
                   </>
-                )}
-                {profile.account_type === "business" && (
-                  <Link to={getBusinessProfilePath(profile.business_type, profile.id)}>
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <Building2 className="w-4 h-4" />
-                      {isOwnProfile ? t("profile.myBusiness") : t("profile.businessPage")}
-                    </Button>
-                  </Link>
                 )}
               </div>
             </div>

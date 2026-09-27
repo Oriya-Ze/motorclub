@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Vehicle, VehicleModItem } from "@/lib/api";
-import { getBusinessProfilePath } from "@/lib/businessProfile";
+import { getBusinessProfilePath, getUserProfilePath } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
 import { formatEngineLabel } from "@/lib/formatLabels";
 import { displayName, formatHandle } from "@/lib/utils";
@@ -179,7 +179,7 @@ export default function VehiclePage() {
   const catalog = catalogTitle(vehicle);
   const photoCount = vehicle.image_urls?.length ?? 0;
   const vehicleUrl = `${window.location.origin}/vehicles/${vehicle.id}`;
-  const ownerPath = owner ? `/profile/${owner.id}` : "/";
+  const ownerPath = owner ? getUserProfilePath(owner) : "/";
   const mods = vehicle.mod_items?.filter((item) => item.name) ?? [];
   const clubSince = new Date(vehicle.created_at).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", {
     month: "short",

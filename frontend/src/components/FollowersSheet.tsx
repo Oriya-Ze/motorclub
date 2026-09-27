@@ -6,6 +6,7 @@ import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { getUserProfilePath } from "@/lib/businessProfile";
 import { displayName, formatHandle } from "@/lib/utils";
 
 type FollowListKind = "followers" | "following";
@@ -49,7 +50,7 @@ export default function FollowersSheet({ open, kind, userId, onClose }: Follower
           ) : (
             data.map((u) => (
               <div key={u.id} className="flex items-center gap-3 px-1 py-2">
-                <Link to={`/profile/${u.id}`} onClick={onClose} className="flex items-center gap-3 min-w-0 flex-1">
+                <Link to={getUserProfilePath(u)} onClick={onClose} className="flex items-center gap-3 min-w-0 flex-1">
                   <Avatar user={u} size="sm" />
                   <span className="min-w-0">
                     <span className="block text-sm font-medium truncate">{displayName(u)}</span>

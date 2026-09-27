@@ -1,22 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
+  Bookmark,
+  Car,
   Check,
   Clock,
   MessageCircle,
   Phone,
+  Plus,
   Share2,
   Star,
-  User,
   Wrench,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import AddVehicleForm from "@/components/AddVehicleForm";
 import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
+import VehicleCard from "@/components/VehicleCard";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
@@ -25,7 +29,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, BusinessTaggedWork } from "@/lib/api";
+import { api, BusinessTaggedWork, Post, Vehicle } from "@/lib/api";
 import {
   DAY_KEYS,
   getBusinessListPath,
@@ -36,7 +40,7 @@ import {
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-type Tab = "posts" | "services" | "works" | "reviews";
+type Tab = "posts" | "services" | "works" | "reviews" | "garage" | "saved";
 
 function StarRating({ value, onChange, readonly }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
   return (
@@ -98,7 +102,9 @@ export default function BusinessProfilePage() {
   const { user: authUser } = useAuth();
   const messagesPanel = useMessagesPanelOptional();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>("posts");
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewText, setReviewText] = useState("");
   const [reviewFormReady, setReviewFormReady] = useState(false);
@@ -131,6 +137,28 @@ export default function BusinessProfilePage() {
     queryKey: ["user-posts", userId],
     queryFn: () => api.getPosts({ userId: userId! }),
     enabled: Boolean(userId) && tab === "posts",
+  });
+
+  const isOwn = Boolean(authUser && userId && authUser.id === userId);
+
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    if (requested === "garage" || requested === "posts" || requested === "services" || requested === "works" || requested === "reviews") {
+      setTab(requested);
+    }
+    if (requested === "saved" && isOwn) setTab("saved");
+  }, [searchParams, isOwn]);
+
+  const { data: garage = [], isLoading: garageLoading } = useQuery({
+    queryKey: ["garage", userId],
+    queryFn: () => (isOwn ? api.getMyGarage() : api.getUserGarage(userId!)),
+    enabled: Boolean(userId) && tab === "garage",
+  });
+
+  const { data: savedPosts = [], isLoading: savedLoading } = useQuery({
+    queryKey: ["saved-posts"],
+    queryFn: () => api.getSavedPosts(),
+    enabled: isOwn && tab === "saved",
   });
 
   const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
@@ -234,7 +262,6 @@ export default function BusinessProfilePage() {
     );
   }
 
-  const isOwn = authUser?.id === business.id;
   const listPath = getBusinessListPath(business.business_type);
   const reviewCount = business.review_count ?? reviews.length;
   const canReview = Boolean(authUser && !isOwn);
@@ -243,13 +270,20 @@ export default function BusinessProfilePage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "posts", label: t("workshops.posts") },
+    { id: "garage", label: isOwn ? t("garage.myGarage") : t("garage.tools") },
     { id: "services", label: t("businessProfile.services") },
     { id: "works", label: t("businessProfile.works") },
     { id: "reviews", label: t("businessProfile.reviews") },
+    ...(isOwn ? [{ id: "saved" as Tab, label: t("savedPosts") }] : []),
   ];
 
   const loading =
-    tab === "posts" ? postsLoading : tab === "services" ? servicesLoading : tab === "works" ? worksLoading : reviewsLoading;
+    tab === "posts" ? postsLoading
+    : tab === "services" ? servicesLoading
+    : tab === "works" ? worksLoading
+    : tab === "garage" ? garageLoading
+    : tab === "saved" ? savedLoading
+    : reviewsLoading;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-20 md:pb-8">
@@ -353,12 +387,6 @@ export default function BusinessProfilePage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Link to={`/profile/${business.id}`}>
-              <Button size="sm" variant="outline" className="gap-1.5">
-                <User className="w-4 h-4" />
-                {isOwn ? t("businessProfile.myMemberProfile") : t("businessProfile.memberProfile")}
-              </Button>
-            </Link>
             {!isOwn && authUser && (
               <>
                 <FollowButton userId={userId!} />
@@ -475,6 +503,39 @@ export default function BusinessProfilePage() {
           </div>
         ) : (
           <div className="space-y-4">{posts.map((post) => <PostCard key={post.id} post={post} />)}</div>
+        )
+      ) : tab === "garage" ? (
+        <div className="space-y-4">
+          {isOwn && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setShowAddVehicle((open) => !open)}>
+                <Plus className="w-4 h-4 me-1" />
+                {t("garage.add")}
+              </Button>
+            </div>
+          )}
+          {isOwn && showAddVehicle && (
+            <AddVehicleForm existingCount={garage.length} onCreated={() => setShowAddVehicle(false)} />
+          )}
+          {garage.length === 0 && !showAddVehicle ? (
+            <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60">
+              {isOwn ? t("garage.emptyDesc") : t("garage.empty")}
+            </div>
+          ) : garage.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {garage.map((vehicle: Vehicle) => (
+                <VehicleCard key={vehicle.id} vehicle={vehicle} showPrimary={isOwn} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : tab === "saved" && isOwn ? (
+        savedPosts.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60">
+            {t("profile.noPosts")}
+          </div>
+        ) : (
+          <div className="space-y-4">{savedPosts.map((post: Post) => <PostCard key={post.id} post={post} />)}</div>
         )
       ) : tab === "works" ? (
         works.length === 0 ? (

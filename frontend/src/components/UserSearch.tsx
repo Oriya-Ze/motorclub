@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import Avatar from "@/components/Avatar";
 import { api } from "@/lib/api";
+import { getUserProfilePath } from "@/lib/businessProfile";
 import { cn, formatHandle } from "@/lib/utils";
 
 interface UserSearchProps {
@@ -51,7 +52,7 @@ export default function UserSearch({ onUserSelect, excludeUserId, className }: U
       onUserSelect(userId);
       return;
     }
-    navigate(`/profile/${userId}`);
+    navigate(getUserProfilePath(results.find((user) => user.id === userId) ?? { id: userId }));
   };
 
   const showDropdown = open && debouncedQuery.length >= 1;

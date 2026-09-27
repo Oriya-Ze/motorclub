@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ConversationSummary, type User } from "@/lib/api";
+import { getUserProfilePath } from "@/lib/businessProfile";
 import { cn, displayName, formatHandle } from "@/lib/utils";
 
 function dayKeyFromDate(date: Date) {
@@ -234,7 +235,7 @@ function MessagesPanel({ conversationId, onClose, onConversationChange }: Messag
           <>
             <div className="p-4 border-b border-border/50 flex items-center gap-3 shrink-0">
               <Link
-                to={`/profile/${activeConversation!.other_user.id}`}
+                to={getUserProfilePath(activeConversation!.other_user)}
                 onClick={onClose}
                 className="flex items-center gap-3 hover:opacity-80 min-w-0"
               >
