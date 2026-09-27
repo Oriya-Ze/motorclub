@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
-import { MessageText, SharedPostPreview, firstPostUrl } from "@/components/MessageBody";
+import { MessageText, SharedPostPreview, firstPostUrl, messageWithoutShareChrome } from "@/components/MessageBody";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -253,22 +253,28 @@ function MessagesPanel({ conversationId, onClose, onConversationChange }: Messag
                 messages.map((msg, index) => {
                   const isMine = msg.sender_id === user?.id;
                   const showDay = index === 0 || dayKey(msg.created_at) !== dayKey(messages[index - 1].created_at);
-                  const previewHref = firstPostUrl(msg.content ?? "");
+                  const raw = msg.content ?? "";
+                  const previewHref = firstPostUrl(raw);
+                  const text = previewHref ? messageWithoutShareChrome(raw) : raw;
                   return (
                     <div key={msg.id} className="min-w-0">
                       {showDay && (
                         <p className="text-center text-xs text-muted-foreground py-2">{formatDayLabel(msg.created_at, i18n.language, t)}</p>
                       )}
                       <div className={cn("flex min-w-0", isMine ? "justify-end" : "justify-start")}>
-                        <div
-                          className={cn(
-                            "max-w-[85%] min-w-0 rounded-2xl px-4 py-2 text-sm overflow-hidden",
-                            isMine ? "bg-primary text-primary-foreground" : "bg-muted"
-                          )}
-                        >
-                          <MessageText content={msg.content ?? ""} mine={isMine} />
-                          {previewHref ? <SharedPostPreview href={previewHref} /> : null}
-                          <p className={cn("text-[10px] mt-1", isMine ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                        <div className="flex w-[min(100%,20rem)] max-w-full min-w-0 flex-col gap-1.5">
+                          {text ? (
+                            <div
+                              className={cn(
+                                "rounded-2xl px-4 py-2 text-sm overflow-hidden",
+                                isMine ? "bg-primary text-primary-foreground" : "bg-muted"
+                              )}
+                            >
+                              <MessageText content={text} mine={isMine} />
+                            </div>
+                          ) : null}
+                          {previewHref ? <SharedPostPreview href={previewHref} onOpen={onClose} /> : null}
+                          <p className={cn("text-[10px] mt-1 px-1", isMine ? "text-end text-muted-foreground" : "text-muted-foreground")}>
                             {formatTime(msg.created_at, i18n.language)}
                           </p>
                         </div>
