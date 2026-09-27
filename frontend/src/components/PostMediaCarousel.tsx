@@ -1,5 +1,5 @@
 import { Expand, Loader2, Volume2, VolumeX } from "lucide-react";
-import { useId, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import MediaLightbox, { type FullMediaItem } from "@/components/MediaLightbox";
 import { useFeedVideoAutoplay } from "@/hooks/useFeedVideoAutoplay";
@@ -12,6 +12,7 @@ interface PostMediaCarouselProps {
   /** feed = cropped cover + scroll autoplay; detail = full media within viewport */
   mode?: "feed" | "detail";
   className?: string;
+  openSignal?: number;
 }
 
 interface MediaSlideProps {
@@ -175,11 +176,16 @@ export default function PostMediaCarousel({
   items,
   mode = "feed",
   className,
+  openSignal = 0,
 }: PostMediaCarouselProps) {
   const { t } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const lightboxItems = useMemo(() => toLightboxItems(items), [items]);
+
+  useEffect(() => {
+    if (openSignal > 0) setLightbox(true);
+  }, [openSignal]);
   if (!items.length) return null;
 
   const isDetail = mode === "detail";

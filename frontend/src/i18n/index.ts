@@ -270,7 +270,7 @@ const resources = {
       videoInvalid: "לא הצלחנו לקרוא את הווידאו. נסה שוב.",
       location: "מיקום",
       explore: "גילוי",
-      create: "לכביש",
+      create: "פרסם",
       createPost: "יצירת פוסט",
       viewPost: "צפה בפוסט",
       mainNav: "ניווט ראשי",

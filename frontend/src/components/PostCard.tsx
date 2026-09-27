@@ -44,9 +44,31 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
   const stopClick = (e: MouseEvent) => e.stopPropagation();
 
-  const openPost = () => {
-    if (isFeed) navigate(postUrl);
+  const clickTimer = useRef<number | null>(null);
+  const [fullScreenSignal, setFullScreenSignal] = useState(0);
+
+  const openFullScreen = () => setFullScreenSignal((value) => value + 1);
+
+  const onPostClick = (e: MouseEvent) => {
+    if (!isFeed) return;
+    const target = e.target as HTMLElement;
+    if (target.closest("a, button, input, textarea")) return;
+    if (clickTimer.current) {
+      window.clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      if (!post.is_liked) likePost.mutate();
+      return;
+    }
+    clickTimer.current = window.setTimeout(() => {
+      clickTimer.current = null;
+      if (hasMedia) openFullScreen();
+      else navigate(postUrl);
+    }, 280);
   };
+
+  useEffect(() => () => {
+    if (clickTimer.current) window.clearTimeout(clickTimer.current);
+  }, []);
 
   useEffect(() => {
     if (!isDetail) return;
@@ -132,13 +154,14 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           "feed-post",
           isDetail ? "feed-post--detail" : "feed-post--feed feed-post--clickable",
         )}
-        onClick={isFeed ? openPost : undefined}
+        onClick={isFeed ? onPostClick : undefined}
         onKeyDown={
           isFeed
             ? (e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  openPost();
+                  if (hasMedia) openFullScreen();
+                  else navigate(postUrl);
                 }
               }
             : undefined
@@ -208,7 +231,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
         <div className={cn("relative", post.vehicle_id && hasMedia && "ring-2 ring-[#F5D033]/50 ring-inset")}>
           {hasMedia ? (
-            <PostMediaCarousel items={mediaItems} mode={isDetail ? "detail" : "feed"} />
+            <PostMediaCarousel items={mediaItems} mode={isDetail ? "detail" : "feed"} openSignal={fullScreenSignal} />
           ) : post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
               <p className="whitespace-pre-wrap">{post.content}</p>
