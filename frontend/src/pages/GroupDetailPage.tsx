@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import EmojiPicker, { insertEmoji } from "@/components/EmojiPicker";
 import { GroupMark } from "@/components/GroupCard";
 import ShareSheet from "@/components/ShareSheet";
 import { Button } from "@/components/ui/Button";
@@ -59,6 +60,7 @@ export default function GroupDetailPage() {
   const tabParam = searchParams.get("tab");
   const tab: Tab = tabParam === "members" || tabParam === "about" ? tabParam : "chat";
   const [message, setMessage] = useState("");
+  const messageInputRef = useRef<HTMLInputElement>(null);
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -385,11 +387,16 @@ export default function GroupDetailPage() {
             }}
           >
             <Input
+              ref={messageInputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={group.is_member ? t("typeMessage") : isPending ? t("groupJoinPending") : t("joinGroup")}
               className="h-10"
               disabled={!group.is_member}
+            />
+            <EmojiPicker
+              disabled={!group.is_member}
+              onPick={(emoji) => insertEmoji(messageInputRef.current, message, emoji, setMessage)}
             />
             <Button type="submit" size="icon" disabled={!group.is_member || !message.trim() || sendMessage.isPending}>
               <Send className="w-4 h-4" />

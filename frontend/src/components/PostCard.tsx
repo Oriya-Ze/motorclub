@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import EmojiPicker, { insertEmoji } from "@/components/EmojiPicker";
 import PostMediaCarousel from "@/components/PostMediaCarousel";
 import PostShareSheet from "@/components/PostShareSheet";
 import VehicleBadge from "@/components/VehicleBadge";
@@ -31,6 +32,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const isFeed = !isDetail;
   const [showComments, setShowComments] = useState(isDetail);
   const [comment, setComment] = useState("");
+  const commentInputRef = useRef<HTMLInputElement>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -277,7 +279,8 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
               ))
             )}
             <form onSubmit={submitComment} className="flex gap-2">
-              <Input value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("writeComment")} className="h-9 text-sm" />
+              <Input ref={commentInputRef} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t("writeComment")} className="h-9 text-sm" />
+              <EmojiPicker onPick={(emoji) => insertEmoji(commentInputRef.current, comment, emoji, setComment)} />
               <Button type="submit" size="sm" disabled={!comment.trim()}>{t("publish")}</Button>
             </form>
           </div>

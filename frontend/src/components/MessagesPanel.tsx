@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import EmojiPicker, { insertEmoji } from "@/components/EmojiPicker";
 import { MessageText, SharedPostPreview, firstPostUrl, messageWithoutShareChrome } from "@/components/MessageBody";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -140,6 +141,7 @@ function MessagesPanel({ conversationId, onClose, onConversationChange }: Messag
   const closeRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const [message, setMessage] = useState("");
+  const messageInputRef = useRef<HTMLInputElement>(null);
   const [recipientQuery, setRecipientQuery] = useState("");
 
   useEffect(() => {
@@ -294,11 +296,13 @@ function MessagesPanel({ conversationId, onClose, onConversationChange }: Messag
               }}
             >
               <Input
+                ref={messageInputRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={t("typeMessage")}
                 className="h-10"
               />
+              <EmojiPicker onPick={(emoji) => insertEmoji(messageInputRef.current, message, emoji, setMessage)} />
               <Button type="submit" size="icon" disabled={!message.trim() || sendMessage.isPending} aria-label={t("sendMessage")}>
                 <Send className="w-4 h-4" />
               </Button>
