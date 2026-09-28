@@ -9,7 +9,7 @@ from app.business_types import WORKSHOP_BUSINESS_TYPES
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import Event, EventParticipant, Product, User
-from app.schemas import EventCreate, EventResponse, ProductCreate, ProductResponse, ProductUpdate
+from app.schemas import EventCreate, EventResponse, ProductCreate, ProductPage, ProductResponse, ProductUpdate
 
 events_router = APIRouter(prefix="/events", tags=["events"])
 marketplace_router = APIRouter(prefix="/marketplace", tags=["marketplace"])
@@ -35,6 +35,100 @@ async def _business_public(db: AsyncSession, u: User) -> dict:
     return business_public_dict(u, rating_avg=rating_avg, review_count=review_count)
 
 
+MAX_PRODUCT_IMAGES = 8
+PRODUCT_CONDITIONS = frozenset({"new", "used", "refurbished"})
+
+
+def _clean(value: str | None, limit: int) -> str | None:
+    if value is None:
+        return None
+    text = value.strip()
+    return text[:limit] or None
+
+
+def _apply_product_fields(product: Product, body: ProductCreate | ProductUpdate) -> None:
+    data = body.model_dump(exclude_unset=True)
+    if "name" in data and data["name"] is not None:
+        product.name = data["name"].strip()
+    if "description" in data:
+        product.description = _clean(data["description"], 4000)
+    if "price" in data and data["price"] is not None:
+        product.price = data["price"]
+    if "category" in data and data["category"]:
+        product.category = data["category"]
+    if "image_urls" in data:
+        urls = [url for url in (data["image_urls"] or []) if url][:MAX_PRODUCT_IMAGES]
+        if len(data["image_urls"] or []) > MAX_PRODUCT_IMAGES:
+            raise HTTPException(status_code=400, detail=f"At most {MAX_PRODUCT_IMAGES} images")
+        product.image_urls = urls or None
+    if "condition" in data:
+        condition = data["condition"]
+        if condition and condition not in PRODUCT_CONDITIONS:
+            raise HTTPException(status_code=400, detail="Invalid product condition")
+        product.condition = condition or None
+    for field, limit in (
+        ("fit_make", 80),
+        ("fit_model", 80),
+        ("brand", 80),
+        ("sku", 80),
+        ("pickup_area", 120),
+    ):
+        if field in data:
+            setattr(product, field, _clean(data[field], limit))
+    if "fit_year_from" in data:
+        product.fit_year_from = data["fit_year_from"]
+    if "fit_year_to" in data:
+        product.fit_year_to = data["fit_year_to"]
+    if "ships" in data:
+        product.ships = data["ships"]
+
+
+async def _moderate_listing(db: AsyncSession, product: Product) -> None:
+    from app.models import MediaScan
+    from app.services.image_moderation import ScanDecision, combine, content_hash, scan_bytes
+
+    keys = [key for key in (product.image_urls or []) if key]
+    decisions = []
+    for key in keys:
+        if key.lower().endswith(".gif"):
+            decision = ScanDecision("rejected", [], None, error_message="animation_not_supported")
+        else:
+            payload = _read_media_bytes(key)
+            decision = scan_bytes(payload, content_type="image/jpeg" if payload else "")
+            if not payload and decision.decision == "approved":
+                decision = ScanDecision("error", [], None, error_message="image_unreadable")
+        decisions.append(decision)
+        db.add(
+            MediaScan(
+                storage_key=key,
+                content_hash=content_hash(_read_media_bytes(key)),
+                decision=decision.decision,
+                labels=decision.labels,
+                model_version=decision.model_version,
+                policy_version=decision.policy_version,
+                error_message=decision.error_message,
+            )
+        )
+    product.moderation_status = combine(decisions) if decisions else "pending"
+    product.listing_status = "published" if product.moderation_status == "approved" else "pending_review"
+
+
+def _read_media_bytes(key: str) -> bytes:
+    from app.config import settings
+
+    if settings.media_storage_provider != "s3" or not settings.s3_media_bucket:
+        return b"local-placeholder"
+    try:
+        import boto3
+
+        obj = boto3.client("s3", region_name=settings.aws_region).get_object(
+            Bucket=settings.s3_media_bucket, Key=key
+        )
+        return obj["Body"].read(5_000_000)
+    except Exception:
+        return b""
+
+
 async def _product_response(db: AsyncSession, product: Product) -> ProductResponse:
     seller = await db.get(User, product.business_id)
     return ProductResponse(
@@ -45,6 +139,17 @@ async def _product_response(db: AsyncSession, product: Product) -> ProductRespon
         price=product.price,
         category=product.category,
         image_urls=product.image_urls,
+        condition=product.condition,
+        fit_make=product.fit_make,
+        fit_model=product.fit_model,
+        fit_year_from=product.fit_year_from,
+        fit_year_to=product.fit_year_to,
+        brand=product.brand,
+        sku=product.sku,
+        pickup_area=product.pickup_area,
+        ships=product.ships,
+        listing_status=product.listing_status,
+        moderation_status=product.moderation_status,
         created_at=product.created_at,
         seller=user_to_public(seller) if seller and seller.is_active else None,
     )
@@ -211,26 +316,58 @@ async def delete_event(
     return {"deleted": True}
 
 
-@marketplace_router.get("", response_model=list[ProductResponse])
+@marketplace_router.get("", response_model=ProductPage)
 async def list_products(
     category: str | None = None,
     business_id: uuid.UUID | None = None,
+    q: str | None = None,
+    condition: str | None = None,
+    seller: str | None = None,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    sort: str = "newest",
+    skip: int = 0,
+    limit: int = 24,
     db: AsyncSession = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    query = (
-        select(Product)
-        .join(User, Product.business_id == User.id)
-        .where(User.is_active.is_(True))
-        .order_by(Product.created_at.desc())
-    )
+    filters = [User.is_active.is_(True), Product.listing_status == "published"]
     if category:
-        query = query.where(Product.category == category)
+        filters.append(Product.category == category)
     if business_id:
-        query = query.where(Product.business_id == business_id)
-    result = await db.execute(query)
+        filters.append(Product.business_id == business_id)
+    if condition:
+        filters.append(Product.condition == condition)
+    if seller == "business":
+        filters.append(User.account_type == "business")
+    elif seller == "personal":
+        filters.append(User.account_type != "business")
+    if min_price is not None:
+        filters.append(Product.price >= min_price)
+    if max_price is not None:
+        filters.append(Product.price <= max_price)
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        filters.append(
+            or_(
+                Product.name.ilike(term),
+                Product.description.ilike(term),
+                Product.brand.ilike(term),
+                Product.fit_make.ilike(term),
+                Product.fit_model.ilike(term),
+                Product.pickup_area.ilike(term),
+            )
+        )
+    base = select(Product).join(User, Product.business_id == User.id).where(*filters)
+    total = await db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    order = Product.created_at.desc()
+    if sort == "price_asc":
+        order = Product.price.asc()
+    elif sort == "price_desc":
+        order = Product.price.desc()
+    result = await db.execute(base.order_by(order).offset(max(skip, 0)).limit(min(max(limit, 1), 48)))
     products = result.scalars().all()
-    return [await _product_response(db, p) for p in products]
+    return ProductPage(items=[await _product_response(db, p) for p in products], total=int(total))
 
 
 @marketplace_router.get("/mine", response_model=list[ProductResponse])
@@ -244,6 +381,20 @@ async def list_my_products(
     return [await _product_response(db, p) for p in result.scalars().all()]
 
 
+@marketplace_router.get("/{product_id}", response_model=ProductResponse)
+async def get_product(
+    product_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    product = await db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if product.listing_status != "published" and product.business_id != user.id and not user.is_admin and not user.is_moderator:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return await _product_response(db, product)
+
+
 @marketplace_router.post("", response_model=ProductResponse)
 async def create_product(
     body: ProductCreate,
@@ -252,12 +403,18 @@ async def create_product(
 ):
     product = Product(
         business_id=user.id,
-        name=body.name,
+        name=body.name.strip(),
         description=body.description,
         price=body.price,
         category=body.category,
-        image_urls=body.image_urls,
+        listing_status="draft",
+        moderation_status="pending",
     )
+    _apply_product_fields(product, body)
+    if body.publish:
+        if not product.image_urls:
+            raise HTTPException(status_code=400, detail="At least one image is required")
+        await _moderate_listing(db, product)
     db.add(product)
     await db.commit()
     await db.refresh(product)
@@ -276,8 +433,17 @@ async def update_product(
         raise HTTPException(status_code=404, detail="Product not found")
     if product.business_id != user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(product, field, value)
+    was_published = product.listing_status == "published"
+    _apply_product_fields(product, body)
+    if body.publish:
+        if not product.image_urls:
+            raise HTTPException(status_code=400, detail="At least one image is required")
+        if was_published:
+            product.listing_status = "pending_review"
+        await _moderate_listing(db, product)
+    elif "image_urls" in body.model_dump(exclude_unset=True) and was_published:
+        product.listing_status = "pending_review"
+        product.moderation_status = "pending"
     await db.commit()
     await db.refresh(product)
     return await _product_response(db, product)
@@ -305,7 +471,11 @@ def _list_businesses_query(
     q: str | None,
     types: frozenset[str] | None = None,
 ):
-    query = select(User).where(User.account_type == "business", User.is_active.is_(True))
+    query = select(User).where(
+        User.account_type == "business",
+        User.is_active.is_(True),
+        User.business_hidden.is_(False),
+    )
     if types is not None:
         query = query.where(User.business_type.in_(types))
     if business_type:

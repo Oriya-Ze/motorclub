@@ -26,6 +26,7 @@ class MediaUploadRequestResponse(BaseModel):
 class UploadFileResponse(BaseModel):
     url: str
     type: Literal["image", "video"]
+    storage_key: str | None = None
 
 
 class UploadMultipleResponse(BaseModel):

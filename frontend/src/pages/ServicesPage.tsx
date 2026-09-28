@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { MapPin, Phone, Star, Wrench } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import Avatar from "@/components/Avatar";
 import EmptyState from "@/components/EmptyState";
 import ServicesSearchBar from "@/components/ServicesSearchBar";
@@ -12,10 +12,12 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { BusinessPublic, BUSINESS_CATEGORIES, getBusinessProfilePath } from "@/lib/businessProfile";
+import { withReturnTo } from "@/lib/returnTo";
 import { cn } from "@/lib/utils";
 
 export default function ServicesPage() {
   const { t } = useTranslation();
+  const location = useLocation();
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("");
 
@@ -109,7 +111,7 @@ function ServiceCard({ service }: { service: BusinessPublic }) {
 
   return (
     <Link
-      to={getBusinessProfilePath(service.business_type, service.id)}
+      to={withReturnTo(getBusinessProfilePath(service.business_type, service.id), `${location.pathname}${location.search}`)}
       className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
     >
       <Card className="h-full hover:shadow-glow transition-shadow">

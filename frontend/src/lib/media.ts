@@ -5,8 +5,13 @@ function isStorageKey(ref: string): boolean {
   return /^(users|processed)\//.test(ref);
 }
 
+export function isPrivateMediaKey(path: string | null | undefined): boolean {
+  return Boolean(path && path.includes("/private/"));
+}
+
 export function mediaUrl(path: string | null | undefined): string {
   if (!path) return "";
+  if (isPrivateMediaKey(path)) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   if (path.startsWith("/landing/")) return path;
   if (path.startsWith("/uploads/")) return `${API_BASE}${path}`;

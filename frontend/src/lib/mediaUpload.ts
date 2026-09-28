@@ -228,7 +228,9 @@ async function uploadLocalMultipart(
   const form = new FormData();
   form.append("file", file);
 
-  const url = uploadPath.startsWith("http") ? uploadPath : `${API_BASE}${uploadPath}`;
+  const url = uploadPath.startsWith("http")
+    ? uploadPath
+    : `${API_BASE.replace(/\/api\/v1\/?$/, "")}${uploadPath.startsWith("/") ? uploadPath : `/${uploadPath}`}`;
   const xhr = await new Promise<XMLHttpRequest>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", url);
@@ -247,8 +249,8 @@ async function uploadLocalMultipart(
     throw new MediaUploadError(await parseApiError(response), "multipart_failed");
   }
 
-  const body = JSON.parse(xhr.responseText) as { url: string; type: MediaType };
-  return { reference: body.url, mediaType: body.type };
+  const body = JSON.parse(xhr.responseText) as { url: string; type: MediaType; storage_key?: string | null };
+  return { reference: body.storage_key || body.url, mediaType: body.type };
 }
 
 async function uploadToPresignedUrl(
@@ -266,6 +268,21 @@ async function uploadToPresignedUrl(
   if (xhr.status < 200 || xhr.status >= 300) {
     throw new MediaUploadError("Upload failed", "s3_put_failed");
   }
+}
+
+async function finalizeImageUpload(
+  request: AuthenticatedRequest,
+  uploaded: UploadMediaResult,
+): Promise<UploadMediaResult> {
+  if (uploaded.mediaType !== "image" || !uploaded.reference.includes("/private/")) return uploaded;
+  const scanned = await request<{ decision: string; public_key?: string | null; storage_key: string }>("/media/scans", {
+    method: "POST",
+    body: JSON.stringify({ storage_key: uploaded.reference }),
+  });
+  return {
+    reference: scanned.public_key || scanned.storage_key,
+    mediaType: "image",
+  };
 }
 
 export async function uploadMedia(
@@ -292,7 +309,10 @@ export async function uploadMedia(
 
   if (instruction.upload_method === "multipart") {
     const uploadPath = instruction.upload_path || "/api/v1/uploads";
-    return uploadLocalMultipart(deps.getToken, uploadPath, normalizedFile, onProgress);
+    return finalizeImageUpload(
+      deps.request,
+      await uploadLocalMultipart(deps.getToken, uploadPath, normalizedFile, onProgress),
+    );
   }
 
   if (instruction.upload_method === "PUT") {
@@ -300,10 +320,10 @@ export async function uploadMedia(
       throw new MediaUploadError("Invalid upload instructions", "invalid_instruction");
     }
     await uploadToPresignedUrl(instruction.upload_url, normalizedFile, instruction.required_headers, onProgress);
-    return {
+    return finalizeImageUpload(deps.request, {
       reference: instruction.storage_key,
       mediaType: instruction.media_type,
-    };
+    });
   }
 
   throw new MediaUploadError("Unsupported upload method", "unsupported_method");

@@ -45,6 +45,9 @@ class User(Base):
     service_area: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_moderator: Mapped[bool] = mapped_column(Boolean, default=False)
+    suspended_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    business_hidden: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -128,6 +131,7 @@ class Post(Base):
         ForeignKey("vehicles.id", ondelete="SET NULL"), nullable=True, index=True
     )
     hashtags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -293,6 +297,18 @@ class Product(Base):
     price: Mapped[float] = mapped_column(Float)
     category: Mapped[str] = mapped_column(String(50), default="other")
     image_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    condition: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    fit_make: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    fit_model: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    fit_year_from: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fit_year_to: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    brand: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    sku: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    pickup_area: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    ships: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    pending_image_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    listing_status: Mapped[str] = mapped_column(String(20), default="published")
+    moderation_status: Mapped[str] = mapped_column(String(20), default="unscanned")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -466,6 +482,45 @@ class MediaAsset(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ContentReport(Base):
+    __tablename__ = "content_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reporter_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    target_type: Mapped[str] = mapped_column(String(20))
+    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    reason: Mapped[str] = mapped_column(String(40))
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="new")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ModerationAction(Base):
+    __tablename__ = "moderation_actions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    action: Mapped[str] = mapped_column(String(40))
+    target_type: Mapped[str] = mapped_column(String(20))
+    target_id: Mapped[str] = mapped_column(String(80))
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MediaScan(Base):
+    __tablename__ = "media_scans"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    storage_key: Mapped[str] = mapped_column(String(500), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    decision: Mapped[str] = mapped_column(String(20))
+    labels: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    policy_version: Mapped[str] = mapped_column(String(40))
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class RefreshToken(Base):

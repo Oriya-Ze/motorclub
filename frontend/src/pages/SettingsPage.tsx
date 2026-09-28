@@ -164,9 +164,9 @@ export default function SettingsPage() {
   const tabs = useMemo(() => {
     const list: SettingsTab[] = ["profile", "preferences", "account"];
     if (user?.account_type === "business") list.splice(2, 0, "business");
-    if (user?.is_admin) list.push("admin");
+    if (user?.is_admin || user?.is_moderator) list.push("admin");
     return list;
-  }, [user?.account_type, user?.is_admin]);
+  }, [user?.account_type, user?.is_admin, user?.is_moderator]);
 
   useEffect(() => {
     if (!tabs.includes(activeTab)) setActiveTab("profile");
@@ -441,7 +441,7 @@ export default function SettingsPage() {
               </Card>
             )}
 
-            {activeTab === "admin" && user?.is_admin && (
+            {activeTab === "admin" && (user?.is_admin || user?.is_moderator) && (
               <Card>
                 <CardContent className="pt-5 pb-5">
                   <div className="flex items-center gap-2 mb-3">
@@ -449,9 +449,14 @@ export default function SettingsPage() {
                     <h3 className="font-semibold">{t("adminBusiness.nav")}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">{t("adminBusiness.subtitle")}</p>
-                  <Link to="/admin/business-requests">
-                    <Button variant="outline" size="sm">{t("adminBusiness.title")}</Button>
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link to="/admin"><Button variant="outline" size="sm">{t("moderation.title")}</Button></Link>
+                    {user?.is_admin && (
+                      <Link to="/admin/business-requests">
+                        <Button variant="outline" size="sm">{t("adminBusiness.title")}</Button>
+                      </Link>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}

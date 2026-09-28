@@ -43,7 +43,7 @@ def _should_process(key: str) -> bool:
     parts = key.split("/")
     if len(parts) < 4:
         return False
-    if parts[2] in SKIP_SEGMENTS:
+    if "private" in parts or parts[2] in SKIP_SEGMENTS:
         return False
     allowed = VIDEO_SEGMENTS if kind == "video" else IMAGE_SEGMENTS
     return parts[2] in allowed

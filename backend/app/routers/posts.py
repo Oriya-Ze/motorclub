@@ -172,7 +172,7 @@ async def list_posts(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    query = select(Post).order_by(Post.created_at.desc())
+    query = select(Post).where(Post.hidden_at.is_(None)).order_by(Post.created_at.desc())
     if hashtag:
         query = query.where(Post.hashtags.contains([hashtag.lower()]))
     if user_id:

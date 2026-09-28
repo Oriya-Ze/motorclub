@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
+import ComposerMediaFrame from "@/components/ComposerMediaFrame";
 import MediaLightbox from "@/components/MediaLightbox";
 import PostImageAdjust from "@/components/PostImageAdjust";
-import PostMediaCarousel from "@/components/PostMediaCarousel";
 import VehicleBadge from "@/components/VehicleBadge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -24,7 +24,9 @@ import {
   inferMediaType,
   validateFileBeforeUpload,
 } from "@/lib/mediaUpload";
-import { pickStoredImageUrl, type PostMediaItem } from "@/lib/postMedia";
+import { imageViewKeys, videoPlayKeys } from "@/lib/mediaVariants";
+import { pickStoredImageUrl } from "@/lib/postMedia";
+import { deleteDraftOriginal, loadDraftOriginal, saveDraftOriginal } from "@/lib/postDraftFiles";
 import {
   clearPostDraft,
   loadPostDraft,
@@ -32,7 +34,7 @@ import {
   type DraftMedia,
   type PostStarter,
 } from "@/lib/postDraft";
-import { createVideoPreviewUrl, getVideoDuration, MAX_POST_VIDEO_DURATION_SEC } from "@/lib/videoPoster";
+import { getVideoDuration, MAX_POST_VIDEO_DURATION_SEC } from "@/lib/videoPoster";
 import { cn, displayName, formatHandle } from "@/lib/utils";
 
 interface CreatePostModalProps {
@@ -281,14 +283,30 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !hydrated || !user) return;
+    let cancelled = false;
+    const ids = media.filter((item) => item.kind === "image" && !item.file).map((item) => item.id);
+    if (!ids.length) return;
+    void Promise.all(ids.map(async (id) => ({ id, file: await loadDraftOriginal(user.id, id).catch(() => null) }))).then((rows) => {
+      if (cancelled) return;
+      setMedia((prev) => prev.map((item) => {
+        const file = rows.find((row) => row.id === item.id)?.file;
+        return file ? { ...item, file } : item;
+      }));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Load stored originals once, when the draft has been read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, hydrated, user?.id]);
+
   const ordered = useMemo(() => feedOrder(media), [media]);
   const hasVideo = ordered.some((item) => item.kind === "video");
   const hasImage = ordered.some((item) => item.kind === "image");
   const readyItems = ordered.filter((item) => item.status === "ready" && item.reference);
-  const previewMedia: PostMediaItem[] = [
-    ...readyItems.filter((item) => item.kind === "image").map((item) => ({ type: "image" as const, url: item.reference! })),
-    ...readyItems.filter((item) => item.kind === "video").map((item) => ({ type: "video" as const, url: item.reference! })),
-  ];
+  const previewItems = ordered.filter((item) => item.previewUrl || item.reference);
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === vehicleId);
   const filteredVehicles = vehicles.filter((vehicle) => {
     const query = toolQuery.trim().toLowerCase();
@@ -339,7 +357,10 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
 
   function discardAndClose() {
     sessionRef.current += 1;
-    for (const item of media) revokePreview(item.previewUrl);
+    for (const item of media) {
+      revokePreview(item.previewUrl);
+      if (user) void deleteDraftOriginal(user.id, item.id).catch(() => undefined);
+    }
     if (user) clearPostDraft(user.id);
     setContent("");
     setLocation("");
@@ -372,6 +393,18 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
         setMedia((prev) => prev.map((item) => item.id === id ? { ...item, status: "uploading", progress: percent } : item));
       });
       if (sessionRef.current !== session) return;
+      const currentItem = latestRef.current.media.find((item) => item.id === id);
+      const croppedPreview = !replaceOriginal ? URL.createObjectURL(file) : null;
+      if (croppedPreview) previewUrlsRef.current.push(croppedPreview);
+      if (croppedPreview && currentItem?.previewUrl) revokePreview(currentItem.previewUrl);
+      let localPreview = croppedPreview || currentItem?.previewUrl;
+      if (!localPreview) {
+        localPreview = URL.createObjectURL(file);
+        previewUrlsRef.current.push(localPreview);
+      }
+      if (replaceOriginal && result.mediaType === "image" && user) {
+        void saveDraftOriginal(user.id, id, file).catch(() => undefined);
+      }
       setMedia((prev) => prev.map((item) => {
         if (item.id !== id) return item;
         const original = replaceOriginal ? result.reference : (item.originalReference || result.reference);
@@ -383,7 +416,8 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
           reference: result.reference,
           originalReference: original,
           error: undefined,
-          file: replaceOriginal ? file : (item.file ?? file),
+          file: replaceOriginal ? file : item.file,
+          previewUrl: localPreview,
         };
       }));
     } catch (err) {
@@ -426,9 +460,10 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
         }
       }
       const previous = media.find((item) => item.id === replaceId);
-      if (previous?.previewUrl) revokePreview(previous.previewUrl);
-      const previewUrl = !error && kind === "video" ? createVideoPreviewUrl(file) : undefined;
+      if (!error && previous?.previewUrl) revokePreview(previous.previewUrl);
+      const previewUrl = !error ? URL.createObjectURL(file) : undefined;
       if (previewUrl) previewUrlsRef.current.push(previewUrl);
+      if (!error && kind === "image" && user) void saveDraftOriginal(user.id, replaceId, file).catch(() => undefined);
       setMedia((prev) => feedOrder(prev.map((item) => {
         if (item.id !== replaceId) return item;
         if (error && item.reference) {
@@ -466,8 +501,9 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
           kind = file.type.startsWith("video/") ? "video" : "image";
         }
       }
-      const previewUrl = !error && kind === "video" ? createVideoPreviewUrl(file) : undefined;
+      const previewUrl = !error ? URL.createObjectURL(file) : undefined;
       if (previewUrl) previewUrlsRef.current.push(previewUrl);
+      if (!error && kind === "image" && user) void saveDraftOriginal(user.id, id, file).catch(() => undefined);
       nextItems.push({
         id,
         kind,
@@ -486,6 +522,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
   function removeMedia(id: string) {
     const item = media.find((entry) => entry.id === id);
     revokePreview(item?.previewUrl);
+    if (user) void deleteDraftOriginal(user.id, id).catch(() => undefined);
     if (adjustId === id) {
       setAdjustId(null);
       setAdjustSrc(null);
@@ -493,16 +530,43 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
     setMedia((prev) => prev.filter((entry) => entry.id !== id));
   }
 
-  function openAdjust(item: ComposerMedia) {
+  async function openAdjust(item: ComposerMedia) {
     setCropBlocked(false);
-    if (item.file) {
-      const url = URL.createObjectURL(item.file);
+    let file = item.file ?? null;
+    if (!file && user) {
+      try {
+        file = await loadDraftOriginal(user.id, item.id);
+      } catch {
+        file = null;
+      }
+    }
+    if (!file) {
+      const source = item.originalReference || item.reference;
+      if (source) {
+        for (const key of imageViewKeys(source)) {
+          try {
+            const response = await fetch(mediaUrl(key));
+            if (!response.ok) continue;
+            const blob = await response.blob();
+            file = new File([blob], item.name || "photo", { type: blob.type || "image/jpeg" });
+            if (user) void saveDraftOriginal(user.id, item.id, file).catch(() => undefined);
+            break;
+          } catch {
+            file = null;
+          }
+        }
+      }
+    }
+    if (file) {
+      setMedia((prev) => prev.map((entry) => entry.id === item.id ? { ...entry, file } : entry));
+      const url = URL.createObjectURL(file);
       previewUrlsRef.current.push(url);
       setAdjustSrc(url);
-    } else if (item.originalReference || item.reference) {
-      setAdjustSrc(mediaUrl(item.originalReference || item.reference));
+      setAdjustId(item.id);
+      return;
     }
     setAdjustId(item.id);
+    setCropBlocked(true);
   }
 
   const createPost = useMutation({
@@ -520,7 +584,10 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
     onSuccess: (post) => {
       publishingRef.current = false;
       sessionRef.current += 1;
-      if (user) clearPostDraft(user.id);
+      if (user) {
+        clearPostDraft(user.id);
+        for (const item of media) void deleteDraftOriginal(user.id, item.id).catch(() => undefined);
+      }
       for (const item of media) revokePreview(item.previewUrl);
       setContent("");
       setLocation("");
@@ -639,7 +706,8 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
 
             <div
               className={cn(
-                "rounded-2xl border border-dashed px-4 py-5 text-center",
+                "rounded-2xl border border-dashed text-center",
+                ordered.length > 0 ? "px-3 py-2" : "px-4 py-5",
                 dragOver ? "border-primary bg-primary/5" : "border-border",
               )}
               onDragOver={(event) => {
@@ -653,21 +721,26 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                 if (event.dataTransfer.files?.length) addFiles(event.dataTransfer.files);
               }}
             >
-              <ImagePlus className="mx-auto mb-2 h-5 w-5 text-primary" aria-hidden />
               <button
                 type="button"
                 onClick={() => {
                   replaceIdRef.current = null;
                   fileInputRef.current?.click();
                 }}
-                className="text-sm font-medium"
+                className={cn(
+                  "inline-flex min-h-10 items-center justify-center gap-2 text-sm font-medium",
+                  ordered.length > 0 && "w-full",
+                )}
               >
-                {t("composer.drop")}
+                <ImagePlus className="h-4 w-4 text-primary" aria-hidden />
+                {ordered.length > 0 ? t("composer.addMedia") : t("composer.drop")}
               </button>
-              <p className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                <span className="block" dir="auto">{t("composer.limitsImages", { mb: Math.round(MAX_IMAGE_BYTES / (1024 * 1024)) })}</span>
-                <span className="block" dir="auto">{t("composer.limitsVideo", { mb: Math.round(MAX_VIDEO_BYTES / (1024 * 1024)), seconds: MAX_POST_VIDEO_DURATION_SEC })}</span>
-              </p>
+              {ordered.length === 0 && (
+                <p className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                  <span className="block" dir="auto">{t("composer.limitsImages", { mb: Math.round(MAX_IMAGE_BYTES / (1024 * 1024)) })}</span>
+                  <span className="block" dir="auto">{t("composer.limitsVideo", { mb: Math.round(MAX_VIDEO_BYTES / (1024 * 1024)), seconds: MAX_POST_VIDEO_DURATION_SEC })}</span>
+                </p>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -690,7 +763,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
             )}
 
             {ordered.length > 0 && (
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {ordered.map((item, index) => {
                   const leadId = (ordered.find((entry) => entry.kind === "image") ?? ordered[0])?.id;
                   const statusText = item.status === "uploading"
@@ -723,22 +796,25 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                           return feedOrder(next);
                         });
                       }}
-                      className="rounded-2xl border border-border bg-background p-3"
+                      className="rounded-2xl border border-border bg-background p-2"
                     >
-                      <div className="flex gap-3">
-                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-black">
-                          {item.kind === "image" && item.reference ? (
-                            <img src={mediaUrl(item.reference)} alt="" className="h-full w-full object-contain" />
-                          ) : item.kind === "video" && (item.previewUrl || item.reference) ? (
-                            <video
-                              src={item.previewUrl || mediaUrl(item.reference)}
-                              className="h-full w-full object-contain"
-                              muted
-                              playsInline
-                              preload="metadata"
+                      <div className="flex gap-2">
+                        <div className="relative h-14 w-14 shrink-0">
+                          {item.kind === "image" ? (
+                            <ComposerMediaFrame
+                              kind="image"
+                              sourceKey={item.reference}
+                              localUrl={item.previewUrl}
+                              className="h-14 w-14 rounded-lg"
                             />
                           ) : (
-                            <div className="flex h-full items-center justify-center text-[10px] text-white/70">{item.kind === "video" ? t("video") : t("image")}</div>
+                            <ComposerMediaFrame
+                              kind="video"
+                              sourceKey={item.reference}
+                              localUrl={item.previewUrl}
+                              muted
+                              className="h-14 w-14 rounded-lg"
+                            />
                           )}
                           <span className="absolute top-1 start-1 rounded-full bg-black/70 px-1.5 text-[10px] text-white">{index + 1}</span>
                         </div>
@@ -750,25 +826,25 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                           <p className="text-xs text-muted-foreground" role="status">{statusText}</p>
                           {item.error && <p className="text-xs text-destructive">{item.error}</p>}
                           <div className="flex flex-wrap gap-1 pt-1">
-                            <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px]" disabled={!earlier} onClick={() => setMedia((prev) => move(prev, item.id, -1))} aria-label={t("composer.moveEarlier")}>
+                            <button type="button" className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg border border-border px-2 text-xs" disabled={!earlier} onClick={() => setMedia((prev) => move(prev, item.id, -1))} aria-label={t("composer.moveEarlier")}>
                               <ChevronUp className="h-3.5 w-3.5" />
                             </button>
-                            <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px]" disabled={!later} onClick={() => setMedia((prev) => move(prev, item.id, 1))} aria-label={t("composer.moveLater")}>
+                            <button type="button" className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg border border-border px-2 text-xs" disabled={!later} onClick={() => setMedia((prev) => move(prev, item.id, 1))} aria-label={t("composer.moveLater")}>
                               <ChevronDown className="h-3.5 w-3.5" />
                             </button>
-                            {item.reference && (
-                              <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px]" onClick={() => { setZoomIndex(Math.max(0, previewMedia.findIndex((entry) => entry.url === item.reference))); setZoomOpen(true); }} aria-label={t("composer.enlarge")}>
+                            {(item.previewUrl || item.reference) && (
+                              <button type="button" className="inline-flex min-h-8 items-center rounded-lg border border-border px-2 text-xs" onClick={() => { setZoomIndex(Math.max(0, previewItems.findIndex((entry) => entry.id === item.id))); setZoomOpen(true); }}>
                                 {t("composer.enlarge")}
                               </button>
                             )}
-                            {item.kind === "image" && item.status === "ready" && (
-                              <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px]" onClick={() => openAdjust(item)} aria-label={t("composer.editCrop")}>
+                            {item.kind === "image" && (item.status === "ready" || item.file || item.originalReference) && (
+                              <button type="button" className="inline-flex min-h-8 items-center rounded-lg border border-border px-2 text-xs" onClick={() => void openAdjust(item)}>
                                 {t("composer.editCrop")}
                               </button>
                             )}
                             <button
                               type="button"
-                              className="rounded-lg border border-border px-2 py-1 text-[11px]"
+                              className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg border border-border px-2 text-xs"
                               onClick={() => {
                                 replaceIdRef.current = item.id;
                                 fileInputRef.current?.click();
@@ -778,28 +854,28 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                               <Replace className="h-3.5 w-3.5" />
                             </button>
                             {item.status === "failed" && item.file && (
-                              <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px]" onClick={() => enqueue(item.id, item.file!, true)}>
+                              <button type="button" className="inline-flex min-h-8 items-center rounded-lg border border-border px-2 text-xs" onClick={() => enqueue(item.id, item.file!, true)}>
                                 {t("composer.retry")}
                               </button>
                             )}
                             {item.status === "failed" && !item.file && (
-                              <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px]" onClick={() => { replaceIdRef.current = item.id; fileInputRef.current?.click(); }}>
+                              <button type="button" className="inline-flex min-h-8 items-center rounded-lg border border-border px-2 text-xs" onClick={() => { replaceIdRef.current = item.id; fileInputRef.current?.click(); }}>
                                 {t("composer.reselect")}
                               </button>
                             )}
-                            <button type="button" className="rounded-lg border border-border px-2 py-1 text-[11px] text-destructive" onClick={() => removeMedia(item.id)} aria-label={t("composer.remove")}>
+                            <button type="button" className="inline-flex min-h-8 items-center rounded-lg border border-border px-2 text-xs text-destructive" onClick={() => removeMedia(item.id)}>
                               {t("composer.remove")}
                             </button>
                           </div>
                         </div>
                       </div>
                       {item.kind === "video" && (item.previewUrl || item.reference) && (
-                        <video
-                          src={item.previewUrl || mediaUrl(item.reference)}
-                          className="mt-3 max-h-64 w-full rounded-xl bg-black object-contain"
+                        <ComposerMediaFrame
+                          kind="video"
+                          sourceKey={item.reference}
+                          localUrl={item.previewUrl}
                           controls
-                          playsInline
-                          preload="metadata"
+                          className="mt-2 h-36 w-full rounded-xl"
                         />
                       )}
                     </li>
@@ -819,9 +895,19 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                   setAdjustSrc(null);
                 }}
                 onReset={() => {
-                  setMedia((prev) => prev.map((item) => item.id === adjustItem.id && item.originalReference
-                    ? { ...item, reference: item.originalReference, error: undefined, status: "ready" }
-                    : item));
+                  setMedia((prev) => prev.map((item) => {
+                    if (item.id !== adjustItem.id || !item.originalReference) return item;
+                    const nextPreview = item.file ? URL.createObjectURL(item.file) : undefined;
+                    if (nextPreview) previewUrlsRef.current.push(nextPreview);
+                    if (item.previewUrl) revokePreview(item.previewUrl);
+                    return {
+                      ...item,
+                      reference: item.originalReference,
+                      previewUrl: nextPreview,
+                      error: undefined,
+                      status: "ready" as const,
+                    };
+                  }));
                   setAdjustId(null);
                   setAdjustSrc(null);
                 }}
@@ -931,8 +1017,8 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
               ) : (
                 <p className="px-3 pb-3 text-sm text-muted-foreground">{t("composer.previewEmpty")}</p>
               )}
-              {previewMedia.length > 0 && (
-                <PostMediaCarousel items={previewMedia} mode="feed" mediaClassName="max-h-72" />
+              {previewItems.length > 0 && (
+                <ComposerPreview items={previewItems} />
               )}
               <div className="space-y-2 px-3 py-3">
                 {location.trim() && (
@@ -980,9 +1066,10 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
       </div>
       <MediaLightbox
         open={zoomOpen}
-        items={previewMedia.map((item) => item.type === "video"
-          ? { kind: "video" as const, src: mediaUrl(item.url) }
-          : { kind: "image" as const, src: mediaUrl(item.url) })}
+        items={previewItems.map((item) => ({
+          kind: item.kind,
+          src: item.previewUrl || mediaUrl((item.kind === "video" ? videoPlayKeys(item.reference || "") : imageViewKeys(item.reference || ""))[0] || ""),
+        }))}
         index={zoomIndex}
         onClose={() => setZoomOpen(false)}
         onIndexChange={setZoomIndex}
@@ -990,6 +1077,32 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
     </div>
   );
   return createPortal(tree, document.body);
+}
+
+function ComposerPreview({ items }: { items: ComposerMedia[] }) {
+  const { t } = useTranslation();
+  const [index, setIndex] = useState(0);
+  const safe = Math.min(index, Math.max(0, items.length - 1));
+  const item = items[safe];
+  if (!item) return null;
+  return (
+    <div>
+      <ComposerMediaFrame
+        kind={item.kind}
+        sourceKey={item.reference}
+        localUrl={item.previewUrl}
+        controls={item.kind === "video"}
+        className="max-h-72 min-h-32 w-full"
+      />
+      {items.length > 1 && (
+        <div className="flex items-center justify-between px-2 py-1 text-xs text-muted-foreground">
+          <button type="button" className="min-h-8 px-2" disabled={safe === 0} onClick={() => setIndex(safe - 1)} aria-label={t("prevMedia")}>‹</button>
+          <span>{safe + 1} / {items.length}</span>
+          <button type="button" className="min-h-8 px-2" disabled={safe === items.length - 1} onClick={() => setIndex(safe + 1)} aria-label={t("nextMedia")}>›</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function move(items: ComposerMedia[], id: string, direction: -1 | 1): ComposerMedia[] {

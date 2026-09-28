@@ -10,6 +10,7 @@ import PostCard from "@/components/PostCard";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
 import FollowersSheet from "@/components/FollowersSheet";
+import ReportDialog from "@/components/ReportDialog";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import VehicleCard from "@/components/VehicleCard";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
@@ -42,6 +43,7 @@ export default function ProfilePage() {
 
   const profileUserId = userId ?? authUser?.id;
   const isOwnProfile = Boolean(authUser && profileUserId === authUser.id);
+  const [reporting, setReporting] = useState(false);
 
   const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ["user", profileUserId],
@@ -121,6 +123,9 @@ export default function ProfilePage() {
               <div>
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                   <h1 className="text-2xl font-display tracking-wide">{displayName(profile)}</h1>
+                  {!isOwnProfile && profileUserId && (
+                    <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setReporting(true)}>{t("reports.title")}</button>
+                  )}
                   {profile.is_verified && (
                     <span className="inline-flex items-center gap-1 text-primary text-sm">
                       <VerifiedBadge className="w-5 h-5" />
@@ -234,6 +239,7 @@ export default function ProfilePage() {
         posts.map((post: Post) => <PostCard key={post.id} post={post} />)
       )}
 
+      {reporting && profileUserId && <ReportDialog targetType="profile" targetId={profileUserId} onClose={() => setReporting(false)} />}
       {followList && (
         <FollowersSheet
           open

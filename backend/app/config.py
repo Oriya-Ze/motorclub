@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     cognito_domain: str = ""
     backend_cors_origins: str = ""
     upload_dir: str = "./uploads"
+    private_upload_dir: str = "./private_uploads"
     media_storage_provider: Literal["local", "s3"] = "local"
     media_base_url: str = ""
     s3_media_bucket: str = ""
@@ -50,6 +51,9 @@ class Settings(BaseSettings):
     resend_from_email: str = ""
     resend_from_name: str = "MotorClub"
     admin_emails: str = ""
+    rekognition_mode: str = ""
+    rekognition_mock_decision: str = "approved"
+    media_distribution_id: str = ""
     app_name: str = "MotorClub"
     app_url: str = ""
     signup_code_expire_minutes: int = 30

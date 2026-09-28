@@ -70,6 +70,7 @@ services:
       target: development
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+      VITE_MEDIA_BASE_URL: ${VITE_MEDIA_BASE_URL:-http://localhost:8000/uploads}
     volumes:
       - ./frontend:/app
       - /app/node_modules

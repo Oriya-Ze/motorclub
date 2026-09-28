@@ -39,7 +39,12 @@ class S3MediaStorage(MediaStorage):
             original_filename=original_filename,
         )
         normalized_type = content_type.split(";", 1)[0].strip().lower()
-        storage_key = generate_storage_key(user_id=user_id, purpose=purpose, extension=extension)
+        storage_key = generate_storage_key(
+            user_id=user_id,
+            purpose=purpose,
+            extension=extension,
+            private=media_type == "image",
+        )
 
         expires_in = app_config.settings.s3_presigned_url_expiry_seconds
         if media_type == "video":
@@ -75,6 +80,8 @@ class S3MediaStorage(MediaStorage):
             if app_config.settings.media_base_url:
                 return f"{app_config.settings.media_base_url.rstrip('/')}{storage_key_or_legacy_path}"
             return storage_key_or_legacy_path
+        if "/private/" in storage_key_or_legacy_path:
+            raise ValueError("Private media is not served from the public CDN")
         if not app_config.settings.media_base_url:
             raise ValueError("MEDIA_BASE_URL is required to resolve S3 storage keys")
         return f"{app_config.settings.media_base_url.rstrip('/')}/{storage_key_or_legacy_path.lstrip('/')}"

@@ -55,16 +55,30 @@ async def get_optional_user_model(
 
 
 async def get_user_model(user: AuthUser = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> User:
+    from datetime import UTC, datetime
+
     result = await db.execute(select(User).where(User.id == user.id))
     db_user = result.scalar_one_or_none()
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
+    if db_user.suspended_until and db_user.suspended_until > datetime.now(UTC):
+        raise HTTPException(status_code=403, detail="Account suspended")
     return db_user
 
 
 async def require_admin(user: User = Depends(get_user_model)) -> User:
     if not is_platform_admin(user):
         raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def is_staff(user: User) -> bool:
+    return is_platform_admin(user) or bool(user.is_moderator)
+
+
+async def require_staff(user: User = Depends(get_user_model)) -> User:
+    if not is_staff(user):
+        raise HTTPException(status_code=403, detail="Moderator access required")
     return user
 
 

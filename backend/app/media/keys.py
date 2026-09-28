@@ -11,7 +11,8 @@ from app.media.validation import VALID_PURPOSES
 VIDEO_SUFFIXES = (".mp4", ".mov", ".webm")
 
 STORAGE_KEY_PATTERN = re.compile(
-    r"^users/(?P<user_id>[0-9a-f-]{36})/(?P<purpose>posts|stories|vehicles|avatar|products)/"
+    r"^users/(?P<user_id>[0-9a-f-]{36})/(?:private/)?"
+    r"(?P<purpose>posts|stories|vehicles|avatar|products)/"
     r"(?P<media_id>[0-9a-f-]{36})\.[a-z0-9]+$"
 )
 
@@ -24,12 +25,21 @@ PURPOSE_TO_SEGMENT: dict[MediaPurpose, str] = {
 }
 
 
-def generate_storage_key(*, user_id: UUID, purpose: MediaPurpose, extension: str) -> str:
+def is_private_storage_key(storage_key: str) -> bool:
+    return "/private/" in storage_key
+
+
+def public_storage_key(storage_key: str) -> str:
+    return storage_key.replace("/private/", "/", 1)
+
+
+def generate_storage_key(*, user_id: UUID, purpose: MediaPurpose, extension: str, private: bool = False) -> str:
     if purpose not in VALID_PURPOSES:
         raise HTTPException(status_code=400, detail=f"Unsupported purpose: {purpose}")
     ext = extension if extension.startswith(".") else f".{extension}"
     segment = PURPOSE_TO_SEGMENT[purpose]
-    return f"users/{user_id}/{segment}/{uuid.uuid4()}{ext}"
+    quarantine = "private/" if private else ""
+    return f"users/{user_id}/{quarantine}{segment}/{uuid.uuid4()}{ext}"
 
 
 def assert_key_owned_by_user(storage_key: str, user_id: UUID) -> None:

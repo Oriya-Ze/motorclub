@@ -27,6 +27,7 @@ export interface User {
   cover_image_url?: string | null;
   is_verified: boolean;
   is_admin?: boolean;
+  is_moderator?: boolean;
   profile_public?: boolean;
 }
 
@@ -127,8 +128,24 @@ export interface Product {
   price: number;
   category: string;
   image_urls?: string[] | null;
+  condition?: string | null;
+  fit_make?: string | null;
+  fit_model?: string | null;
+  fit_year_from?: number | null;
+  fit_year_to?: number | null;
+  brand?: string | null;
+  sku?: string | null;
+  pickup_area?: string | null;
+  ships?: boolean | null;
+  listing_status?: string;
+  moderation_status?: string;
   created_at: string;
   seller?: User | null;
+}
+
+export interface ProductPage {
+  items: Product[];
+  total: number;
 }
 
 export interface Comment {
@@ -918,25 +935,42 @@ class ApiClient {
     }>("/events", { method: "POST", body: JSON.stringify(data) });
   }
 
-  getProducts(opts?: { category?: string; businessId?: string }) {
+  getProducts(opts?: {
+    category?: string;
+    businessId?: string;
+    q?: string;
+    condition?: string;
+    seller?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+    skip?: number;
+    limit?: number;
+  }) {
     const params = new URLSearchParams();
     if (opts?.category) params.set("category", opts.category);
     if (opts?.businessId) params.set("business_id", opts.businessId);
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.condition) params.set("condition", opts.condition);
+    if (opts?.seller) params.set("seller", opts.seller);
+    if (opts?.minPrice != null) params.set("min_price", String(opts.minPrice));
+    if (opts?.maxPrice != null) params.set("max_price", String(opts.maxPrice));
+    if (opts?.sort) params.set("sort", opts.sort);
+    if (opts?.skip != null) params.set("skip", String(opts.skip));
+    if (opts?.limit != null) params.set("limit", String(opts.limit));
     const q = params.toString() ? `?${params}` : "";
-    return this.request<Product[]>(`/marketplace${q}`);
+    return this.request<ProductPage>(`/marketplace${q}`);
+  }
+
+  getProduct(productId: string) {
+    return this.request<Product>(`/marketplace/${productId}`);
   }
 
   getMyProducts() {
     return this.request<Product[]>("/marketplace/mine");
   }
 
-  createProduct(data: {
-    name: string;
-    description?: string;
-    price: number;
-    category: string;
-    image_urls?: string[];
-  }) {
+  createProduct(data: Record<string, unknown>) {
     return this.request<Product>("/marketplace", {
       method: "POST",
       body: JSON.stringify(data),
@@ -947,16 +981,73 @@ class ApiClient {
     return this.request<{ deleted: boolean }>(`/marketplace/${productId}`, { method: "DELETE" });
   }
 
-  updateProduct(
-    productId: string,
-    data: {
-      name?: string;
-      description?: string;
-      price?: number;
-      category?: string;
-      image_urls?: string[];
-    }
-  ) {
+  mediaAccessUrl(key: string) {
+    return this.request<{ url: string }>(`/media/access-url?key=${encodeURIComponent(key)}`);
+  }
+
+  createReport(data: { target_type: string; target_id: string; reason: string; details?: string }) {
+    return this.request<{ id: string; status: string; duplicate: boolean }>("/reports", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getModerationOverview() {
+    return this.request<{ period_days: number; open_reports: number; pending_products: number; scan_errors: number; new_reports: number }>("/admin/overview");
+  }
+
+  getReports(opts?: { status?: string; q?: string; skip?: number }) {
+    const params = new URLSearchParams();
+    if (opts?.status) params.set("status", opts.status);
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.skip != null) params.set("skip", String(opts.skip));
+    const q = params.toString() ? `?${params}` : "";
+    return this.request<{ items: Array<Record<string, unknown>>; total: number }>(`/admin/reports${q}`);
+  }
+
+  updateReport(reportId: string, data: { status: string; reason?: string }) {
+    return this.request<{ id: string; status: string }>(`/admin/reports/${reportId}`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  getMediaScans(decision = "needs_review") {
+    return this.request<Array<{ id: string; storage_key: string; decision: string; labels: Array<{ name: string; confidence: number }>; error_message?: string | null }>>(`/admin/media-scans?decision=${decision}`);
+  }
+
+  reviewMediaScan(scanId: string, decision: "approved" | "rejected", reason: string) {
+    return this.request(`/admin/media-scans/${scanId}`, { method: "POST", body: JSON.stringify({ decision, reason }) });
+  }
+
+  retryMediaScans() {
+    return this.request<{ updated: number }>("/admin/media-scans-retry", { method: "POST" });
+  }
+
+  searchModerationUsers(q: string) {
+    return this.request<Array<{ id: string; username: string; full_name: string; account_type: string; suspended_until?: string | null; business_hidden: boolean }>>(`/admin/users?q=${encodeURIComponent(q)}`);
+  }
+
+  setUserSuspension(userId: string, days: number | null, reason: string) {
+    return this.request(`/admin/users/${userId}/suspension`, { method: "POST", body: JSON.stringify({ days, reason }) });
+  }
+
+  setPostVisibility(postId: string, hidden: boolean, reason: string) {
+    return this.request(`/admin/posts/${postId}/visibility`, { method: "POST", body: JSON.stringify({ hidden, reason }) });
+  }
+
+  setBusinessVisibility(userId: string, hidden: boolean, reason: string) {
+    return this.request(`/admin/businesses/${userId}/visibility`, { method: "POST", body: JSON.stringify({ hidden, reason }) });
+  }
+
+  setProductVisibility(productId: string, hidden: boolean, reason: string) {
+    return this.request<{ id: string; listing_status: string }>(`/admin/products/${productId}/visibility`, {
+      method: "POST",
+      body: JSON.stringify({ hidden, reason }),
+    });
+  }
+
+  updateProduct(productId: string, data: Record<string, unknown>) {
     return this.request<Product>(`/marketplace/${productId}`, {
       method: "PATCH",
       body: JSON.stringify(data),

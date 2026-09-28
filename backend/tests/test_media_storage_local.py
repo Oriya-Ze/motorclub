@@ -19,8 +19,9 @@ async def test_local_create_upload_request_returns_multipart() -> None:
         original_filename="photo.jpg",
     )
     assert request.upload_method == "multipart"
-    assert request.upload_path == "/api/v1/uploads"
-    assert request.storage_key is None
+    assert request.storage_key is not None
+    assert "/private/" in request.storage_key
+    assert request.upload_path.startswith("/api/v1/uploads?storage_key=")
     assert request.media_type == "image"
 
 

@@ -17,6 +17,7 @@ import GaragePage from "@/pages/GaragePage";
 import GroupDetailPage from "@/pages/GroupDetailPage";
 import GroupsPage from "@/pages/GroupsPage";
 import { LegalPage } from "@/pages/LegalPage";
+import AdminModerationPage from "@/pages/AdminModerationPage";
 import MarketplacePage from "@/pages/MarketplacePage";
 import MessagesRedirect from "@/pages/MessagesRedirect";
 import NotificationsPage from "@/pages/NotificationsPage";
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/:userId" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="admin" element={<AdminModerationPage />} />
             <Route path="admin/business-requests" element={<AdminBusinessRequestsPage />} />
           </Route>
         </Route>

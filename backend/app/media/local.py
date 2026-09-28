@@ -1,10 +1,13 @@
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 from uuid import UUID
 
 import app.config as app_config
+
 from app.media.base import MediaPurpose, MediaStorage, MediaType, UploadRequest
+from app.media.keys import generate_storage_key
 from app.media.validation import (
     media_type_from_content_type,
     validate_actual_size,
@@ -29,17 +32,27 @@ class LocalMediaStorage(MediaStorage):
         size_bytes: int,
         original_filename: str | None,
     ) -> UploadRequest:
-        media_type, _extension = validate_upload_metadata(
+        media_type, extension = validate_upload_metadata(
             content_type=content_type,
             size_bytes=size_bytes,
             original_filename=original_filename,
         )
+        private = media_type == "image"
+        storage_key = generate_storage_key(
+            user_id=user_id,
+            purpose=purpose,
+            extension=extension,
+            private=private,
+        )
+        upload_path = "/api/v1/uploads"
+        if private:
+            upload_path = f"/api/v1/uploads?storage_key={quote(storage_key)}"
         return UploadRequest(
             media_type=media_type,
             purpose=purpose,
             upload_method="multipart",
-            upload_path="/api/v1/uploads",
-            storage_key=None,
+            upload_path=upload_path,
+            storage_key=storage_key,
         )
 
     def save_multipart_file(
@@ -77,6 +90,8 @@ class LocalMediaStorage(MediaStorage):
             return storage_key_or_legacy_path
         if storage_key_or_legacy_path.startswith("/uploads/"):
             return self._local_public_url(storage_key_or_legacy_path)
+        if "/private/" in storage_key_or_legacy_path:
+            raise ValueError("Private media is not served from the public upload directory")
         if storage_key_or_legacy_path.startswith("images/") or storage_key_or_legacy_path.startswith("videos/"):
             return self._local_public_url(f"/uploads/{storage_key_or_legacy_path}")
         if app_config.settings.media_base_url:

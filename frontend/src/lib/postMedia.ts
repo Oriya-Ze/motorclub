@@ -34,10 +34,16 @@ export function pickVideoPlaybackUrl(
 const SOURCE_KEY_RE =
   /^users\/([0-9a-f-]{36})\/(?:posts|stories|vehicles|avatar|products)\/([0-9a-f-]{36})\.[a-z0-9]+$/i;
 
-export function derivedImageVariantKey(sourceKey: string, variant: "thumb" | "display"): string | null {
+export function sourceMediaIds(sourceKey: string): { userId: string; mediaId: string } | null {
   const match = sourceKey.match(SOURCE_KEY_RE);
   if (!match) return null;
-  return `users/${match[1]}/images/${match[2]}/${variant}.webp`;
+  return { userId: match[1], mediaId: match[2] };
+}
+
+export function derivedImageVariantKey(sourceKey: string, variant: "thumb" | "display"): string | null {
+  const ids = sourceMediaIds(sourceKey);
+  if (!ids) return null;
+  return `users/${ids.userId}/images/${ids.mediaId}/${variant}.webp`;
 }
 
 export function pickImageUrl(

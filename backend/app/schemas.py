@@ -26,6 +26,7 @@ class UserPublic(BaseModel):
     service_area: dict | None = None
     is_verified: bool = False
     is_admin: bool = False
+    is_moderator: bool = False
     profile_public: bool = True
 
     model_config = {"from_attributes": True}
@@ -308,6 +309,16 @@ class ProductCreate(BaseModel):
     price: float = Field(gt=0)
     category: str = "other"
     image_urls: list[str] | None = None
+    condition: str | None = None
+    fit_make: str | None = None
+    fit_model: str | None = None
+    fit_year_from: int | None = None
+    fit_year_to: int | None = None
+    brand: str | None = None
+    sku: str | None = None
+    pickup_area: str | None = None
+    ships: bool | None = None
+    publish: bool = False
 
 
 class ProductUpdate(BaseModel):
@@ -316,6 +327,16 @@ class ProductUpdate(BaseModel):
     price: float | None = Field(default=None, gt=0)
     category: str | None = None
     image_urls: list[str] | None = None
+    condition: str | None = None
+    fit_make: str | None = None
+    fit_model: str | None = None
+    fit_year_from: int | None = None
+    fit_year_to: int | None = None
+    brand: str | None = None
+    sku: str | None = None
+    pickup_area: str | None = None
+    ships: bool | None = None
+    publish: bool = False
 
 
 class ProductResponse(BaseModel):
@@ -326,10 +347,26 @@ class ProductResponse(BaseModel):
     price: float
     category: str
     image_urls: list[str] | None
+    condition: str | None = None
+    fit_make: str | None = None
+    fit_model: str | None = None
+    fit_year_from: int | None = None
+    fit_year_to: int | None = None
+    brand: str | None = None
+    sku: str | None = None
+    pickup_area: str | None = None
+    ships: bool | None = None
+    listing_status: str = "published"
+    moderation_status: str = "unscanned"
     created_at: datetime
     seller: UserPublic | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ProductPage(BaseModel):
+    items: list[ProductResponse]
+    total: int
 
 
 class ProfileUpdate(BaseModel):

@@ -32,7 +32,11 @@ async def test_upload_request_unauthenticated(unauthenticated_client: AsyncClien
 
 
 @pytest.mark.asyncio
-async def test_upload_request_local_multipart(client: AsyncClient) -> None:
+async def test_upload_request_local_multipart(client: AsyncClient, monkeypatch) -> None:
+    async def noop(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr("app.routers.media.ensure_uploaded_video_asset", noop)
     response = await client.post(
         "/api/v1/media/upload-requests",
         json={
@@ -45,10 +49,10 @@ async def test_upload_request_local_multipart(client: AsyncClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["upload_method"] == "multipart"
-    assert body["upload_path"] == "/api/v1/uploads"
+    assert body["upload_path"].startswith("/api/v1/uploads?storage_key=")
     assert body["media_type"] == "image"
     assert body["purpose"] == "post"
-    assert body["storage_key"] is None
+    assert "/private/" in body["storage_key"]
 
 
 @pytest.mark.asyncio

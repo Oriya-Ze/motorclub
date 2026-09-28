@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { Mail, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import ReportDialog from "@/components/ReportDialog";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useMessagesPanelOptional } from "@/components/MessagesPanel";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
 import { getUserProfilePath } from "@/lib/businessProfile";
+import { withReturnTo } from "@/lib/returnTo";
 import { mediaUrl } from "@/lib/media";
 import { formatHandle } from "@/lib/utils";
 
@@ -30,6 +32,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
   const [photoOpen, setPhotoOpen] = useState(false);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const photos = product.image_urls ?? [];
   const isOwner = user?.id === product.business_id;
 
@@ -83,13 +86,18 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
 
           <p className="text-3xl font-display tracking-wide text-primary">₪{product.price.toLocaleString()}</p>
 
+          {(product.condition || product.pickup_area || product.fit_make) && (
+            <p className="text-sm text-muted-foreground">
+              {[product.condition && t(`productEditor.condition.${product.condition}`), product.fit_make, product.fit_model, product.pickup_area].filter(Boolean).join(" · ")}
+            </p>
+          )}
           {product.description && (
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{product.description}</p>
           )}
 
           {product.seller && (
             <Link
-              to={getUserProfilePath(product.seller)}
+              to={withReturnTo(getUserProfilePath(product.seller), `/marketplace?product=${product.id}`)}
               className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
               onClick={onClose}
             >
@@ -120,6 +128,8 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
               </Button>
             </div>
           ) : (
+            <>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setReporting(true)}>{t("reports.title")}</Button>
             <Button
               className="w-full gap-2"
               onClick={() => contactSeller.mutate()}
@@ -128,7 +138,9 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
               <Mail className="w-4 h-4" />
               {t("contactSeller")}
             </Button>
+            </>
           )}
+      {reporting && <ReportDialog targetType="product" targetId={product.id} onClose={() => setReporting(false)} />}
         </div>
       </div>
     </div>

@@ -37,6 +37,8 @@ import {
   mapsUrl,
   whatsappUrl,
 } from "@/lib/businessProfile";
+import { safeReturnTo } from "@/lib/returnTo";
+import ReportDialog from "@/components/ReportDialog";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
@@ -106,6 +108,7 @@ export default function BusinessProfilePage() {
   const [tab, setTab] = useState<Tab>("posts");
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
+  const [reporting, setReporting] = useState(false);
   const [reviewText, setReviewText] = useState("");
   const [reviewFormReady, setReviewFormReady] = useState(false);
 
@@ -262,7 +265,8 @@ export default function BusinessProfilePage() {
     );
   }
 
-  const listPath = getBusinessListPath(business.business_type);
+  const listPath = safeReturnTo(searchParams.get("from")) || getBusinessListPath(business.business_type);
+  const backLabel = searchParams.get("from") ? t("productEditor.back") : t("productEditor.backToBusinesses");
   const reviewCount = business.review_count ?? reviews.length;
   const canReview = Boolean(authUser && !isOwn);
 
@@ -292,8 +296,14 @@ export default function BusinessProfilePage() {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-        {t("businessProfile.backToList")}
+        {backLabel}
       </Link>
+      {!isOwn && (
+        <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setReporting(true)}>
+          {t("reports.title")}
+        </button>
+      )}
+      {reporting && userId && <ReportDialog targetType="profile" targetId={userId} onClose={() => setReporting(false)} />}
 
       <Card className="overflow-hidden shadow-glow border-border/60">
         {/* Cover */}

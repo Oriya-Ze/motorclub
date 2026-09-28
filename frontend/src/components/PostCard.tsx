@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Heart, MapPin, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import EmojiPicker, { insertEmoji } from "@/components/EmojiPicker";
@@ -10,8 +10,10 @@ import PostMediaCarousel from "@/components/PostMediaCarousel";
 import PostShareSheet from "@/components/PostShareSheet";
 import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
+import ReportDialog from "@/components/ReportDialog";
 import { api, Comment, Post } from "@/lib/api";
 import { getUserProfilePath } from "@/lib/businessProfile";
+import { withReturnTo } from "@/lib/returnTo";
 import { postHasMedia, postMediaFromPost } from "@/lib/postMedia";
 import { cn, displayName, formatHandle, formatRelativeTime } from "@/lib/utils";
 import { Input } from "@/components/ui/Input";
@@ -28,6 +30,8 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const authorPath = withReturnTo(getUserProfilePath(post.author), `${location.pathname}${location.search}`);
   const queryClient = useQueryClient();
   const isDetail = variant === "detail";
   const isFeed = !isDetail;
@@ -38,6 +42,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const [loadingComments, setLoadingComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isAuthor = user?.id === post.user_id;
@@ -180,12 +185,12 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
         aria-label={isFeed ? t("viewPost") : undefined}
       >
         <div className="flex items-center gap-3 px-4 py-3">
-          <Link to={getUserProfilePath(post.author)} onClick={stopClick}>
+          <Link to={authorPath} onClick={stopClick}>
             <Avatar user={post.author} size="md" />
           </Link>
           <div className="flex-1 min-w-0">
             <Link
-              to={getUserProfilePath(post.author)}
+              to={authorPath}
               onClick={stopClick}
               className="font-semibold hover:text-primary transition-colors inline-flex items-center gap-1"
             >
@@ -209,6 +214,11 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
               </span>
             )}
           </div>
+          {!isAuthor && (
+            <button type="button" className="p-2 text-xs text-muted-foreground" onClick={(event) => { stopClick(event); setReporting(true); }}>
+              {t("reports.title")}
+            </button>
+          )}
           {isAuthor && (
             <div className="relative" ref={menuRef} onClick={stopClick}>
               <button
@@ -325,6 +335,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
       </article>
 
       <PostShareSheet post={post} open={showShare} onClose={() => setShowShare(false)} />
+      {reporting && <ReportDialog targetType="post" targetId={post.id} onClose={() => setReporting(false)} />}
     </>
   );
 }

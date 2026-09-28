@@ -3,16 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import BusinessListingBadge from "@/components/BusinessListingBadge";
+import ProductCard from "@/components/ProductCard";
 import CreateProductModal from "@/components/CreateProductModal";
 import EmptyState from "@/components/EmptyState";
 import PageHeading from "@/components/PageHeading";
 import ProductDetailModal from "@/components/ProductDetailModal";
-import { Card, CardContent } from "@/components/ui/Card";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { api, Product } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = ["vehicles", "spareParts", "accessories", "other"] as const;
@@ -25,10 +23,23 @@ export default function MarketplacePage() {
   const [showCreate, setShowCreate] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", category],
-    queryFn: () => api.getProducts({ category: category || undefined }),
+  const [queryText, setQueryText] = useState("");
+  const [sort, setSort] = useState("newest");
+  const [condition, setCondition] = useState("");
+  const [seller, setSeller] = useState("");
+  const page = useQuery({
+    queryKey: ["product-page", category, queryText, sort, condition, seller],
+    queryFn: () => api.getProducts({
+      category: category || undefined,
+      q: queryText || undefined,
+      sort,
+      condition: condition || undefined,
+      seller: seller || undefined,
+      limit: 24,
+    }),
   });
+  const products = page.data?.items ?? [];
+  const isLoading = page.isLoading;
 
   useEffect(() => {
     if (searchParams.get("create") !== "1") return;
@@ -43,11 +54,41 @@ export default function MarketplacePage() {
   return (
     <div className="space-y-4 pb-20 md:pb-6">
       <div className="flex items-center justify-between gap-3">
-        <PageHeading>{t("marketplace")}</PageHeading>
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          {t("businessSettings.addProduct")}
-        </Button>
+        <div>
+          <PageHeading>{t("productEditor.shopTitle")}</PageHeading>
+          <p className="text-sm text-muted-foreground">{t("productEditor.shopBody")}</p>
+        </div>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            {t("productEditor.publish")}
+          </Button>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={queryText}
+          onChange={(event) => setQueryText(event.target.value)}
+          placeholder={t("productEditor.search")}
+          aria-label={t("productEditor.search")}
+          className="h-10 min-w-48 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
+        />
+        <select value={condition} onChange={(event) => setCondition(event.target.value)} aria-label={t("productEditor.conditionLabel")} className="h-10 rounded-xl border border-border bg-background px-2 text-sm">
+          <option value="">{t("productEditor.conditionLabel")}</option>
+          <option value="new">{t("productEditor.condition.new")}</option>
+          <option value="used">{t("productEditor.condition.used")}</option>
+          <option value="refurbished">{t("productEditor.condition.refurbished")}</option>
+        </select>
+        <select value={seller} onChange={(event) => setSeller(event.target.value)} aria-label={t("productEditor.sellerType")} className="h-10 rounded-xl border border-border bg-background px-2 text-sm">
+          <option value="">{t("productEditor.sellerType")}</option>
+          <option value="business">{t("productEditor.sellerBusiness")}</option>
+          <option value="personal">{t("productEditor.sellerPersonal")}</option>
+        </select>
+        <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label={t("productEditor.sort")} className="h-10 rounded-xl border border-border bg-background px-2 text-sm">
+          <option value="newest">{t("productEditor.sortNewest")}</option>
+          <option value="price_asc">{t("productEditor.sortPriceAsc")}</option>
+          <option value="price_desc">{t("productEditor.sortPriceDesc")}</option>
+        </select>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("productEditor.resultCount", { count: page.data?.total ?? 0 })}</p>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         <button
@@ -81,7 +122,7 @@ export default function MarketplacePage() {
           action={<Link to="/explore"><Button variant="outline" size="sm">{t("explore")}</Button></Link>}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {products.map((product) => (
             <button
               key={product.id}
@@ -89,33 +130,7 @@ export default function MarketplacePage() {
               onClick={() => setSelected(product)}
               className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
-              <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
-                {product.image_urls?.[0] && (
-                  <div className="relative">
-                    <img src={mediaUrl(product.image_urls[0])} alt={product.name} className="w-full h-40 object-cover" />
-                    {product.seller?.account_type === "business" && (
-                      <BusinessListingBadge className="absolute top-2 start-2" />
-                    )}
-                  </div>
-                )}
-                <CardContent className="pt-6">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
-                      {t(`categories.${product.category as typeof CATEGORIES[number]}`, {
-                        defaultValue: product.category,
-                      })}
-                    </span>
-                    {product.seller?.account_type === "business" && !product.image_urls?.[0] && (
-                      <BusinessListingBadge />
-                    )}
-                  </div>
-                  <h3 className="font-semibold mt-3">{product.name}</h3>
-                  {product.description && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{product.description}</p>
-                  )}
-                  <p className="text-primary font-display text-xl tracking-wide mt-3">₪{product.price.toLocaleString()}</p>
-                </CardContent>
-              </Card>
+              <ProductCard product={product} />
             </button>
           ))}
         </div>
@@ -126,6 +141,7 @@ export default function MarketplacePage() {
           product={selected}
           onClose={() => setSelected(null)}
           onChanged={() => {
+            void queryClient.invalidateQueries({ queryKey: ["product-page"] });
             void queryClient.invalidateQueries({ queryKey: ["products"] });
             void queryClient.invalidateQueries({ queryKey: ["my-products"] });
           }}
@@ -136,6 +152,7 @@ export default function MarketplacePage() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={() => {
+          void queryClient.invalidateQueries({ queryKey: ["product-page"] });
           void queryClient.invalidateQueries({ queryKey: ["products"] });
           void queryClient.invalidateQueries({ queryKey: ["my-products"] });
         }}
