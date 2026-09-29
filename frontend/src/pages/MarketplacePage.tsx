@@ -49,7 +49,9 @@ export default function MarketplacePage() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  if (isLoading) return <CardGridSkeleton count={4} />;
+  if (isLoading) {
+    return <CardGridSkeleton count={8} className="grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" />;
+  }
 
   return (
     <div className="space-y-4 pb-20 md:pb-6">
@@ -122,15 +124,15 @@ export default function MarketplacePage() {
           action={<Link to="/explore"><Button variant="outline" size="sm">{t("explore")}</Button></Link>}
         />
       ) : (
-        <div className="mx-auto grid max-w-6xl gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {products.map((product) => (
             <button
               key={product.id}
               type="button"
               onClick={() => setSelected(product)}
-              className="text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              className="h-full min-w-0 text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
-              <ProductCard product={product} />
+              <ProductCard product={product} className="h-full" />
             </button>
           ))}
         </div>

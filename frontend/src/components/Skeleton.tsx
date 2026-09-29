@@ -54,9 +54,9 @@ export function ListPageSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-export function CardGridSkeleton({ count = 4 }: { count?: number }) {
+export function CardGridSkeleton({ count = 4, className }: { count?: number; className?: string }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className={cn("grid gap-3 sm:grid-cols-2", className)}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="glass-card rounded-2xl overflow-hidden">
           <Skeleton className="w-full h-32 rounded-none" />
