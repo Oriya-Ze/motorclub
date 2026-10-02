@@ -19,6 +19,7 @@ from app.schemas import (
     SettingsUpdate,
     UserPublic,
 )
+from app.services.business_upgrade import get_latest_request, submit_business_upgrade_request
 from app.services.visibility import can_view_profile_content
 
 FOLLOW_ACCEPTED = "accepted"
@@ -173,10 +174,12 @@ async def update_settings(
 async def get_user_posts(
     user_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _=Depends(get_current_user),
+    viewer=Depends(get_current_user),
 ):
+    from app.services.post_moderation import publicly_visible
+
     result = await db.execute(
-        select(Post).where(Post.user_id == user_id).order_by(Post.created_at.desc())
+        select(Post).where(Post.user_id == user_id, publicly_visible(viewer.id)).order_by(Post.created_at.desc())
     )
     return [{"id": str(p.id), "content": p.content, "created_at": p.created_at.isoformat()} for p in result.scalars()]
 

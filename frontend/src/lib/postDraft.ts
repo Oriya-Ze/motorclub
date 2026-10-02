@@ -14,12 +14,26 @@ export interface DraftMedia {
   error?: string;
 }
 
+export interface DraftModerationBlock {
+  storage_key: string;
+  decision: string;
+  reason_code?: string | null;
+}
+
+export interface DraftModeration {
+  postId: string;
+  status: "rejected" | "needs_review" | "error";
+  blocks: DraftModerationBlock[];
+  imageKeys: string[];
+}
+
 export interface PostDraft {
   content: string;
   location: string;
   vehicleId: string;
   starter: PostStarter;
   media: DraftMedia[];
+  moderation?: DraftModeration | null;
   savedAt: number;
 }
 
@@ -39,6 +53,7 @@ export function loadPostDraft(userId: string): PostDraft | null {
       vehicleId: typeof parsed.vehicleId === "string" ? parsed.vehicleId : "",
       starter: parsed.starter === "update" || parsed.starter === "mod" || parsed.starter === "service" || parsed.starter === "question" ? parsed.starter : "",
       media: parsed.media.filter((item) => item && typeof item.id === "string" && (item.kind === "image" || item.kind === "video")),
+      moderation: parsed.moderation && typeof parsed.moderation.postId === "string" ? parsed.moderation : null,
       savedAt: typeof parsed.savedAt === "number" ? parsed.savedAt : Date.now(),
     };
   } catch {

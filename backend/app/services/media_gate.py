@@ -36,7 +36,7 @@ def read_media_bytes(storage_key: str) -> bytes:
             Bucket=app_config.settings.s3_media_bucket,
             Key=storage_key,
         )
-        return obj["Body"].read(5_000_000)
+        return obj["Body"].read(app_config.settings.max_image_upload_bytes)
     path = _private_path(storage_key) if is_private_storage_key(storage_key) else _public_path(storage_key)
     if not path.is_file():
         raise HTTPException(status_code=404, detail="Media object not found")

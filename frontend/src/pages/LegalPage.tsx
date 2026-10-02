@@ -49,7 +49,7 @@ export function LegalPage({ type }: { type: "privacy" | "terms" }) {
           <p className="text-muted-foreground leading-relaxed">{doc.intro}</p>
 
           {doc.sections.map((section) => (
-            <section key={section.title} className="space-y-2">
+            <section key={section.title} id={section.id} className="space-y-2">
               <h2 className="text-lg font-semibold">{section.title}</h2>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="text-muted-foreground leading-relaxed text-sm">

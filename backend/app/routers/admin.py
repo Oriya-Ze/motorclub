@@ -303,6 +303,7 @@ async def retry_stuck_scans(
 ):
     from app.services.image_moderation import content_hash, scan_bytes
     from app.services.media_gate import promote_private_image, read_media_bytes
+    from app.services.post_moderation import purpose_of
 
     rows = (
         await db.execute(select(MediaScan).where(MediaScan.decision.in_(["error", "pending"])).limit(20))
@@ -316,9 +317,20 @@ async def retry_stuck_scans(
         decision = scan_bytes(data)
         scan.decision = decision.decision
         scan.labels = decision.labels
+        scan.model_version = decision.model_version
+        scan.aws_request_id = decision.aws_request_id
         scan.error_message = decision.error_message
         scan.content_hash = content_hash(data)
-        if decision.decision == "approved":
+        products = (
+            await db.execute(select(Product).where(Product.image_urls.contains([scan.storage_key])))
+        ).scalars().all()
+        if products:
+            from app.routers.events_marketplace import _moderate_listing
+
+            for product in products:
+                await _moderate_listing(db, product)
+        elif decision.decision == "approved" and purpose_of(scan.storage_key) != "posts":
+            # A post image only goes public when the whole post is published.
             promote_private_image(scan.storage_key)
         updated += 1
     db.add(
@@ -401,8 +413,26 @@ async def set_post_visibility(
     reason = str(body.get("reason") or "").strip()
     if not reason:
         raise HTTPException(status_code=400, detail="A reason is required")
+    from app.services.media_gate import restore_public_image, takedown_public_image
+
     hidden = bool(body.get("hidden"))
     post.hidden_at = datetime.now(UTC) if hidden else None
+    if hidden:
+        post.moderation_status = "removed"
+        post.moderation_blocks = [
+            {"storage_key": key, "decision": "rejected", "reason_code": "removed_by_moderator"}
+            for key in (post.image_urls or [])
+            if key
+        ]
+        for key in post.image_urls or []:
+            if key and not str(key).lower().endswith((".mp4", ".mov", ".webm")):
+                takedown_public_image(key)
+    else:
+        post.moderation_status = "published"
+        post.moderation_blocks = None
+        for key in post.image_urls or []:
+            if key and not str(key).lower().endswith((".mp4", ".mov", ".webm")):
+                restore_public_image(key)
     db.add(
         ModerationAction(
             actor_id=staff.id,
@@ -442,3 +472,98 @@ async def set_business_visibility(
     )
     await db.commit()
     return {"id": str(target.id), "business_hidden": hidden}
+
+
+@router.get("/appeals")
+async def list_appeals(
+    db: AsyncSession = Depends(get_db),
+    _staff: User = Depends(require_staff),
+):
+    from app.models import ModerationAppeal
+
+    rows = (
+        await db.execute(
+            select(ModerationAppeal).where(ModerationAppeal.status == "open").order_by(ModerationAppeal.created_at.desc()).limit(50)
+        )
+    ).scalars().all()
+    return [
+        {
+            "id": str(row.id),
+            "post_id": str(row.post_id),
+            "media_version": row.media_version,
+            "note": row.note,
+            "status": row.status,
+            "snapshot": [
+                {"storage_key": item.get("storage_key"), "decision": item.get("decision"), "reason_code": item.get("reason_code")}
+                for item in (row.snapshot or [])
+            ],
+            "created_at": row.created_at.isoformat(),
+        }
+        for row in rows
+    ]
+
+
+@router.post("/appeals/{appeal_id}")
+async def review_appeal(
+    appeal_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    staff: User = Depends(require_staff),
+):
+    from datetime import UTC, datetime
+
+    from app.models import ModerationAppeal
+    from app.routers.social import create_notification
+    from app.services.post_moderation import moderate_images
+
+    appeal = await db.get(ModerationAppeal, appeal_id)
+    if not appeal or appeal.status != "open":
+        raise HTTPException(status_code=404, detail="Appeal not found")
+    decision = str(body.get("decision") or "")
+    reason = str(body.get("reason") or "").strip()
+    if decision not in {"approved", "denied"} or not reason:
+        raise HTTPException(status_code=400, detail="Decision and reason are required")
+    post = await db.get(Post, appeal.post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if decision == "denied":
+        appeal.status = "denied"
+        notice = "הבדיקה הנוספת הסתיימה. הפוסט נשאר לא מפורסם."
+    elif post.media_version != appeal.media_version or not post.publish_requested:
+        appeal.status = "stale"
+        notice = "הבדיקה התייחסה לגרסה קודמת של הפוסט ולא שינתה את הגרסה הנוכחית."
+    else:
+        appeal.status = "approved"
+        outcome = await moderate_images(db, post.image_urls, post_id=post.id)
+        post.image_urls = outcome.image_urls or None
+        post.moderation_status = outcome.status
+        post.media_version = outcome.media_version
+        post.moderation_blocks = outcome.blocks or None
+        post.hidden_at = None if outcome.status == "published" else post.hidden_at or datetime.now(UTC)
+        if outcome.status == "published":
+            from app.routers.posts import notify_first_publication
+
+            author = await db.get(User, post.user_id)
+            if author:
+                await notify_first_publication(db, post, author)
+        notice = "הפוסט אושר ופורסם." if outcome.status == "published" else "הבדיקה הסתיימה והפוסט עדיין לא פורסם."
+    db.add(
+        ModerationAction(
+            actor_id=staff.id,
+            action=f"appeal_{appeal.status}",
+            target_type="post",
+            target_id=str(post.id),
+            reason=reason,
+        )
+    )
+    await create_notification(
+        db,
+        post.user_id,
+        staff.id,
+        "moderation",
+        "עדכון מבדיקת הפוסט",
+        body=notice,
+        link=f"/posts/{post.id}" if post.hidden_at is None else "/profile",
+    )
+    await db.commit()
+    return {"id": str(appeal.id), "status": appeal.status, "moderation_status": post.moderation_status}

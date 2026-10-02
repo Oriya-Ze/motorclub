@@ -1,7 +1,8 @@
 import re
 import uuid
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +17,21 @@ from app.schemas import CommentCreate, CommentResponse, PostCreate, PostResponse
 router = APIRouter(prefix="/posts", tags=["posts"])
 
 HASHTAG_RE = re.compile(r"#(\w+)")
+
+
+def _unavailable_if_hidden(post: Post, viewer_id: uuid.UUID) -> None:
+    if post.hidden_at is not None and post.user_id != viewer_id:
+        raise HTTPException(status_code=404, detail="content_unavailable")
+
+
+def _owner_moderation(post: Post, viewer_id: uuid.UUID | None) -> dict:
+    if viewer_id != post.user_id:
+        return {}
+    return {
+        "moderation_status": post.moderation_status,
+        "media_version": post.media_version,
+        "moderation_blocks": post.moderation_blocks,
+    }
 
 
 def _extract_hashtags(content: str | None) -> list[str]:
@@ -109,6 +125,7 @@ async def _batch_post_responses(
                 comments_count=comments_map.get(post.id, 0),
                 is_liked=post.id in liked_ids,
                 is_saved=post.id in saved_ids,
+                **_owner_moderation(post, current_user_id),
             )
         )
     return responses
@@ -159,6 +176,7 @@ async def _post_to_response(db: AsyncSession, post: Post, current_user_id: uuid.
         comments_count=comments_count or 0,
         is_liked=is_liked,
         is_saved=is_saved,
+        **_owner_moderation(post, current_user_id),
     )
 
 
@@ -172,7 +190,12 @@ async def list_posts(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    query = select(Post).where(Post.hidden_at.is_(None)).order_by(Post.created_at.desc())
+    own_profile = user_id is not None and user_id == current_user.id
+    from app.services.post_moderation import publicly_visible
+
+    query = select(Post).order_by(Post.created_at.desc())
+    if not own_profile:
+        query = query.where(publicly_visible())
     if hashtag:
         query = query.where(Post.hashtags.contains([hashtag.lower()]))
     if user_id:
@@ -186,10 +209,12 @@ async def list_posts(
 
 @router.get("/saved", response_model=list[PostResponse])
 async def saved_posts(db: AsyncSession = Depends(get_db), user: User = Depends(get_user_model)):
+    from app.services.post_moderation import publicly_visible
+
     result = await db.execute(
         select(Post)
         .join(SavedPost, SavedPost.post_id == Post.id)
-        .where(SavedPost.user_id == user.id)
+        .where(SavedPost.user_id == user.id, publicly_visible())
         .order_by(SavedPost.created_at.desc())
     )
     posts = result.scalars().all()
@@ -205,52 +230,145 @@ async def get_post(
     post = await db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    if post.hidden_at is not None and post.user_id != current_user.id:
+        viewer = await db.get(User, current_user.id)
+        from app.deps import is_staff
+
+        if not viewer or not is_staff(viewer):
+            raise HTTPException(status_code=404, detail="content_unavailable")
     return await _post_to_response(db, post, current_user.id)
+
+
+async def _apply_publication(db: AsyncSession, post: Post, body: PostCreate, user: User, request: Request) -> None:
+    from app.config import settings
+    from app.services.post_moderation import mock_decisions_from_header, moderate_images
+
+    mode = settings.rekognition_mode.strip().lower() or ("mock" if settings.is_local else "off")
+    outcome = await moderate_images(
+        db,
+        body.image_urls,
+        post_id=post.id,
+        mock_decisions=mock_decisions_from_header(request.headers, is_local=settings.is_local, mode=mode),
+    )
+    tags = body.hashtags or _extract_hashtags(body.content)
+    post.content = body.content
+    post.image_urls = outcome.image_urls or None
+    post.video_urls = body.video_urls
+    post.location = body.location
+    post.vehicle_id = body.vehicle_id
+    post.hashtags = tags if tags else None
+    post.moderation_status = outcome.status
+    post.media_version = outcome.media_version
+    post.moderation_blocks = outcome.blocks or None
+    post.publish_requested = True
+    post.hidden_at = None if outcome.status == "published" else datetime.now(UTC)
+    if outcome.status == "published":
+        await notify_first_publication(db, post, user)
+
+
+async def notify_first_publication(db: AsyncSession, post: Post, author: User) -> None:
+    """Tell vehicle followers about a post once, the first time it actually goes public."""
+    if post.first_published_at is not None:
+        return
+    post.first_published_at = datetime.now(UTC)
+    if not post.vehicle_id:
+        return
+    vehicle = await db.get(Vehicle, post.vehicle_id)
+    follower_ids = (
+        await db.execute(
+            select(VehicleFollower.user_id)
+            .where(VehicleFollower.vehicle_id == post.vehicle_id, VehicleFollower.user_id != author.id)
+            .limit(50)
+        )
+    ).scalars().all()
+    label = (vehicle.nickname if vehicle else None) or (
+        f"{vehicle.make} {vehicle.model}" if vehicle else "a vehicle"
+    )
+    for follower_id in follower_ids:
+        await create_notification(
+            db,
+            follower_id,
+            author.id,
+            "vehicle_post",
+            f"{author.full_name} posted about {label}",
+            body=author.full_name,
+            link=f"/posts/{post.id}",
+        )
 
 
 @router.post("", response_model=PostResponse)
 async def create_post(
     body: PostCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    tags = body.hashtags or _extract_hashtags(body.content)
-    post = Post(
-        user_id=user.id,
-        content=body.content,
-        image_urls=body.image_urls,
-        video_urls=body.video_urls,
-        location=body.location,
-        vehicle_id=body.vehicle_id,
-        hashtags=tags if tags else None,
-    )
+    post = Post(user_id=user.id, moderation_status="pending_review", publish_requested=True)
     db.add(post)
     await db.flush()
-    if post.vehicle_id:
-        vehicle = await db.get(Vehicle, post.vehicle_id)
-        follower_ids = (
-            await db.execute(
-                select(VehicleFollower.user_id)
-                .where(VehicleFollower.vehicle_id == post.vehicle_id, VehicleFollower.user_id != user.id)
-                .limit(50)
-            )
-        ).scalars().all()
-        label = (vehicle.nickname if vehicle else None) or (
-            f"{vehicle.make} {vehicle.model}" if vehicle else "a vehicle"
-        )
-        for follower_id in follower_ids:
-            await create_notification(
-                db,
-                follower_id,
-                user.id,
-                "vehicle_post",
-                f"{user.full_name} posted about {label}",
-                body=user.full_name,
-                link=f"/posts/{post.id}",
-            )
+    await _apply_publication(db, post, body, user, request)
     await db.commit()
     await db.refresh(post)
     return await _post_to_response(db, post, user.id)
+
+
+@router.put("/{post_id}/publication", response_model=PostResponse)
+async def republish_post(
+    post_id: uuid.UUID,
+    body: PostCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    post = await db.get(Post, post_id)
+    if not post or post.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.moderation_status == "removed":
+        raise HTTPException(status_code=403, detail="removed_by_moderator")
+    await _apply_publication(db, post, body, user, request)
+    await db.commit()
+    await db.refresh(post)
+    return await _post_to_response(db, post, user.id)
+
+
+@router.post("/{post_id}/appeal")
+async def appeal_post(
+    post_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    from app.models import ModerationAppeal
+
+    post = await db.get(Post, post_id)
+    if not post or post.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.moderation_status == "removed":
+        raise HTTPException(status_code=403, detail="removed_by_moderator")
+    if post.moderation_status != "rejected" or not post.media_version:
+        raise HTTPException(status_code=400, detail="This post is not waiting for a review request")
+    existing = await db.scalar(
+        select(ModerationAppeal).where(
+            ModerationAppeal.post_id == post.id,
+            ModerationAppeal.media_version == post.media_version,
+            ModerationAppeal.status == "open",
+        )
+    )
+    if existing:
+        return {"id": str(existing.id), "status": existing.status, "duplicate": True}
+    note = str(body.get("note") or "").strip() or None
+    appeal = ModerationAppeal(
+        user_id=user.id,
+        post_id=post.id,
+        media_version=post.media_version,
+        snapshot=post.moderation_blocks,
+        note=note,
+        status="open",
+    )
+    db.add(appeal)
+    await db.commit()
+    await db.refresh(appeal)
+    return {"id": str(appeal.id), "status": appeal.status, "duplicate": False}
 
 
 @router.post("/{post_id}/like")
@@ -262,6 +380,7 @@ async def toggle_like(
     post = await db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    _unavailable_if_hidden(post, user.id)
 
     existing = await db.scalar(
         select(PostLike).where(PostLike.post_id == post_id, PostLike.user_id == user.id)
@@ -289,6 +408,7 @@ async def toggle_save(
     post = await db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    _unavailable_if_hidden(post, user.id)
 
     existing = await db.scalar(
         select(SavedPost).where(SavedPost.post_id == post_id, SavedPost.user_id == user.id)
@@ -304,7 +424,11 @@ async def toggle_save(
 
 
 @router.get("/{post_id}/comments", response_model=list[CommentResponse])
-async def list_comments(post_id: uuid.UUID, db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def list_comments(post_id: uuid.UUID, db: AsyncSession = Depends(get_db), user: User = Depends(get_user_model)):
+    post = await db.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    _unavailable_if_hidden(post, user.id)
     result = await db.execute(
         select(Comment).where(Comment.post_id == post_id).order_by(Comment.created_at.asc())
     )
@@ -335,6 +459,7 @@ async def create_comment(
     post = await db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    _unavailable_if_hidden(post, user.id)
 
     comment = Comment(post_id=post_id, user_id=user.id, content=body.content)
     db.add(comment)

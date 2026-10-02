@@ -1,6 +1,18 @@
 const AUTH_NEXT_KEY = "motorclub_auth_next";
 
-const ALLOWED_ROOTS = ["/marketplace", "/services", "/settings"];
+// Pages a member may land on after signing in, including links shared from outside the app.
+const ALLOWED_ROOTS = [
+  "/marketplace",
+  "/services",
+  "/settings",
+  "/posts",
+  "/explore",
+  "/profile",
+  "/stories",
+  "/groups",
+  "/forums",
+  "/events",
+];
 
 export function safeInternalNext(raw: string | null | undefined): string | null {
   if (!raw) return null;

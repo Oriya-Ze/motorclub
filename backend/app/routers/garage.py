@@ -361,9 +361,12 @@ async def get_vehicle_posts(
 ):
     await _visible_vehicle(db, vehicle_id, viewer)
     from app.routers.posts import _batch_post_responses
+    from app.services.post_moderation import publicly_visible
 
     result = await db.execute(
-        select(Post).where(Post.vehicle_id == vehicle_id).order_by(Post.created_at.desc()).limit(limit)
+        select(Post)
+        .where(Post.vehicle_id == vehicle_id, publicly_visible(viewer.id if viewer else None))
+        .order_by(Post.created_at.desc()).limit(limit)
     )
     posts = result.scalars().all()
     return await _batch_post_responses(db, posts, viewer.id if viewer else None)

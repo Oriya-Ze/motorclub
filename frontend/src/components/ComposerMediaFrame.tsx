@@ -1,7 +1,8 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { mediaUrl } from "@/lib/media";
+import { api } from "@/lib/api";
+import { API_BASE, isPrivateMediaKey, mediaUrl } from "@/lib/media";
 import { imageViewKeys, videoPlayKeys, videoPosterKey } from "@/lib/mediaVariants";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +29,50 @@ export default function ComposerMediaFrame({
   muted = false,
 }: ComposerMediaFrameProps) {
   const { t } = useTranslation();
+  const [privateUrl, setPrivateUrl] = useState<string | null>(null);
+  const [privateFailed, setPrivateFailed] = useState(false);
+  const waitingForPrivate = Boolean(sourceKey && isPrivateMediaKey(sourceKey) && !localUrl);
+
+  useEffect(() => {
+    if (!waitingForPrivate || !sourceKey) {
+      setPrivateUrl(null);
+      setPrivateFailed(false);
+      return;
+    }
+    let stop = false;
+    let blobUrl = "";
+    setPrivateFailed(false);
+    setPrivateUrl(null);
+    api.mediaAccessUrl(sourceKey).then(async (result) => {
+      const target = result.url.startsWith("/") ? `${API_BASE}${result.url}` : result.url;
+      if (/^https?:\/\//.test(target) && !target.includes("/media/private-file")) {
+        if (!stop) setPrivateUrl(target);
+        return;
+      }
+      const response = await fetch(target, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("access_token") || ""}` },
+      });
+      if (!response.ok) throw new Error("preview failed");
+      blobUrl = URL.createObjectURL(await response.blob());
+      if (stop) URL.revokeObjectURL(blobUrl);
+      else setPrivateUrl(blobUrl);
+    }).catch(() => {
+      if (!stop) setPrivateFailed(true);
+    });
+    return () => {
+      stop = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [sourceKey, waitingForPrivate]);
+
   const candidates = useMemo(() => {
     if (localUrl) return [localUrl];
+    if (privateUrl) return [privateUrl];
+    if (waitingForPrivate) return [];
     if (!sourceKey) return [];
     const keys = kind === "video" ? videoPlayKeys(sourceKey) : imageViewKeys(sourceKey);
     return keys.map(resolveUrl).filter(Boolean);
-  }, [kind, localUrl, sourceKey]);
+  }, [kind, localUrl, privateUrl, sourceKey, waitingForPrivate]);
   const candidateKey = candidates.join("|");
   const [attempt, setAttempt] = useState(0);
   const [shown, setShown] = useState<string | null>(null);
@@ -46,10 +85,10 @@ export default function ComposerMediaFrame({
   useEffect(() => {
     attemptRef.current = 0;
     setAttempt(0);
-    if (!candidates.length) setPhase("error");
+    if (!candidates.length) setPhase(waitingForPrivate && !privateFailed ? "loading" : "error");
     else if (candidates[0] === shownRef.current) setPhase("ready");
     else setPhase("loading");
-  }, [candidateKey, candidates]);
+  }, [candidateKey, candidates, privateFailed, waitingForPrivate]);
 
   useEffect(() => {
     if (phase !== "loading" || !current) return;

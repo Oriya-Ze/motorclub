@@ -85,31 +85,36 @@ def _apply_product_fields(product: Product, body: ProductCreate | ProductUpdate)
 
 async def _moderate_listing(db: AsyncSession, product: Product) -> None:
     from app.models import MediaScan
-    from app.services.image_moderation import ScanDecision, combine, content_hash, scan_bytes
+    from app.services.image_moderation import combine, content_hash, scan_bytes
+
+    from app.media.keys import is_private_storage_key
+    from app.services.media_gate import promote_private_image
 
     keys = [key for key in (product.image_urls or []) if key]
     decisions = []
+    payloads = []
     for key in keys:
-        if key.lower().endswith(".gif"):
-            decision = ScanDecision("rejected", [], None, error_message="animation_not_supported")
-        else:
-            payload = _read_media_bytes(key)
-            decision = scan_bytes(payload, content_type="image/jpeg" if payload else "")
-            if not payload and decision.decision == "approved":
-                decision = ScanDecision("error", [], None, error_message="image_unreadable")
-        decisions.append(decision)
+        payload = _read_media_bytes(key)
+        payloads.append(payload)
+        decisions.append(scan_bytes(payload))
+    for key, payload, decision in zip(keys, payloads, decisions, strict=True):
         db.add(
             MediaScan(
                 storage_key=key,
-                content_hash=content_hash(_read_media_bytes(key)),
+                content_hash=content_hash(payload),
                 decision=decision.decision,
                 labels=decision.labels,
                 model_version=decision.model_version,
+                aws_request_id=decision.aws_request_id,
                 policy_version=decision.policy_version,
                 error_message=decision.error_message,
             )
         )
     product.moderation_status = combine(decisions) if decisions else "pending"
+    if product.moderation_status == "approved":
+        product.image_urls = [
+            promote_private_image(key) if is_private_storage_key(key) else key for key in keys
+        ]
     product.listing_status = "published" if product.moderation_status == "approved" else "pending_review"
 
 
@@ -124,7 +129,7 @@ def _read_media_bytes(key: str) -> bytes:
         obj = boto3.client("s3", region_name=settings.aws_region).get_object(
             Bucket=settings.s3_media_bucket, Key=key
         )
-        return obj["Body"].read(5_000_000)
+        return obj["Body"].read(settings.max_image_upload_bytes)
     except Exception:
         return b""
 

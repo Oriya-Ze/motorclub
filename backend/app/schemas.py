@@ -137,6 +137,9 @@ class PostResponse(BaseModel):
     comments_count: int = 0
     is_liked: bool = False
     is_saved: bool = False
+    moderation_status: str | None = None
+    media_version: str | None = None
+    moderation_blocks: list[dict] | None = None
 
     model_config = {"from_attributes": True}
 

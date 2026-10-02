@@ -4,14 +4,14 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import PostCard from "@/components/PostCard";
 import { PostSkeleton } from "@/components/Skeleton";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 
 export default function PostPage() {
   const { t } = useTranslation();
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
 
-  const { data: post, isLoading, isError } = useQuery({
+  const { data: post, isLoading, isError, error } = useQuery({
     queryKey: ["post", postId],
     queryFn: () => api.getPost(postId!),
     enabled: !!postId,
@@ -22,7 +22,7 @@ export default function PostPage() {
   if (isError || !post) {
     return (
       <div className="text-center py-16 space-y-4 px-4">
-        <p className="text-muted-foreground">{t("postNotFound")}</p>
+        <p className="text-muted-foreground">{error instanceof ApiError && error.detail === "content_unavailable" ? t("contentUnavailable") : t("postNotFound")}</p>
         <Link to="/explore" className="text-primary hover:underline">
           {t("explore")}
         </Link>

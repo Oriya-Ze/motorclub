@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, ImagePlus, MapPin, Replace, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ImagePlus, MapPin, Replace, ShieldAlert, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -32,6 +32,7 @@ import {
   loadPostDraft,
   savePostDraft,
   type DraftMedia,
+  type DraftModeration,
   type PostStarter,
 } from "@/lib/postDraft";
 import { getVideoDuration, MAX_POST_VIDEO_DURATION_SEC } from "@/lib/videoPoster";
@@ -67,6 +68,101 @@ const STARTERS: { id: Exclude<PostStarter, "">; label: string; placeholder: stri
 ];
 
 const ACCEPT = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_VIDEO_TYPES].join(",");
+
+function blockReason(hold: DraftModeration | null, storageKey: string): string {
+  const code = hold?.blocks.find((block) => block.storage_key === storageKey)?.reason_code;
+  if (code === "explicit_nudity" || code === "violence" || code === "graphic_violence" || code === "hate_symbols" || code === "animation" || code === "removed_by_moderator") {
+    return code;
+  }
+  return "generic";
+}
+
+function PostHoldNotice({
+  scanning,
+  hold,
+  ordered,
+  appealNote,
+  appealSent,
+  onNote,
+  onReplace,
+  onRemove,
+  onAppeal,
+}: {
+  scanning: boolean;
+  hold: DraftModeration | null;
+  ordered: ComposerMedia[];
+  appealNote: string;
+  appealSent: boolean;
+  onNote: (value: string) => void;
+  onReplace: (id: string) => void;
+  onRemove: (id: string) => void;
+  onAppeal: () => void;
+}) {
+  const { t } = useTranslation();
+  if (scanning) {
+    return <p className="text-sm" role="status">{t("composer.moderation.scanning")}</p>;
+  }
+  if (!hold) return null;
+  const blocked = hold.blocks.filter((block) => block.decision === "rejected");
+  const title = hold.status === "error"
+    ? t("composer.moderation.errorTitle")
+    : hold.status === "needs_review"
+      ? t("composer.moderation.reviewTitle")
+      : t("composer.moderation.blockedTitle");
+  const body = hold.status === "error"
+    ? t("composer.moderation.errorBody")
+    : hold.status === "needs_review"
+      ? t("composer.moderation.reviewBody")
+      : blocked.length
+        ? blocked.map((block) => {
+          const index = ordered.findIndex((item) => item.reference === block.storage_key);
+          return t("composer.moderation.blockedBody", {
+            index: index >= 0 ? index + 1 : "?",
+            reason: t(`composer.moderation.reason.${blockReason(hold, block.storage_key)}`),
+          });
+        }).join(" ")
+        : t("composer.moderation.blockedGeneric");
+  return (
+    <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-3" role="alert" aria-live="assertive">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <ShieldAlert className="h-4 w-4" aria-hidden />
+        {title}
+      </p>
+      <p className="text-sm text-muted-foreground">{body}</p>
+      {hold.status === "rejected" && (
+        <div className="flex flex-wrap gap-2">
+          {blocked.map((block) => {
+            const item = ordered.find((entry) => entry.reference === block.storage_key);
+            if (!item) return null;
+            return (
+              <div key={block.storage_key} className="flex gap-2">
+                <button type="button" className="min-h-10 rounded-lg border border-border px-3 text-xs" onClick={() => onReplace(item.id)}>
+                  {t("composer.moderation.replace")}
+                </button>
+                <button type="button" className="min-h-10 rounded-lg border border-border px-3 text-xs" onClick={() => onRemove(item.id)}>
+                  {t("composer.moderation.remove")}
+                </button>
+              </div>
+            );
+          })}
+          <Link to="/terms-of-service#community-rules" className="inline-flex min-h-10 items-center text-xs underline">
+            {t("composer.moderation.rules")}
+          </Link>
+        </div>
+      )}
+      {hold.status === "rejected" && (
+        <div className="space-y-2">
+          <label className="block text-xs" htmlFor="appeal-note">{t("composer.moderation.appealNote")}</label>
+          <textarea id="appeal-note" value={appealNote} onChange={(event) => onNote(event.target.value)} className="min-h-16 w-full rounded-xl border border-border bg-background p-2 text-sm" />
+          <button type="button" className="min-h-10 rounded-lg border border-border px-3 text-xs" disabled={appealSent} onClick={onAppeal}>
+            {appealSent ? t("composer.moderation.appealSent") : t("composer.moderation.appeal")}
+          </button>
+        </div>
+      )}
+      {hold.status === "error" && <p className="text-xs text-muted-foreground">{t("composer.moderation.retryHint")}</p>}
+    </div>
+  );
+}
 
 function feedOrder(items: ComposerMedia[]): ComposerMedia[] {
   return [...items.filter((item) => item.kind === "image"), ...items.filter((item) => item.kind === "video")];
@@ -147,6 +243,11 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
   const [vehicleId, setVehicleId] = useState("");
   const [starter, setStarter] = useState<PostStarter>("");
   const [media, setMedia] = useState<ComposerMedia[]>([]);
+  const [hold, setHold] = useState<DraftModeration | null>(null);
+  const [appealNote, setAppealNote] = useState("");
+  const [appealSent, setAppealSent] = useState(false);
+  const holdRef = useRef<DraftModeration | null>(null);
+  holdRef.current = hold;
   const [hydrated, setHydrated] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -194,6 +295,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
       setLocation(draft.location);
       setVehicleId(draft.vehicleId || initialVehicleId || "");
       setStarter(draft.starter);
+      setHold(draft.moderation || null);
       setMedia(draft.media.map((item) => ({
         id: item.id,
         kind: item.kind,
@@ -210,6 +312,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
       setVehicleId(initialVehicleId || "");
       setStarter("");
       setMedia([]);
+      setHold(null);
     }
     setLeaveOpen(false);
     setMobileTab("edit");
@@ -237,6 +340,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
             vehicleId: current.vehicleId,
             starter: current.starter,
             media: draftMedia,
+            moderation: holdRef.current,
           });
         }
         setSaveState(empty ? "idle" : "saved");
@@ -245,7 +349,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
       }
     }, 450);
     return () => window.clearTimeout(handle);
-  }, [open, hydrated, user, content, location, vehicleId, starter, media, t]);
+  }, [open, hydrated, user, content, location, vehicleId, starter, media, hold, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -338,13 +442,14 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
       const empty = !current.content.trim() && !current.location.trim() && !current.vehicleId && !current.starter && draftMedia.length === 0;
       if (empty) clearPostDraft(user.id);
       else {
-        savePostDraft(user.id, {
-          content: current.content,
-          location: current.location,
-          vehicleId: current.vehicleId,
-          starter: current.starter,
-          media: draftMedia,
-        });
+          savePostDraft(user.id, {
+            content: current.content,
+            location: current.location,
+            vehicleId: current.vehicleId,
+            starter: current.starter,
+            media: draftMedia,
+            moderation: holdRef.current,
+          });
       }
     } catch {
       setSaveState("error");
@@ -579,10 +684,23 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
         video_urls: videos.length ? videos : undefined,
         location: location.trim() || undefined,
         vehicle_id: vehicleId || undefined,
-      });
+      }, holdRef.current?.postId);
     },
     onSuccess: (post) => {
       publishingRef.current = false;
+      const status = post.moderation_status;
+      if (status && status !== "published") {
+        const nextHold: DraftModeration = {
+          postId: post.id,
+          status: status === "needs_review" || status === "error" ? status : "rejected",
+          blocks: post.moderation_blocks || [],
+          imageKeys: ordered.filter((item) => item.kind === "image" && item.reference).map((item) => item.reference!),
+        };
+        setHold(nextHold);
+        holdRef.current = nextHold;
+        toast.message(status === "error" ? t("composer.moderation.errorTitle") : status === "needs_review" ? t("composer.moderation.reviewTitle") : t("composer.moderation.blockedTitle"));
+        return;
+      }
       sessionRef.current += 1;
       if (user) {
         clearPostDraft(user.id);
@@ -612,7 +730,16 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
     },
   });
 
-  const canPublish = (content.trim().length > 0 || readyItems.length > 0) && !blocked && !createPost.isPending;
+  const imageSignature = ordered.filter((item) => item.kind === "image" && item.reference).map((item) => item.reference).sort().join("|");
+  const heldSignature = (hold?.imageKeys || []).slice().sort().join("|");
+  const currentBlocked = new Set((hold?.blocks || []).filter((block) => block.decision === "rejected").map((block) => block.storage_key));
+  const stillRejected = ordered.some((item) => item.reference && currentBlocked.has(item.reference));
+  const holdUnchanged = Boolean(hold) && heldSignature === imageSignature;
+  const canPublish = (content.trim().length > 0 || readyItems.length > 0)
+    && !blocked
+    && !createPost.isPending
+    && !(hold?.status === "rejected" && stillRejected)
+    && !(hold?.status === "needs_review" && holdUnchanged);
 
   const saveLabel = saveState === "saving"
     ? t("composer.saving")
@@ -796,7 +923,10 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                           return feedOrder(next);
                         });
                       }}
-                      className="rounded-2xl border border-border bg-background p-2"
+                      className={cn(
+                        "rounded-2xl border bg-background p-2",
+                        item.reference && currentBlocked.has(item.reference) ? "border-destructive" : "border-border",
+                      )}
                     >
                       <div className="flex gap-2">
                         <div className="relative h-14 w-14 shrink-0">
@@ -825,6 +955,12 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                           )}
                           <p className="text-xs text-muted-foreground" role="status">{statusText}</p>
                           {item.error && <p className="text-xs text-destructive">{item.error}</p>}
+                          {item.reference && currentBlocked.has(item.reference) && (
+                            <p className="flex items-center gap-1 text-xs text-destructive">
+                              <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+                              <span>{t(`composer.moderation.reason.${blockReason(hold, item.reference)}`)}</span>
+                            </p>
+                          )}
                           <div className="flex flex-wrap gap-1 pt-1">
                             <button type="button" className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg border border-border px-2 text-xs" disabled={!earlier} onClick={() => setMedia((prev) => move(prev, item.id, -1))} aria-label={t("composer.moveEarlier")}>
                               <ChevronUp className="h-3.5 w-3.5" />
@@ -1033,7 +1169,26 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
           </aside>
         </div>
 
-        <footer className="flex items-center gap-3 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <footer className="max-h-[48vh] shrink-0 space-y-3 overflow-y-auto border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          {(createPost.isPending || hold) && (
+            <PostHoldNotice
+              scanning={createPost.isPending}
+              hold={hold}
+              ordered={ordered}
+              appealNote={appealNote}
+              appealSent={appealSent}
+              onNote={setAppealNote}
+              onReplace={(id) => { replaceIdRef.current = id; fileInputRef.current?.click(); }}
+              onRemove={removeMedia}
+              onAppeal={async () => {
+                if (!hold) return;
+                const result = await api.appealPost(hold.postId, appealNote);
+                setAppealSent(true);
+                toast.success(result.duplicate ? t("composer.moderation.appealDuplicate") : t("composer.moderation.appealSent"));
+              }}
+            />
+          )}
+          <div className="flex items-center gap-3">
           <p className="min-h-4 flex-1 text-xs text-muted-foreground" aria-live="polite">{saveLabel}</p>
           <Button
             type="button"
@@ -1046,8 +1201,9 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
               createPost.mutate();
             }}
           >
-            {createPost.isPending ? t("composer.publishing") : t("publish")}
+            {createPost.isPending ? t("composer.moderation.scanning") : t("publish")}
           </Button>
+          </div>
         </footer>
 
         {leaveOpen && (

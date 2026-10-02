@@ -73,7 +73,7 @@ async def scan_uploaded_image(
 ):
     _can_read_private(user, body.storage_key)
     data = read_media_bytes(body.storage_key)
-    decision = scan_bytes(data, content_type="image/gif" if body.storage_key.lower().endswith(".gif") else "")
+    decision = scan_bytes(data)
     db.add(
         MediaScan(
             storage_key=body.storage_key,
@@ -81,12 +81,15 @@ async def scan_uploaded_image(
             decision=decision.decision,
             labels=decision.labels,
             model_version=decision.model_version,
+            aws_request_id=decision.aws_request_id,
             policy_version=decision.policy_version,
             error_message=decision.error_message,
         )
     )
+    from app.services.post_moderation import purpose_of
+
     public_key = None
-    if decision.decision == "approved":
+    if decision.decision == "approved" and purpose_of(body.storage_key) != "posts":
         public_key = promote_private_image(body.storage_key)
     await db.commit()
     return {
@@ -94,6 +97,9 @@ async def scan_uploaded_image(
         "storage_key": body.storage_key,
         "public_key": public_key,
         "error_message": decision.error_message,
+        "aws_request_id": decision.aws_request_id,
+        "model_version": decision.model_version,
+        "reason_code": decision.reason_code if decision.decision == "rejected" else None,
     }
 
 

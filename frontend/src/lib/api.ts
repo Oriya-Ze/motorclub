@@ -112,6 +112,9 @@ export interface Post {
   comments_count: number;
   is_liked: boolean;
   is_saved: boolean;
+  moderation_status?: string | null;
+  media_version?: string | null;
+  moderation_blocks?: Array<{ storage_key: string; decision: string; reason_code?: string | null }> | null;
 }
 
 export interface UserPost {
@@ -339,6 +342,15 @@ export interface Story {
   author: User;
 }
 
+export class ApiError extends Error {
+  detail: string;
+
+  constructor(detail: string) {
+    super(translateApiError(detail));
+    this.detail = detail;
+  }
+}
+
 class ApiClient {
   private token: string | null = localStorage.getItem("access_token");
   private refreshToken: string | null = localStorage.getItem("refresh_token");
@@ -457,7 +469,7 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: "Request failed" }));
-      throw new Error(translateApiError(this.errorMessageFromBody(error, "Request failed")));
+      throw new ApiError(this.errorMessageFromBody(error, "Request failed"));
     }
 
     if (response.status === 204) return {} as T;
@@ -565,8 +577,20 @@ class ApiClient {
     location?: string;
     vehicle_id?: string;
     hashtags?: string[];
-  }) {
-    return this.request<Post>("/posts", { method: "POST", body: JSON.stringify(data) });
+  }, postId?: string) {
+    const headers = import.meta.env.DEV && sessionStorage.getItem("mockScanDecisions")
+      ? { "X-Motorclub-Mock-Decisions": sessionStorage.getItem("mockScanDecisions") || "" }
+      : undefined;
+    const path = postId ? `/posts/${postId}/publication` : "/posts";
+    const method = postId ? "PUT" : "POST";
+    return this.request<Post>(path, { method, body: JSON.stringify(data), headers });
+  }
+
+  appealPost(postId: string, note?: string) {
+    return this.request<{ id: string; status: string; duplicate: boolean }>(`/posts/${postId}/appeal`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    });
   }
 
   toggleSave(postId: string) {
@@ -1034,6 +1058,17 @@ class ApiClient {
 
   setPostVisibility(postId: string, hidden: boolean, reason: string) {
     return this.request(`/admin/posts/${postId}/visibility`, { method: "POST", body: JSON.stringify({ hidden, reason }) });
+  }
+
+  getAppeals() {
+    return this.request<Array<{ id: string; post_id: string; note?: string | null; snapshot: Array<{ reason_code?: string | null; decision: string }> }>>("/admin/appeals");
+  }
+
+  reviewAppeal(appealId: string, decision: "approved" | "denied", reason: string) {
+    return this.request<{ id: string; status: string; moderation_status: string }>(`/admin/appeals/${appealId}`, {
+      method: "POST",
+      body: JSON.stringify({ decision, reason }),
+    });
   }
 
   setBusinessVisibility(userId: string, hidden: boolean, reason: string) {

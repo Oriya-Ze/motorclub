@@ -31,6 +31,11 @@ export default function AdminModerationPage() {
     queryFn: () => api.searchModerationUsers(userQuery),
     enabled: Boolean(user?.is_admin || user?.is_moderator),
   });
+  const appeals = useQuery({
+    queryKey: ["moderation-appeals"],
+    queryFn: () => api.getAppeals(),
+    enabled: Boolean(user?.is_admin || user?.is_moderator),
+  });
   const reports = useQuery({
     queryKey: ["moderation-reports"],
     queryFn: () => api.getReports(),
@@ -64,6 +69,20 @@ export default function AdminModerationPage() {
             <div className="mt-2 flex gap-2">
               <Button type="button" size="sm" onClick={() => void api.reviewMediaScan(scan.id, "approved", reason || t("moderation.approvedReason")).then(() => scans.refetch())}>{t("moderation.approve")}</Button>
               <Button type="button" size="sm" variant="outline" onClick={() => void api.reviewMediaScan(scan.id, "rejected", reason || t("moderation.rejectedReason")).then(() => scans.refetch())}>{t("moderation.reject")}</Button>
+            </div>
+          </article>
+        ))}
+      </section>
+      <section className="space-y-3">
+        <h2 className="font-semibold">{t("composer.moderation.appeal")}</h2>
+        {(appeals.data ?? []).map((appeal) => (
+          <article key={appeal.id} className="rounded-2xl border border-border p-3 text-sm">
+            <p>{appeal.post_id}</p>
+            <p className="text-muted-foreground">{(appeal.snapshot || []).map((item) => item.reason_code || item.decision).join(", ")}</p>
+            {appeal.note && <p>{appeal.note}</p>}
+            <div className="mt-2 flex gap-2">
+              <Button type="button" size="sm" onClick={() => void api.reviewAppeal(appeal.id, "approved", reason || t("moderation.approvedReason")).then(() => { toast.success(t("reports.sent")); void appeals.refetch(); })}>{t("moderation.approve")}</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => void api.reviewAppeal(appeal.id, "denied", reason || t("moderation.rejectedReason")).then(() => { toast.success(t("reports.sent")); void appeals.refetch(); })}>{t("moderation.reject")}</Button>
             </div>
           </article>
         ))}

@@ -132,6 +132,11 @@ class Post(Base):
     )
     hashtags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    moderation_status: Mapped[str] = mapped_column(String(20), default="published", server_default="published")
+    media_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    moderation_blocks: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    publish_requested: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    first_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -497,6 +502,19 @@ class ContentReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ModerationAppeal(Base):
+    __tablename__ = "moderation_appeals"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"), index=True)
+    media_version: Mapped[str] = mapped_column(String(64))
+    snapshot: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ModerationAction(Base):
     __tablename__ = "moderation_actions"
 
@@ -518,6 +536,7 @@ class MediaScan(Base):
     decision: Mapped[str] = mapped_column(String(20))
     labels: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     model_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    aws_request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     policy_version: Mapped[str] = mapped_column(String(40))
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

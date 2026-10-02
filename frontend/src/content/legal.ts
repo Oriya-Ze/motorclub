@@ -1,4 +1,5 @@
 export type LegalSection = {
+  id?: string;
   title: string;
   paragraphs: string[];
 };
@@ -84,6 +85,15 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           paragraphs: [
             "השירות מיועד למשתמשים בני 16 ומעלה.",
             "עליך לספק פרטים נכונים בעת ההרשמה ולשמור על סודיות פרטי ההתחברות.",
+          ],
+        },
+        {
+          id: "community-rules",
+          title: "כללי הקהילה",
+          paragraphs: [
+            "אין לפרסם תוכן מיני מפורש, אלימות גרפית או סמלי שנאה.",
+            "אם תמונה נחסמת, הפוסט כולו נשמר כטיוטה ואינו גלוי לאחרים עד שכל התמונות בגרסה הנוכחית עומדות בכללים.",
+            "אפשר לבקש בדיקה נוספת. הבקשה מתייחסת לגרסה שנחסמה.",
           ],
         },
         {
@@ -201,6 +211,15 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           paragraphs: [
             "You must be at least 16 years old to use the service.",
             "You must provide accurate registration details and keep your credentials secure.",
+          ],
+        },
+        {
+          id: "community-rules",
+          title: "Community rules",
+          paragraphs: [
+            "Do not publish explicit sexual content, graphic violence, or hate symbols.",
+            "If one image is blocked, the whole post stays a private draft until every image in the current version follows the rules.",
+            "You can request another review. The request refers to the blocked version.",
           ],
         },
         {

@@ -11,6 +11,7 @@ from app.services.visibility import can_view_profile_content
 from app.media.image_assets import build_image_media_map, public_image_key
 from app.models import Notification, Post, Story, User, Vehicle
 from app.schemas import NotificationResponse, StoryCreate, StoryResponse
+from app.services.post_moderation import publicly_visible
 from app.services.vehicle_brands import canonical_make
 
 notifications_router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -149,7 +150,7 @@ async def create_story(
 @explore_router.get("/posts")
 async def explore_posts(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
     result = await db.execute(
-        select(Post).where(Post.image_urls != None).order_by(Post.created_at.desc()).limit(30)
+        select(Post).where(Post.image_urls != None, publicly_visible()).order_by(Post.created_at.desc()).limit(30)
     )
     posts = result.scalars().all()
     first_keys = [p.image_urls[0] for p in posts if p.image_urls]
@@ -171,7 +172,7 @@ async def explore_posts(db: AsyncSession = Depends(get_db), _=Depends(get_curren
 
 @explore_router.get("/hashtags")
 async def trending_hashtags(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
-    result = await db.execute(select(Post.hashtags).where(Post.hashtags != None).limit(100))
+    result = await db.execute(select(Post.hashtags).where(Post.hashtags != None, publicly_visible()).limit(100))
     counts: dict[str, int] = {}
     for (tags,) in result.all():
         if tags:

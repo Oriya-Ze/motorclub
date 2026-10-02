@@ -12,6 +12,23 @@ import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ReportDialog from "@/components/ReportDialog";
 import { api, Comment, Post } from "@/lib/api";
+
+function ownerModerationText(post: Post, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (post.moderation_status === "removed") return t("composer.moderation.removedBody");
+  if (post.moderation_status === "needs_review") return t("composer.moderation.reviewBody");
+  if (post.moderation_status === "error") return t("composer.moderation.errorBody");
+  const blocks = (post.moderation_blocks || []).filter((block) => block.decision === "rejected");
+  if (!blocks.length) return t("composer.moderation.blockedGeneric");
+  return blocks.map((block) => {
+    const index = (post.image_urls || []).findIndex((key) => key === block.storage_key);
+    const code = block.reason_code;
+    const known = code === "explicit_nudity" || code === "violence" || code === "graphic_violence" || code === "hate_symbols" || code === "animation" || code === "removed_by_moderator";
+    return t("composer.moderation.blockedBody", {
+      index: index >= 0 ? index + 1 : "?",
+      reason: t(`composer.moderation.reason.${known ? code : "generic"}`),
+    });
+  }).join(" ");
+}
 import { getUserProfilePath } from "@/lib/businessProfile";
 import { withReturnTo } from "@/lib/returnTo";
 import { postHasMedia, postMediaFromPost } from "@/lib/postMedia";
@@ -35,6 +52,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const queryClient = useQueryClient();
   const isDetail = variant === "detail";
   const isFeed = !isDetail;
+  const unpublished = Boolean(post.moderation_status && post.moderation_status !== "published");
   const [showComments, setShowComments] = useState(isDetail);
   const [comment, setComment] = useState("");
   const commentInputRef = useRef<HTMLInputElement>(null);
@@ -248,10 +266,16 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
           )}
         </div>
 
-        <div className={cn("relative", post.vehicle_id && hasMedia && "ring-2 ring-[#F5D033]/50 ring-inset")}>
-          {hasMedia ? (
+        {unpublished && (
+          <p className="mx-4 mb-3 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm" role="status">
+            {ownerModerationText(post, t)}
+          </p>
+        )}
+
+        <div className={cn("relative", post.vehicle_id && hasMedia && !unpublished && "ring-2 ring-[#F5D033]/50 ring-inset")}>
+          {!unpublished && hasMedia ? (
             <PostMediaCarousel items={mediaItems} mode={isDetail ? "detail" : "feed"} openSignal={fullScreenSignal} />
-          ) : post.content ? (
+          ) : !unpublished && post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
               <p className="whitespace-pre-wrap">{post.content}</p>
             </div>
