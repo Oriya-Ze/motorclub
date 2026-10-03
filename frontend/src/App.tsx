@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -17,18 +18,19 @@ import GaragePage from "@/pages/GaragePage";
 import GroupDetailPage from "@/pages/GroupDetailPage";
 import GroupsPage from "@/pages/GroupsPage";
 import { LegalPage } from "@/pages/LegalPage";
-import AdminModerationPage from "@/pages/AdminModerationPage";
 import MarketplacePage from "@/pages/MarketplacePage";
 import MessagesRedirect from "@/pages/MessagesRedirect";
 import NotificationsPage from "@/pages/NotificationsPage";
 import PostPage from "@/pages/PostPage";
 import ProfilePage from "@/pages/ProfilePage";
 import ServicesPage from "@/pages/ServicesPage";
-import AdminBusinessRequestsPage from "@/pages/AdminBusinessRequestsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import BusinessProfilePage from "@/pages/BusinessProfilePage";
 import CommunityPage from "@/pages/CommunityPage";
 import VehiclePage from "@/pages/VehiclePage";
+
+// The admin console is a separate page with its own layout, loaded only when staff open it.
+const AdminConsole = lazy(() => import("@/pages/admin/AdminConsole"));
 
 function WorkshopRedirect() {
   const { userId } = useParams();
@@ -52,6 +54,14 @@ export default function App() {
         </Route>
 
         <Route element={<ProtectedRoute />}>
+          <Route
+            path="admin/*"
+            element={
+              <Suspense fallback={<div className="min-h-screen gradient-bg" role="status" aria-label="טוען" />}>
+                <AdminConsole />
+              </Suspense>
+            }
+          />
           <Route path="stories/:storyId" element={<StoryViewerPage />} />
           <Route element={<Layout />}>
             <Route path="explore" element={<ExplorePage />} />
@@ -76,8 +86,6 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/:userId" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="admin" element={<AdminModerationPage />} />
-            <Route path="admin/business-requests" element={<AdminBusinessRequestsPage />} />
           </Route>
         </Route>
 

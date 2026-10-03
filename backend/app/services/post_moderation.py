@@ -99,6 +99,26 @@ async def _admin_override(db: AsyncSession, post_id, storage_key: str, digest: s
     return False
 
 
+async def _approved_by_staff(db: AsyncSession, storage_key: str, digest: str) -> bool:
+    """A person approved these exact bytes in the admin media queue."""
+    from app.media.keys import public_storage_key
+
+    forms = {storage_key, public_storage_key(storage_key)}
+    if "/private/" not in storage_key:
+        parts = storage_key.split("/", 2)
+        if len(parts) == 3:
+            forms.add(f"{parts[0]}/{parts[1]}/private/{parts[2]}")
+    found = await db.scalar(
+        select(MediaScan.id).where(
+            MediaScan.storage_key.in_(forms),
+            MediaScan.content_hash == digest,
+            MediaScan.decision == "approved",
+            MediaScan.model_version == "admin",
+        ).limit(1)
+    )
+    return found is not None
+
+
 async def moderate_images(
     db: AsyncSession,
     image_urls: list[str] | None,
@@ -114,6 +134,8 @@ async def moderate_images(
         if mock_decisions is not None and index < len(mock_decisions):
             decision = _decision_from_token(mock_decisions[index])
         elif post_id is not None and await _admin_override(db, post_id, key, digest):
+            decision = ScanDecision("approved", [], "admin")
+        elif await _approved_by_staff(db, key, digest):
             decision = ScanDecision("approved", [], "admin")
         else:
             decision = scan_bytes(payload)

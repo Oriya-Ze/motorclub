@@ -10,7 +10,7 @@ from app.auth.base import AuthUser
 from app.config import settings
 from app.database import get_db
 from app.models import User
-from app.schemas import UserPublic
+from app.schemas import UserPrivate, UserPublic
 
 security = HTTPBearer(auto_error=False)
 
@@ -84,3 +84,8 @@ async def require_staff(user: User = Depends(get_user_model)) -> User:
 
 def user_to_public(user: User) -> UserPublic:
     return UserPublic.model_validate(user)
+
+
+def user_to_private(user: User) -> UserPrivate:
+    """Only for responses to the member themselves."""
+    return UserPrivate.model_validate(user)

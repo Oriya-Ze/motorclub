@@ -503,7 +503,7 @@ export default function SettingsPage() {
                   <div className="flex flex-wrap gap-2">
                     <Link to="/admin"><Button variant="outline" size="sm">{t("moderation.title")}</Button></Link>
                     {user?.is_admin && (
-                      <Link to="/admin/business-requests">
+                      <Link to="/admin/business">
                         <Button variant="outline" size="sm">{t("adminBusiness.title")}</Button>
                       </Link>
                     )}

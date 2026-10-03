@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     s3_presigned_url_expiry_seconds: int = 300
     max_image_upload_bytes: int = 10 * 1024 * 1024
     max_video_upload_bytes: int = 150 * 1024 * 1024
-    # Video is not scanned yet, so uploads stay off until it is. Set VIDEO_UPLOADS_ENABLED=true to allow them.
-    video_uploads_enabled: bool = False
+    # Video is not scanned automatically. Each upload goes to the admin review queue instead.
+    # Set VIDEO_UPLOADS_ENABLED=false to stop accepting video.
+    video_uploads_enabled: bool = True
     rate_limit_table: str = ""
     resend_api_key: str = ""
     resend_secret_arn: str = ""

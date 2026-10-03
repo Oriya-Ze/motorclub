@@ -7,8 +7,9 @@ from app.schemas_media import VideoMediaResponse, ImageMediaResponse
 
 
 class UserPublic(BaseModel):
+    """A member as other members see them. Never includes the email address."""
+
     id: UUID
-    email: str
     username: str
     full_name: str
     profile_picture_url: str | None = None
@@ -30,6 +31,12 @@ class UserPublic(BaseModel):
     profile_public: bool = True
 
     model_config = {"from_attributes": True}
+
+
+class UserPrivate(UserPublic):
+    """The signed-in member's own profile. Only this shape carries their email."""
+
+    email: str
 
 
 class RegisterRequest(BaseModel):
@@ -63,7 +70,7 @@ class UsernameCheckResponse(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    user: UserPublic | None = None
+    user: UserPrivate | None = None
     access_token: str | None = None
     refresh_token: str | None = None
     token_type: str = "bearer"

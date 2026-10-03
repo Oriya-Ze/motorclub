@@ -212,3 +212,37 @@ def delete_user_media_files(user_id, keys: Iterable[str], media_ids: Iterable) -
         except Exception:
             logger.exception("Could not invalidate %d media paths", len(cleared))
     return cleared
+
+
+async def media_references(db: AsyncSession, storage_key: str) -> list[dict]:
+    """Where an upload is used, for the admin queue: [{"type": "post", "id": "..."}, ...]."""
+    forms = list(key_forms(storage_key))
+    refs: list[dict] = []
+    arrays = (
+        (Post.id, Post.image_urls, "post"),
+        (Post.id, Post.video_urls, "post"),
+        (Product.id, Product.image_urls, "product"),
+        (Product.id, Product.pending_image_urls, "product"),
+        (Vehicle.id, Vehicle.image_urls, "vehicle"),
+        (User.id, User.gallery_urls, "profile"),
+    )
+    scalars = (
+        (Story.id, Story.media_url, "story"),
+        (User.id, User.profile_picture_url, "profile"),
+        (User.id, User.cover_image_url, "profile"),
+        (Vehicle.id, Vehicle.walkaround_url, "vehicle"),
+        (Vehicle.id, Vehicle.sound_url, "vehicle"),
+        (Event.id, Event.image_url, "event"),
+        (DirectMessage.conversation_id, DirectMessage.image_url, "message"),
+        (DirectMessage.conversation_id, DirectMessage.video_url, "message"),
+        (GroupMessage.group_id, GroupMessage.image_url, "group"),
+        (GroupMessage.group_id, GroupMessage.video_url, "group"),
+    )
+    for id_column, column, kind in arrays:
+        rows = (await db.execute(select(id_column).where(or_(*[column.any(form) for form in forms])).limit(5))).scalars().all()
+        refs += [{"type": kind, "id": str(row)} for row in rows]
+    for id_column, column, kind in scalars:
+        rows = (await db.execute(select(id_column).where(column.in_(forms)).limit(5))).scalars().all()
+        refs += [{"type": kind, "id": str(row)} for row in rows]
+    unique: dict[tuple[str, str], dict] = {(ref["type"], ref["id"]): ref for ref in refs}
+    return list(unique.values())

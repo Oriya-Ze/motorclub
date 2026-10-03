@@ -11,7 +11,7 @@ export default function ReportDialog({
   targetId,
   onClose,
 }: {
-  targetType: "post" | "profile" | "product";
+  targetType: "post" | "profile" | "product" | "story";
   targetId: string;
   onClose: () => void;
 }) {
@@ -39,7 +39,7 @@ export default function ReportDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <div className="fixed inset-0 z-[250] flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="report-title">
       <button type="button" className="absolute inset-0 bg-black/60" aria-label={t("composer.close")} onClick={onClose} />
       <div className="relative w-full max-w-md space-y-3 rounded-2xl border border-border bg-card p-4">
         <h2 id="report-title" className="text-lg font-semibold">{t("reports.title")}</h2>

@@ -66,14 +66,19 @@ def promote_private_image(storage_key: str) -> str:
     return public_key
 
 
+_VIDEO_VARIANT_NAMES = ("1080p.mp4", "720p.mp4", "480p.mp4", "poster.webp", "thumb.webp")
+
+
 def public_image_objects(storage_key: str) -> list[str]:
-    """Public original plus the processed thumb and display copies."""
+    """Public original plus its processed copies: display and thumb for images, renditions and posters for video."""
     public = public_storage_key(storage_key)
     parts = public.split("/")
     if len(parts) < 4 or parts[0] != "users":
         return [public]
     user_id, media_file = parts[1], parts[-1]
     media_id = media_file.rsplit(".", 1)[0]
+    if public.lower().endswith((".mp4", ".mov", ".webm")):
+        return [public, *[f"users/{user_id}/videos/{media_id}/{name}" for name in _VIDEO_VARIANT_NAMES]]
     return [
         public,
         f"users/{user_id}/images/{media_id}/display.webp",

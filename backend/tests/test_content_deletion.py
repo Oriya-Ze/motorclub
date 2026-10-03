@@ -277,24 +277,6 @@ async def test_member_can_delete_their_account_and_everything_it_owns(tmp_path, 
 
 
 @pytest.mark.asyncio
-async def test_video_uploads_are_refused_until_video_is_scanned(tmp_path, monkeypatch):
-    _local_env(tmp_path, monkeypatch)
-    owner = _person("v")
-    await _add(owner)
-    try:
-        async with _client_as(owner) as client:
-            res = await client.post(
-                "/api/v1/media/upload-requests",
-                json={"purpose": "post", "content_type": "video/mp4", "size_bytes": 1000, "filename": "clip.mp4"},
-            )
-            assert res.status_code == 400
-            assert res.json()["detail"] == "video_uploads_disabled"
-    finally:
-        app.dependency_overrides.clear()
-        await _drop_users(owner)
-
-
-@pytest.mark.asyncio
 async def test_a_private_image_key_never_reaches_other_viewers(tmp_path, monkeypatch):
     _local_env(tmp_path, monkeypatch)
     owner, stranger = _person("x"), _person("y")

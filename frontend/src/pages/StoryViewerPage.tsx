@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import ReportDialog from "@/components/ReportDialog";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +16,7 @@ export default function StoryViewerPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [reporting, setReporting] = useState(false);
 
   const { data: stories = [], isLoading } = useQuery({
     queryKey: ["stories"],
@@ -58,6 +61,16 @@ export default function StoryViewerPage() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {story && story.user_id !== user?.id && (
+            <button
+              type="button"
+              onClick={() => setReporting(true)}
+              className="p-2 rounded-full hover:bg-white/10"
+              aria-label={t("reports.title")}
+            >
+              <Flag className="w-5 h-5" />
+            </button>
+          )}
           {story && story.user_id === user?.id && (
             <button
               type="button"
@@ -124,6 +137,7 @@ export default function StoryViewerPage() {
       {story?.caption && (
         <p className="px-4 py-3 text-white text-sm text-center shrink-0">{story.caption}</p>
       )}
+      {reporting && story && <ReportDialog targetType="story" targetId={story.id} onClose={() => setReporting(false)} />}
     </div>
   );
 }

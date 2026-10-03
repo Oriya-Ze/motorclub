@@ -29,7 +29,7 @@ async def create_report(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    if body.target_type not in {"post", "profile", "product"}:
+    if body.target_type not in {"post", "profile", "product", "story"}:
         raise HTTPException(status_code=400, detail="Invalid target")
     if body.reason not in REASONS:
         raise HTTPException(status_code=400, detail="Invalid reason")
@@ -72,6 +72,10 @@ async def _assert_target(db: AsyncSession, target_type: str, target_id: uuid.UUI
         found = await db.get(Post, target_id)
     elif target_type == "product":
         found = await db.get(Product, target_id)
+    elif target_type == "story":
+        from app.models import Story
+
+        found = await db.get(Story, target_id)
     else:
         found = await db.get(User, target_id)
     if not found:

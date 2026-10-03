@@ -9,7 +9,8 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
 export interface User {
   id: string;
-  email: string;
+  /** Only present on the signed-in member's own profile. */
+  email?: string;
   username: string;
   full_name: string;
   profile_picture_url?: string | null;
@@ -1039,8 +1040,13 @@ class ApiClient {
     });
   }
 
+  // Admin console
+  adminMe() {
+    return this.request<{ is_admin: boolean; is_moderator: boolean }>("/admin/me");
+  }
+
   getModerationOverview() {
-    return this.request<{ period_days: number; open_reports: number; pending_products: number; scan_errors: number; new_reports: number }>("/admin/overview");
+    return this.request<import("@/lib/adminTypes").AdminOverview>("/admin/overview");
   }
 
   getReports(opts?: { status?: string; q?: string; skip?: number }) {
@@ -1049,7 +1055,7 @@ class ApiClient {
     if (opts?.q) params.set("q", opts.q);
     if (opts?.skip != null) params.set("skip", String(opts.skip));
     const q = params.toString() ? `?${params}` : "";
-    return this.request<{ items: Array<Record<string, unknown>>; total: number }>(`/admin/reports${q}`);
+    return this.request<{ items: import("@/lib/adminTypes").AdminReportGroup[]; total: number }>(`/admin/reports${q}`);
   }
 
   updateReport(reportId: string, data: { status: string; reason?: string }) {
@@ -1059,12 +1065,17 @@ class ApiClient {
     });
   }
 
-  getMediaScans(decision = "needs_review") {
-    return this.request<Array<{ id: string; storage_key: string; decision: string; labels: Array<{ name: string; confidence: number }>; error_message?: string | null }>>(`/admin/media-scans?decision=${decision}`);
+  getMediaScans(decision = "needs_review", kind: "image" | "video" | "all" = "all") {
+    return this.request<import("@/lib/adminTypes").AdminMediaItem[]>(
+      `/admin/media-scans?decision=${encodeURIComponent(decision)}&kind=${kind}`
+    );
   }
 
   reviewMediaScan(scanId: string, decision: "approved" | "rejected", reason: string) {
-    return this.request(`/admin/media-scans/${scanId}`, { method: "POST", body: JSON.stringify({ decision, reason }) });
+    return this.request<{ id: string; decision: string }>(`/admin/media-scans/${scanId}`, {
+      method: "POST",
+      body: JSON.stringify({ decision, reason }),
+    });
   }
 
   retryMediaScans() {
@@ -1072,11 +1083,39 @@ class ApiClient {
   }
 
   searchModerationUsers(q: string) {
-    return this.request<Array<{ id: string; username: string; full_name: string; account_type: string; suspended_until?: string | null; business_hidden: boolean }>>(`/admin/users?q=${encodeURIComponent(q)}`);
+    return this.request<import("@/lib/adminTypes").AdminUser[]>(`/admin/users?q=${encodeURIComponent(q)}`);
   }
 
   setUserSuspension(userId: string, days: number | null, reason: string) {
-    return this.request(`/admin/users/${userId}/suspension`, { method: "POST", body: JSON.stringify({ days, reason }) });
+    return this.request<{ id: string; suspended_until: string | null }>(`/admin/users/${userId}/suspension`, {
+      method: "POST",
+      body: JSON.stringify({ days, reason }),
+    });
+  }
+
+  setUserRoles(userId: string, roles: { is_moderator?: boolean; is_admin?: boolean }, reason: string) {
+    return this.request<import("@/lib/adminTypes").AdminUser>(`/admin/users/${userId}/roles`, {
+      method: "POST",
+      body: JSON.stringify({ ...roles, reason }),
+    });
+  }
+
+  setUserVerified(userId: string, verified: boolean, reason: string) {
+    return this.request<{ id: string; is_verified: boolean }>(`/admin/users/${userId}/verified`, {
+      method: "POST",
+      body: JSON.stringify({ verified, reason }),
+    });
+  }
+
+  adminDeleteUser(userId: string, confirmUsername: string, reason: string) {
+    return this.request<{ id: string; deleted: boolean }>(`/admin/users/${userId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ confirm_username: confirmUsername, reason }),
+    });
+  }
+
+  getModerationActions(limit = 100) {
+    return this.request<import("@/lib/adminTypes").AdminAction[]>(`/admin/actions?limit=${limit}`);
   }
 
   setPostVisibility(postId: string, hidden: boolean, reason: string) {
@@ -1084,7 +1123,7 @@ class ApiClient {
   }
 
   getAppeals() {
-    return this.request<Array<{ id: string; post_id: string; note?: string | null; snapshot: Array<{ reason_code?: string | null; decision: string }> }>>("/admin/appeals");
+    return this.request<import("@/lib/adminTypes").AdminAppeal[]>("/admin/appeals");
   }
 
   reviewAppeal(appealId: string, decision: "approved" | "denied", reason: string) {

@@ -14,6 +14,8 @@ from app.schemas_media import MediaUploadRequestCreate, MediaUploadRequestRespon
 from app.services.image_moderation import content_hash, scan_bytes
 from app.services.media_gate import presigned_get_url, promote_private_image, read_media_bytes
 
+VIDEO_REVIEW_POLICY = "video-manual"
+
 router = APIRouter(prefix="/media", tags=["media"])
 
 
@@ -44,6 +46,18 @@ async def create_upload_request(
             storage_key=request.storage_key,
             purpose_segment=parsed.purpose_segment,
         )
+        if request.media_type == "video":
+            # Video is published right away and reviewed by a person afterwards.
+            db.add(
+                MediaScan(
+                    storage_key=request.storage_key,
+                    content_hash="",
+                    decision="needs_review",
+                    labels=[],
+                    model_version="manual",
+                    policy_version=VIDEO_REVIEW_POLICY,
+                )
+            )
         await db.commit()
     return MediaUploadRequestResponse(
         storage_key=request.storage_key,

@@ -8,7 +8,7 @@ from app.auth.cognito import CognitoAuthProvider
 from app.auth.base import AuthTokens
 from app.config import settings
 from app.database import get_db
-from app.deps import get_current_user, get_user_model, user_to_public
+from app.deps import get_current_user, get_user_model, user_to_private, user_to_public
 from app.models import User
 from app.rate_limit import _client_ip, enforce_rate_limit
 from app.schemas import (
@@ -24,6 +24,7 @@ from app.schemas import (
     RefreshRequest,
     ResendConfirmationRequest,
     ResetPasswordRequest,
+    UserPrivate,
     UserPublic,
     UsernameCheckResponse,
 )
@@ -37,7 +38,7 @@ security = HTTPBearer(auto_error=False)
 
 def _session_response(user: User, tokens: AuthTokens) -> AuthResponse:
     return AuthResponse(
-        user=user_to_public(user),
+        user=user_to_private(user),
         access_token=tokens.access_token,
         refresh_token=tokens.refresh_token,
         token_type=tokens.token_type,
@@ -202,9 +203,9 @@ async def logout(body: LogoutRequest, db: AsyncSession = Depends(get_db)):
     return {"message": "Logged out"}
 
 
-@router.get("/me", response_model=UserPublic)
+@router.get("/me", response_model=UserPrivate)
 async def me(user: User = Depends(get_user_model)):
-    return user_to_public(user)
+    return user_to_private(user)
 
 
 @router.post("/forgot-password")

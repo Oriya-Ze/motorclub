@@ -164,6 +164,36 @@ async def send_message(
         content=body.content,
     )
     db.add(message)
+    await _notify_recipient(db, conv, user, body.content)
     await db.commit()
     await db.refresh(message)
     return MessageResponse.model_validate(message)
+
+
+async def _notify_recipient(db: AsyncSession, conv: Conversation, sender: User, content: str) -> None:
+    """One notification per conversation until the recipient reads it, so a long chat does not flood them."""
+    from app.models import Notification
+    from app.routers.social import create_notification
+
+    recipient_id = conv.user2_id if conv.user1_id == sender.id else conv.user1_id
+    link = f"/messages/{conv.id}"
+    unread = await db.scalar(
+        select(Notification.id).where(
+            Notification.user_id == recipient_id,
+            Notification.type == "message",
+            Notification.link == link,
+            Notification.is_read.is_(False),
+        ).limit(1)
+    )
+    if unread:
+        return
+    preview = (content or "").strip()
+    await create_notification(
+        db,
+        recipient_id,
+        sender.id,
+        "message",
+        f"הודעה חדשה מ{sender.full_name}",
+        body=preview[:100] or None,
+        link=link,
+    )
