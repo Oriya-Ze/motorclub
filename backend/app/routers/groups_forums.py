@@ -602,6 +602,47 @@ async def list_replies(topic_id: uuid.UUID, db: AsyncSession = Depends(get_db), 
     return responses
 
 
+@forums_router.delete("/topics/{topic_id}")
+async def delete_topic(
+    topic_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """The topic's author or staff can remove it, along with its replies."""
+    from app.deps import is_staff
+
+    topic = await db.get(ForumTopic, topic_id)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    if topic.user_id != user.id and not is_staff(user):
+        raise HTTPException(status_code=403, detail="You cannot delete this topic")
+    forum = await db.get(Forum, topic.forum_id)
+    if forum and forum.topics_count > 0:
+        forum.topics_count -= 1
+    await db.delete(topic)
+    await db.commit()
+    return {"deleted": True}
+
+
+@forums_router.delete("/replies/{reply_id}")
+async def delete_reply(
+    reply_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """The reply's author or staff can remove it."""
+    from app.deps import is_staff
+
+    reply = await db.get(ForumReply, reply_id)
+    if not reply:
+        raise HTTPException(status_code=404, detail="Reply not found")
+    if reply.user_id != user.id and not is_staff(user):
+        raise HTTPException(status_code=403, detail="You cannot delete this reply")
+    await db.delete(reply)
+    await db.commit()
+    return {"deleted": True}
+
+
 @forums_router.post("/topics/{topic_id}/replies", response_model=ForumReplyResponse)
 async def create_reply(
     topic_id: uuid.UUID,

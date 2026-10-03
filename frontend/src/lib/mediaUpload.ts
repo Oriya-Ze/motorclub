@@ -52,6 +52,9 @@ export const SUPPORTED_VIDEO_TYPES = [
   "video/quicktime",
 ] as const;
 
+/** Video is not scanned yet, so the server refuses it. Build with VITE_VIDEO_UPLOADS_ENABLED=true to offer it again. */
+export const VIDEO_UPLOADS_ENABLED = import.meta.env.VITE_VIDEO_UPLOADS_ENABLED === "true";
+
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Camera recordings on mobile are often 15–50MB before server-side transcode (Phase B2). */
 export const MAX_VIDEO_BYTES = 150 * 1024 * 1024;

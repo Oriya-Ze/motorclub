@@ -25,6 +25,9 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const { user, login, register, confirmSignUp, resendConfirmation, loginWithGoogle } = useAuth();
   const { form, mode, setMode, setForm, resetDraft, restoreFromStorage } = useAuthFormDraft();
+  // The password is never stored with the draft. If the page reloads while waiting for the
+  // emailed code, ask for it again so confirming can still sign the member in.
+  const [askPasswordOnConfirm] = useState(() => form.mode === "confirm" && !form.password);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -290,17 +293,19 @@ export default function AuthPage() {
             {mode === "register" && (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">{t("fullName")}</label>
+                  <label className="text-sm font-medium" htmlFor="auth-full-name">{t("fullName")}</label>
                   <Input
+                    id="auth-full-name"
                     value={form.full_name}
                     onChange={(e) => setForm({ full_name: e.target.value })}
                     autoComplete="name"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">{t("username")}</label>
+                  <label className="text-sm font-medium" htmlFor="auth-username">{t("username")}</label>
                   <div className="relative">
                     <Input
+                      id="auth-username"
                       value={form.username}
                       onChange={(e) => setForm({ username: e.target.value })}
                       required
@@ -339,8 +344,9 @@ export default function AuthPage() {
 
             {(mode === "login" || mode === "register" || mode === "confirm") && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("email")}</label>
+                <label className="text-sm font-medium" htmlFor="auth-email">{t("email")}</label>
                 <Input
+                  id="auth-email"
                   type="email"
                   placeholder={t("emailPlaceholder")}
                   value={form.email}
@@ -355,8 +361,9 @@ export default function AuthPage() {
 
             {mode === "confirm" && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("verificationCode")}</label>
+                <label className="text-sm font-medium" htmlFor="auth-code">{t("verificationCode")}</label>
                 <Input
+                  id="auth-code"
                   value={form.code}
                   onChange={(e) => setForm({ code: e.target.value })}
                   required
@@ -367,23 +374,26 @@ export default function AuthPage() {
               </div>
             )}
 
-            {(mode === "login" || mode === "register") && (
+            {(mode === "login" || mode === "register" || (mode === "confirm" && askPasswordOnConfirm)) && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">{t("password")}</label>
+                <label className="text-sm font-medium" htmlFor="auth-password">{t("password")}</label>
                 <div className="relative">
                   <Input
+                    id="auth-password"
                     type={showPassword ? "text" : "password"}
                     value={form.password}
                     onChange={(e) => setForm({ password: e.target.value })}
                     required
                     dir="ltr"
                     className="pl-12"
-                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    autoComplete={mode === "register" ? "new-password" : "current-password"}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? t("hidePassword") : t("showPassword")}
+                    aria-pressed={showPassword}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>

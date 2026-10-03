@@ -38,7 +38,8 @@ export function useAuthFormDraft() {
     const draft = loadAuthDraft();
     if (!draft) return;
     const merged = mergeDraft(draft);
-    setFormState(merged);
+    // Storage never holds the password, so keep the one already typed in this page.
+    setFormState((current) => ({ ...merged, password: current.password }));
     setModeState(merged.mode);
   }, []);
 

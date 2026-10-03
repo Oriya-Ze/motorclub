@@ -10,6 +10,7 @@ from app.deps import get_current_user, get_user_model, user_to_public
 from app.models import BusinessUpgradeRequest, Follower, Post, ProfileSettings, User
 from app.routers.social import create_notification
 from app.schemas import (
+    AccountDeleteRequest,
     BusinessUpgradeRequestCreate,
     BusinessUpgradeRequestResponse,
     FollowRequestResponse,
@@ -113,11 +114,53 @@ async def update_profile(
         raise HTTPException(status_code=400, detail="Business profile fields require a business account")
     if "business_type" in data and data["business_type"] is not None and not is_valid_business_type(data["business_type"]):
         raise HTTPException(status_code=400, detail="Invalid business category")
+    from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
+
+    before = [user.profile_picture_url, user.cover_image_url, *(user.gallery_urls or [])]
     for field, value in data.items():
         setattr(user, field, value)
+    replaced = removed_media(before, [user.profile_picture_url, user.cover_image_url, *(user.gallery_urls or [])])
+    orphaned = await unreferenced_media(db, replaced)
     await db.commit()
+    delete_media_files(orphaned)
     await db.refresh(user)
     return user_to_public(user)
+
+
+@router.delete("/me")
+async def delete_account(
+    body: AccountDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """Delete the member's account, everything it owns, its uploaded files, and its sign-in identity.
+
+    The member types their username to confirm. Rows are deleted first and committed only after
+    the sign-in identity is gone, so a failure leaves the account usable rather than half deleted.
+    """
+    from app.auth import get_auth_provider
+    from app.services.media_cleanup import delete_user_media_files, user_media
+
+    typed = body.confirm_username.strip().lstrip("@").lower()
+    if typed != (user.username or "").lower():
+        raise HTTPException(status_code=400, detail="confirmation_mismatch")
+
+    from sqlalchemy import delete as sql_delete
+
+    user_id, email = user.id, user.email
+    keys, media_ids = await user_media(db, user_id)
+    # A bulk delete lets the database's ON DELETE rules remove the member's rows. Deleting the
+    # ORM object instead would try to null out foreign keys that cannot be null.
+    db.expunge(user)
+    await db.execute(sql_delete(User).where(User.id == user_id))
+    try:
+        await get_auth_provider(db).delete_identity(email)
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(status_code=503, detail="account_deletion_failed") from exc
+    await db.commit()
+    delete_user_media_files(user_id, keys, media_ids)
+    return {"deleted": True}
 
 
 @router.get("/me/settings", response_model=SettingsResponse)

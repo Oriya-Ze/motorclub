@@ -18,7 +18,7 @@ type LegalContent = {
 export const legalContent: Record<"he" | "en", LegalContent> = {
   he: {
     privacy: {
-      lastUpdated: "10 באוגוסט 2026",
+      lastUpdated: "2 באוקטובר 2026",
       intro:
         "MotorClub IL (\"האפליקציה\", \"אנחנו\") מכבדת את פרטיות המשתמשים. מדיניות זו מסבירה אילו נתונים אנו אוספים, כיצד אנו משתמשים בהם, ומהן זכויותיך.",
       sections: [
@@ -36,13 +36,14 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
             "להפעלת החשבון והצגת התוכן בקהילה.",
             "לשליחת הודעות מערכת (אימות חשבון, איפוס סיסמה) מכתובת accounts@motorclub.co.il.",
             "לשמירה על אבטחה, מניעת שימוש לרעה, וטיפול בתקלות.",
+            "תמונות שמועלות לאפליקציה נבדקות אוטומטית בשירות Amazon Rekognition של AWS, כדי לחסום תוכן מיני מפורש, אלימות גרפית וסמלי שנאה. עד שהבדיקה מסתיימת התמונה שמורה במקום פרטי ולא גלויה לאחרים. כשמבקשים בדיקה נוספת, איש צוות רואה את התמונה.",
             "לשיפור חוויית המשתמש ופיתוח פיצ'רים חדשים.",
           ],
         },
         {
           title: "שיתוף מידע עם צדדים שלישיים",
           paragraphs: [
-            "אנו משתמשים בתשתיות ענן (AWS, Neon) לצורך אחסון, אימות והגשת השירות.",
+            "אנו משתמשים בתשתיות ענן (AWS, Neon) לצורך אחסון, אימות, בדיקת תמונות והגשת השירות, וב־Resend לשליחת מיילים.",
             "לא נמכור את המידע האישי שלך לצדדים שלישיים.",
             "ייתכן שנחשוף מידע אם נידרש לפי דין, צו בית משפט, או לצורך הגנה על זכויותינו ומשתמשינו.",
           ],
@@ -64,6 +65,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "זכויותיך",
           paragraphs: [
             "בכפוף לדין, באפשרותך לבקש גישה, תיקון או מחיקה של המידע האישי שלך.",
+            "אפשר למחוק את החשבון בכל עת בהגדרות, בלשונית אבטחה. המחיקה כוללת את הפרופיל, הפוסטים, התגובות, הסטוריז, הרכבים, המוצרים, ההודעות והתמונות שהעלית. אפשר גם למחוק בנפרד כל פוסט, תגובה, נושא בפורום או סטורי.",
             "ניתן לפנות אלינו בדוא\"ל: privacy@motorclub.co.il",
           ],
         },
@@ -76,7 +78,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
       ],
     },
     terms: {
-      lastUpdated: "10 באוגוסט 2026",
+      lastUpdated: "2 באוקטובר 2026",
       intro:
         "ברוכים הבאים ל-MotorClub IL. השימוש באפליקציה כפוף לתנאים אלה. אם אינך מסכים/ה — אל תשתמש/י בשירות.",
       sections: [
@@ -129,7 +131,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
         {
           title: "סיום שימוש",
           paragraphs: [
-            "באפשרותך להפסיק שימוש בכל עת. אנו רשאים להשעות או למחוק חשבון שמפר תנאים.",
+            "באפשרותך להפסיק שימוש בכל עת ולמחוק את החשבון בהגדרות. אנו רשאים להשעות או למחוק חשבון שמפר תנאים.",
           ],
         },
         {
@@ -144,7 +146,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
   },
   en: {
     privacy: {
-      lastUpdated: "August 10, 2026",
+      lastUpdated: "October 2, 2026",
       intro:
         "MotorClub IL (\"the App\", \"we\") respects your privacy. This policy explains what data we collect, how we use it, and your rights.",
       sections: [
@@ -162,13 +164,14 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
             "To operate your account and display community content.",
             "To send system emails (verification, password reset) from accounts@motorclub.co.il.",
             "To maintain security, prevent abuse, and troubleshoot issues.",
+            "Uploaded photos are checked automatically by AWS's Amazon Rekognition to block explicit sexual content, graphic violence, and hate symbols. Until the check finishes, the photo is stored privately and is not visible to others. When you ask for another review, a staff member sees the photo.",
             "To improve user experience and develop new features.",
           ],
         },
         {
           title: "Sharing with third parties",
           paragraphs: [
-            "We use cloud infrastructure (AWS, Neon) for storage, authentication, and delivery.",
+            "We use cloud infrastructure (AWS, Neon) for storage, authentication, photo checks, and delivery, and Resend to send email.",
             "We do not sell your personal information.",
             "We may disclose information when required by law or to protect our users and rights.",
           ],
@@ -190,6 +193,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "Your rights",
           paragraphs: [
             "Subject to applicable law, you may request access, correction, or deletion of your personal data.",
+            "You can delete your account at any time in Settings, under Security. This deletes your profile, posts, comments, stories, vehicles, products, messages, and the photos you uploaded. You can also delete any single post, comment, forum topic, or story.",
             "Contact: privacy@motorclub.co.il",
           ],
         },
@@ -202,7 +206,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
       ],
     },
     terms: {
-      lastUpdated: "August 10, 2026",
+      lastUpdated: "October 2, 2026",
       intro:
         "Welcome to MotorClub IL. By using the app you agree to these terms. If you do not agree, do not use the service.",
       sections: [
@@ -255,7 +259,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
         {
           title: "Termination",
           paragraphs: [
-            "You may stop using the service at any time. We may suspend or delete accounts that violate these terms.",
+            "You may stop using the service at any time and delete your account in Settings. We may suspend or delete accounts that violate these terms.",
           ],
         },
         {

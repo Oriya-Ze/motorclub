@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CheckCircle, Send } from "lucide-react";
+import { ArrowRight, CheckCircle, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
-import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { api, type ForumTopic } from "@/lib/api";
 import { forumName } from "@/lib/forum";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,34 @@ export default function ForumTopicPage() {
   const { t, i18n } = useTranslation();
   const { topicId } = useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [reply, setReply] = useState("");
+
+  const deleteTopic = useMutation({
+    mutationFn: () => api.deleteForumTopic(topicId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["forums"] });
+      if (topic) {
+        // Drop it from the cached list first, so the forum page never shows it while refetching.
+        queryClient.setQueryData<ForumTopic[]>(["forum-topics", topic.forum_id], (prev) => prev?.filter((item) => item.id !== topic.id));
+        queryClient.invalidateQueries({ queryKey: ["forum-topics", topic.forum_id] });
+      }
+      toast.success(t("topicDeleted"));
+      navigate(topic ? `/forums/${topic.forum_id}` : "/forums", { replace: true });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteReply = useMutation({
+    mutationFn: (replyId: string) => api.deleteForumReply(replyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["topic-replies", topicId] });
+      queryClient.invalidateQueries({ queryKey: ["forum-topic", topicId] });
+      toast.success(t("replyDeleted"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const { data: topic, isLoading: topicLoading, isError } = useQuery({
     queryKey: ["forum-topic", topicId],
@@ -78,13 +106,28 @@ export default function ForumTopicPage() {
         <CardContent className="pt-6">
           <div className="flex items-start gap-3 mb-4">
             <Avatar user={topic.author} size="md" />
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl font-display tracking-wide">{topic.title}</h1>
               <p className="text-sm text-muted-foreground">
                 {topic.author.full_name} ·{" "}
                 {new Date(topic.created_at).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US")}
               </p>
             </div>
+            {user?.id === topic.user_id && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                disabled={deleteTopic.isPending}
+                onClick={() => {
+                  if (window.confirm(t("confirmDeleteTopic"))) deleteTopic.mutate();
+                }}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+                {t("deleteTopic")}
+              </Button>
+            )}
           </div>
           <p className="whitespace-pre-wrap">{topic.content}</p>
         </CardContent>
@@ -110,6 +153,19 @@ export default function ForumTopicPage() {
                     </div>
                     <p className="whitespace-pre-wrap text-sm">{r.content}</p>
                   </div>
+                  {user?.id === r.user_id && (
+                    <button
+                      type="button"
+                      className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={t("deleteReply")}
+                      disabled={deleteReply.isPending}
+                      onClick={() => {
+                        if (window.confirm(t("confirmDeleteReply"))) deleteReply.mutate(r.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
                 </div>
               </CardContent>
             </Card>

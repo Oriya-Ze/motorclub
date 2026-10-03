@@ -21,6 +21,7 @@ import {
   MediaUploadError,
   SUPPORTED_IMAGE_TYPES,
   SUPPORTED_VIDEO_TYPES,
+  VIDEO_UPLOADS_ENABLED,
   inferMediaType,
   validateFileBeforeUpload,
 } from "@/lib/mediaUpload";
@@ -67,7 +68,7 @@ const STARTERS: { id: Exclude<PostStarter, "">; label: string; placeholder: stri
   { id: "question", label: "composer.starterQuestion", placeholder: "composer.placeholderQuestion" },
 ];
 
-const ACCEPT = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_VIDEO_TYPES].join(",");
+const ACCEPT = [...SUPPORTED_IMAGE_TYPES, ...(VIDEO_UPLOADS_ENABLED ? SUPPORTED_VIDEO_TYPES : [])].join(",");
 
 function blockReason(hold: DraftModeration | null, storageKey: string): string {
   const code = hold?.blocks.find((block) => block.storage_key === storageKey)?.reason_code;
@@ -606,6 +607,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
           kind = file.type.startsWith("video/") ? "video" : "image";
         }
       }
+      if (kind === "video" && !VIDEO_UPLOADS_ENABLED) error = t("apiErrors.videoUploadsDisabled");
       const previewUrl = !error ? URL.createObjectURL(file) : undefined;
       if (previewUrl) previewUrlsRef.current.push(previewUrl);
       if (!error && kind === "image" && user) void saveDraftOriginal(user.id, id, file).catch(() => undefined);
@@ -865,7 +867,9 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
               {ordered.length === 0 && (
                 <p className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                   <span className="block" dir="auto">{t("composer.limitsImages", { mb: Math.round(MAX_IMAGE_BYTES / (1024 * 1024)) })}</span>
-                  <span className="block" dir="auto">{t("composer.limitsVideo", { mb: Math.round(MAX_VIDEO_BYTES / (1024 * 1024)), seconds: MAX_POST_VIDEO_DURATION_SEC })}</span>
+                  {VIDEO_UPLOADS_ENABLED && (
+                    <span className="block" dir="auto">{t("composer.limitsVideo", { mb: Math.round(MAX_VIDEO_BYTES / (1024 * 1024)), seconds: MAX_POST_VIDEO_DURATION_SEC })}</span>
+                  )}
                 </p>
               )}
               <input

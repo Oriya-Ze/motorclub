@@ -372,6 +372,10 @@ class ProductPage(BaseModel):
     total: int
 
 
+class AccountDeleteRequest(BaseModel):
+    confirm_username: str = Field(min_length=1, max_length=64)
+
+
 class ProfileUpdate(BaseModel):
     full_name: str | None = None
     username: str | None = None

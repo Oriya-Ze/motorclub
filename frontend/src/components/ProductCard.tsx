@@ -29,12 +29,12 @@ export default function ProductCard({
   const src = useOriginal ? original : preferred;
   return (
     <article className={cn("flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card", className)}>
-      <div className="relative aspect-square bg-muted/40">
+      <div className="relative aspect-square overflow-hidden bg-muted/40">
         {image ? (
           <img
             src={src}
             alt=""
-            className="h-full w-full object-contain"
+            className="absolute inset-0 h-full w-full object-contain"
             loading="lazy"
             onError={() => {
               if (!useOriginal && original && original !== src) setUseOriginal(true);

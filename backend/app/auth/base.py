@@ -52,3 +52,7 @@ class AuthProvider(ABC):
     @abstractmethod
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         pass
+
+    async def delete_identity(self, email: str) -> None:
+        """Remove the sign-in identity for a deleted account. Local accounts live only in the database."""
+        return None

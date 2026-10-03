@@ -63,7 +63,10 @@ export default function UserSearch({ onUserSelect, excludeUserId, className }: U
       <div className="relative">
         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <input
-          type="search"
+          type="text"
+          inputMode="search"
+          enterKeyHint="search"
+          aria-label={t("searchUsers")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

@@ -34,6 +34,17 @@ def _owner_moderation(post: Post, viewer_id: uuid.UUID | None) -> dict:
     }
 
 
+def _visible_image_keys(post: Post, viewer_id: uuid.UUID | None) -> list[str]:
+    """Image keys a viewer can load. A key still on the private path never renders for others,
+    so it is left out instead of showing an empty frame. The owner keeps every key."""
+    keys = [key for key in (post.image_urls or []) if key]
+    if viewer_id == post.user_id:
+        return keys
+    from app.media.keys import is_private_storage_key
+
+    return [key for key in keys if not is_private_storage_key(key)]
+
+
 def _extract_hashtags(content: str | None) -> list[str]:
     if not content:
         return []
@@ -88,11 +99,11 @@ async def _batch_post_responses(
 
     all_video_keys: list[str] = []
     all_image_keys: list[str] = []
+    visible_images = {post.id: _visible_image_keys(post, current_user_id) for post in posts}
     for post in posts:
         if post.video_urls:
             all_video_keys.extend([key for key in post.video_urls if key])
-        if post.image_urls:
-            all_image_keys.extend([key for key in post.image_urls if key])
+        all_image_keys.extend(visible_images[post.id])
     video_media_map = await build_video_media_map(db, list(dict.fromkeys(all_video_keys)))
     image_media_map = await build_image_media_map(db, list(dict.fromkeys(all_image_keys)))
 
@@ -101,18 +112,21 @@ async def _batch_post_responses(
         author = users_map.get(post.user_id)
         if not author:
             continue
+        image_keys = visible_images[post.id]
+        if post.user_id != current_user_id and not image_keys and not post.video_urls and not (post.content or "").strip():
+            continue
         video_media = None
         image_media = None
         if post.video_urls:
             video_media = [video_media_map[key] for key in post.video_urls if key in video_media_map]
-        if post.image_urls:
-            image_media = [image_media_map[key] for key in post.image_urls if key in image_media_map]
+        if image_keys:
+            image_media = [image_media_map[key] for key in image_keys if key in image_media_map]
         responses.append(
             PostResponse(
                 id=post.id,
                 user_id=post.user_id,
                 content=post.content,
-                image_urls=post.image_urls,
+                image_urls=image_keys or None,
                 video_urls=post.video_urls,
                 video_media=video_media,
                 image_media=image_media,
@@ -156,14 +170,15 @@ async def _post_to_response(db: AsyncSession, post: Post, current_user_id: uuid.
     if post.video_urls:
         video_media_map = await build_video_media_map(db, [key for key in post.video_urls if key])
         video_media = [video_media_map[key] for key in post.video_urls if key in video_media_map]
-    if post.image_urls:
-        image_media_map = await build_image_media_map(db, [key for key in post.image_urls if key])
-        image_media = [image_media_map[key] for key in post.image_urls if key in image_media_map]
+    image_keys = _visible_image_keys(post, current_user_id)
+    if image_keys:
+        image_media_map = await build_image_media_map(db, image_keys)
+        image_media = [image_media_map[key] for key in image_keys if key in image_media_map]
     return PostResponse(
         id=post.id,
         user_id=post.user_id,
         content=post.content,
-        image_urls=post.image_urls,
+        image_urls=image_keys or None,
         video_urls=post.video_urls,
         video_media=video_media,
         image_media=image_media,
@@ -325,8 +340,14 @@ async def republish_post(
         raise HTTPException(status_code=404, detail="Post not found")
     if post.moderation_status == "removed":
         raise HTTPException(status_code=403, detail="removed_by_moderator")
+    from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
+
+    before = [*(post.image_urls or []), *(post.video_urls or [])]
     await _apply_publication(db, post, body, user, request)
+    replaced = removed_media(before, [*(post.image_urls or []), *(post.video_urls or [])])
+    orphaned = await unreferenced_media(db, replaced)
     await db.commit()
+    delete_media_files(orphaned)
     await db.refresh(post)
     return await _post_to_response(db, post, user.id)
 
@@ -480,6 +501,28 @@ async def create_comment(
     )
 
 
+@router.delete("/{post_id}/comments/{comment_id}")
+async def delete_comment(
+    post_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """The comment's author, the post's owner, or staff can remove a comment."""
+    from app.deps import is_staff
+
+    comment = await db.get(Comment, comment_id)
+    if not comment or comment.post_id != post_id:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    post = await db.get(Post, post_id)
+    allowed = comment.user_id == user.id or (post is not None and post.user_id == user.id) or is_staff(user)
+    if not allowed:
+        raise HTTPException(status_code=403, detail="You cannot delete this comment")
+    await db.delete(comment)
+    await db.commit()
+    return {"deleted": True}
+
+
 @router.delete("/{post_id}")
 async def delete_post(
     post_id: uuid.UUID,
@@ -492,6 +535,11 @@ async def delete_post(
     if post.user_id != user.id:
         raise HTTPException(status_code=403, detail="You can only delete your own posts")
 
+    from app.services.media_cleanup import delete_media_files, unreferenced_media
+
+    media = [*(post.image_urls or []), *(post.video_urls or [])]
     await db.delete(post)
+    orphaned = await unreferenced_media(db, media)
     await db.commit()
+    delete_media_files(orphaned)
     return {"deleted": True}

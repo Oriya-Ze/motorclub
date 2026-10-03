@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, type MouseEvent } from "react";
+import { memo, useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, Heart, MapPin, MessageCircle, MoreHorizontal, Share2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -12,6 +12,32 @@ import VehicleBadge from "@/components/VehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import ReportDialog from "@/components/ReportDialog";
 import { api, Comment, Post } from "@/lib/api";
+
+const HASHTAG_PATTERN = /#([\p{L}\p{N}_]+)/gu;
+
+/** Post text with each #tag as a link, so the tags do not have to be repeated below the text. */
+function PostText({ text, className }: { text: string; className?: string }) {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(HASHTAG_PATTERN)) {
+    const start = match.index ?? 0;
+    if (start > last) parts.push(text.slice(last, start));
+    const tag = match[1].toLowerCase();
+    parts.push(
+      <Link key={`${start}-${tag}`} to={`/explore?tag=${encodeURIComponent(tag)}`} className="text-primary hover:underline">
+        {match[0]}
+      </Link>,
+    );
+    last = start + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <p className={className}>{parts}</p>;
+}
+
+function tagsNotInText(tags: string[] | null | undefined, text: string | null | undefined): string[] {
+  const inText = new Set([...(text ?? "").matchAll(HASHTAG_PATTERN)].map((match) => match[1].toLowerCase()));
+  return (tags ?? []).filter((tag) => !inText.has(tag.toLowerCase()));
+}
 
 function ownerModerationText(post: Post, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (post.moderation_status === "removed") return t("composer.moderation.removedBody");
@@ -277,7 +303,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
             <PostMediaCarousel items={mediaItems} mode={isDetail ? "detail" : "feed"} openSignal={fullScreenSignal} />
           ) : !unpublished && post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
-              <p className="whitespace-pre-wrap">{post.content}</p>
+              <PostText text={post.content} className="whitespace-pre-wrap" />
             </div>
           ) : null}
           {heartBurst > 0 && (
@@ -288,14 +314,14 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
         </div>
 
         {hasMedia && post.content && (
-          <div className="px-4 pt-3">
-            <p className="whitespace-pre-wrap text-sm">{post.content}</p>
+          <div className="px-4 pt-3" onClick={stopClick}>
+            <PostText text={post.content} className="whitespace-pre-wrap text-sm" />
           </div>
         )}
 
-        {post.hashtags && post.hashtags.length > 0 && (
+        {tagsNotInText(post.hashtags, post.content).length > 0 && (
           <div className="px-4 pt-2 flex flex-wrap gap-2" onClick={stopClick}>
-            {post.hashtags.map((tag) => (
+            {tagsNotInText(post.hashtags, post.content).map((tag) => (
               <Link key={tag} to={`/explore?tag=${tag}`} className="text-sm text-primary hover:underline">
                 #{tag}
               </Link>
@@ -346,6 +372,27 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
                     <p className="text-xs font-medium">{c.author.full_name}</p>
                     <p className="text-sm">{c.content}</p>
                   </div>
+                  {(c.user_id === user?.id || isAuthor) && (
+                    <button
+                      type="button"
+                      className="self-center inline-flex min-h-8 min-w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={t("deleteComment")}
+                      onClick={async () => {
+                        if (!window.confirm(t("confirmDeleteComment"))) return;
+                        try {
+                          await api.deleteComment(post.id, c.id);
+                          setComments((prev) => prev.filter((item) => item.id !== c.id));
+                          queryClient.invalidateQueries({ queryKey: ["posts"] });
+                          queryClient.invalidateQueries({ queryKey: ["post", post.id] });
+                          toast.success(t("commentDeleted"));
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : t("commentDeleteFailed"));
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  )}
                 </div>
               ))
             )}

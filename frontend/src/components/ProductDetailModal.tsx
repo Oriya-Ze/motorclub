@@ -62,7 +62,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
       <div className="relative w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-glow">
         <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-border/50 bg-card/95 backdrop-blur">
           <h2 className="text-lg font-bold truncate pe-4">{product.name}</h2>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0" aria-label={t("close")}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -109,6 +109,8 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
             </Link>
           )}
 
+          {/* The main action stays on screen while the details scroll, so it is never below the fold on a phone. */}
+          <div className="sticky bottom-0 -mx-4 -mb-4 space-y-2 border-t border-border/50 bg-card/95 p-4 backdrop-blur">
           {isOwner ? (
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1 gap-2" onClick={() => setEditing(true)}>
@@ -129,7 +131,6 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
             </div>
           ) : (
             <>
-            <Button type="button" variant="ghost" className="w-full" onClick={() => setReporting(true)}>{t("reports.title")}</Button>
             <Button
               className="w-full gap-2"
               onClick={() => contactSeller.mutate()}
@@ -138,8 +139,10 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
               <Mail className="w-4 h-4" />
               {t("contactSeller")}
             </Button>
+            <Button type="button" variant="ghost" className="w-full" onClick={() => setReporting(true)}>{t("reports.title")}</Button>
             </>
           )}
+          </div>
       {reporting && <ReportDialog targetType="product" targetId={product.id} onClose={() => setReporting(false)} />}
         </div>
       </div>

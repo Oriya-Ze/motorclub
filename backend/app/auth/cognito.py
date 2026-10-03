@@ -289,6 +289,9 @@ class CognitoAuthProvider(AuthProvider):
             return False
         return True
 
+    async def delete_identity(self, email: str) -> None:
+        self._delete_cognito_user(email)
+
     def _delete_cognito_user(self, email: str) -> None:
         client = self._cognito_client()
         try:

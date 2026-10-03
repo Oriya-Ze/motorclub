@@ -20,11 +20,17 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
+# The interactive docs and schema describe every endpoint, so they are served only locally.
+_docs_enabled = settings.is_local
+
 app = FastAPI(
     title="MotorClub IL API",
     description="Israeli car community platform API",
     version=settings.app_version,
     lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
 app.add_middleware(RequestLoggingMiddleware)

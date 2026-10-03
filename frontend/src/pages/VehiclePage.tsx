@@ -20,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api, Vehicle, VehicleModItem } from "@/lib/api";
 import { getBusinessProfilePath, getUserProfilePath } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
+import { VIDEO_UPLOADS_ENABLED } from "@/lib/mediaUpload";
 import { formatEngineLabel } from "@/lib/formatLabels";
 import { displayName, formatHandle } from "@/lib/utils";
 
@@ -260,6 +261,8 @@ export default function VehiclePage() {
                 onChange={(mod_items) => setDraft({ ...draft, mod_items })}
                 disabled={saveEdit.isPending}
               />
+              {VIDEO_UPLOADS_ENABLED && (
+              <>
               <ClipField
                 label={t("garage.walkaround")}
                 url={draft.walkaround_url}
@@ -276,6 +279,8 @@ export default function VehiclePage() {
                 onUpload={(file) => void uploadClip("sound", file)}
                 onRemove={() => setDraft({ ...draft, sound_url: "" })}
               />
+              </>
+              )}
               <div className="flex gap-2">
                 <Button className="flex-1" onClick={() => saveEdit.mutate()} disabled={!draft.make || !draft.model || saveEdit.isPending}>
                   {t("garage.saveChanges")}
@@ -470,7 +475,7 @@ export default function VehiclePage() {
                     variant="outline"
                     className="text-destructive hover:text-destructive"
                     onClick={() => {
-                      if (window.confirm(t("garage.delete"))) deleteVehicle.mutate();
+                      if (window.confirm(t("garage.confirmDelete"))) deleteVehicle.mutate();
                     }}
                     disabled={deleteVehicle.isPending}
                   >

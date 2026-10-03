@@ -8,4 +8,8 @@ COPY app ${LAMBDA_TASK_ROOT}/app
 COPY alembic ${LAMBDA_TASK_ROOT}/alembic
 COPY alembic.ini ${LAMBDA_TASK_ROOT}/alembic.ini
 
+# The deploy workflow passes the short commit SHA so /health reports what is running.
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 CMD ["app.handler.handler"]

@@ -285,6 +285,9 @@ async def update_vehicle(
     if not vehicle or vehicle.user_id != user.id:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
+    from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
+
+    before = [*(vehicle.image_urls or []), vehicle.walkaround_url, vehicle.sound_url]
     data = body.model_dump(exclude_unset=True)
     data.pop("mod_items", None)
     if "nickname" in data:
@@ -301,7 +304,10 @@ async def update_vehicle(
         _apply_mod_items(vehicle, body.mod_items)
     if data.get("is_primary"):
         await _unset_other_primaries(db, user.id, vehicle.id)
+    replaced = removed_media(before, [*(vehicle.image_urls or []), vehicle.walkaround_url, vehicle.sound_url])
+    orphaned = await unreferenced_media(db, replaced)
     await db.commit()
+    delete_media_files(orphaned)
     await db.refresh(vehicle)
     return await _vehicle_response(db, vehicle, with_shops=True)
 
@@ -315,8 +321,13 @@ async def delete_vehicle(
     vehicle = await db.get(Vehicle, vehicle_id)
     if not vehicle or vehicle.user_id != user.id:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    from app.services.media_cleanup import delete_media_files, unreferenced_media
+
+    media = [*(vehicle.image_urls or []), vehicle.walkaround_url, vehicle.sound_url]
     await db.delete(vehicle)
+    orphaned = await unreferenced_media(db, media)
     await db.commit()
+    delete_media_files(orphaned)
     return {"deleted": True}
 
 

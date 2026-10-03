@@ -719,6 +719,10 @@ class ApiClient {
     return this.request<Story>("/stories", { method: "POST", body: JSON.stringify(data) });
   }
 
+  deleteStory(storyId: string) {
+    return this.request<{ deleted: boolean }>(`/stories/${storyId}`, { method: "DELETE" });
+  }
+
   // Explore
   explorePosts() {
     return this.request<Array<{ id: string; thumbnail?: string; content?: string; author?: User }>>("/explore/posts");
@@ -749,6 +753,10 @@ class ApiClient {
 
   deletePost(postId: string) {
     return this.request<{ deleted: boolean }>(`/posts/${postId}`, { method: "DELETE" });
+  }
+
+  deleteComment(postId: string, commentId: string) {
+    return this.request<{ deleted: boolean }>(`/posts/${postId}/comments/${commentId}`, { method: "DELETE" });
   }
 
   searchUsers(q: string, opts?: { accountType?: string }) {
@@ -797,6 +805,14 @@ class ApiClient {
       method: "POST",
       body: JSON.stringify({ content }),
     });
+  }
+
+  deleteForumTopic(topicId: string) {
+    return this.request<{ deleted: boolean }>(`/forums/topics/${topicId}`, { method: "DELETE" });
+  }
+
+  deleteForumReply(replyId: string) {
+    return this.request<{ deleted: boolean }>(`/forums/replies/${replyId}`, { method: "DELETE" });
   }
 
   createTopic(forumId: string, title: string, content: string) {
@@ -880,6 +896,13 @@ class ApiClient {
     return this.request<{ message: string }>("/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+  }
+
+  deleteAccount(confirmUsername: string) {
+    return this.request<{ deleted: boolean }>("/users/me", {
+      method: "DELETE",
+      body: JSON.stringify({ confirm_username: confirmUsername }),
     });
   }
 

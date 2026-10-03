@@ -1,7 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { displayName, formatHandle } from "@/lib/utils";
@@ -10,6 +12,8 @@ export default function StoryViewerPage() {
   const { t } = useTranslation();
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: stories = [], isLoading } = useQuery({
     queryKey: ["stories"],
@@ -20,6 +24,16 @@ export default function StoryViewerPage() {
   const story = index >= 0 ? stories[index] : null;
   const prev = index > 0 ? stories[index - 1] : null;
   const next = index >= 0 && index < stories.length - 1 ? stories[index + 1] : null;
+
+  const deleteStory = useMutation({
+    mutationFn: (id: string) => api.deleteStory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["stories"] });
+      toast.success(t("storyDeleted"));
+      navigate("/", { replace: true });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   if (!isLoading && !story) {
     return (
@@ -43,14 +57,29 @@ export default function StoryViewerPage() {
             </>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-full hover:bg-white/10"
-          aria-label={t("close")}
-        >
-          <X className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-1">
+          {story && story.user_id === user?.id && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(t("confirmDeleteStory"))) deleteStory.mutate(story.id);
+              }}
+              disabled={deleteStory.isPending}
+              className="p-2 rounded-full hover:bg-white/10"
+              aria-label={t("deleteStory")}
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full hover:bg-white/10"
+            aria-label={t("close")}
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       <div className="relative flex-1 flex items-center justify-center min-h-0">

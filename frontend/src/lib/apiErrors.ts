@@ -2,6 +2,13 @@ import i18n, { resolveAppLanguage } from "@/i18n";
 
 const EXACT_ERROR_KEYS: Record<string, string> = {
   Unauthorized: "apiErrors.unauthorized",
+  video_uploads_disabled: "apiErrors.videoUploadsDisabled",
+  confirmation_mismatch: "apiErrors.confirmationMismatch",
+  account_deletion_failed: "apiErrors.accountDeletionFailed",
+  removed_by_moderator: "apiErrors.removedByModerator",
+  "You cannot delete this comment": "apiErrors.notAllowed",
+  "You cannot delete this topic": "apiErrors.notAllowed",
+  "You cannot delete this reply": "apiErrors.notAllowed",
   "Request failed": "apiErrors.requestFailed",
   "Not authenticated": "apiErrors.notAuthenticated",
   "Invalid email or password": "apiErrors.invalidCredentials",

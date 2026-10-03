@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import BusinessSettingsSection from "@/components/BusinessSettingsSection";
 import BusinessUpgradeModal from "@/components/BusinessUpgradeModal";
@@ -71,7 +71,18 @@ const TAB_ICONS = {
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const deleteAccount = useMutation({
+    mutationFn: () => api.deleteAccount(deleteConfirm),
+    onSuccess: () => {
+      logout();
+      toast.success(t("accountDeletion.done"));
+      navigate("/", { replace: true });
+    },
+    onError: (err: Error) => toast.error(err.message || t("accountDeletion.failed")),
+  });
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [fullName, setFullName] = useState("");
@@ -435,6 +446,46 @@ export default function SettingsPage() {
                     <Input name="newPass" type="password" placeholder={t("newPassword")} dir="ltr" autoComplete="new-password" />
                     <Button type="submit" variant="outline" size="sm" disabled={changePassword.isPending}>
                       {t("changePassword")}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "account" && user && (
+              <Card className="border-destructive/40">
+                <CardContent className="pt-5 pb-5 space-y-3">
+                  <h3 className="font-semibold text-destructive">{t("accountDeletion.title")}</h3>
+                  <p className="text-sm text-muted-foreground">{t("accountDeletion.body")}</p>
+                  <form
+                    className="space-y-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (deleteConfirm.trim() && window.confirm(t("accountDeletion.confirm"))) deleteAccount.mutate();
+                    }}
+                  >
+                    <label className="block text-sm" htmlFor="delete-account-username">
+                      {t("accountDeletion.typeUsername", { username: user.username })}
+                    </label>
+                    <Input
+                      id="delete-account-username"
+                      value={deleteConfirm}
+                      onChange={(e) => setDeleteConfirm(e.target.value)}
+                      dir="ltr"
+                      autoComplete="off"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                    />
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      size="sm"
+                      disabled={
+                        deleteAccount.isPending ||
+                        deleteConfirm.trim().replace(/^@/, "").toLowerCase() !== (user.username || "").toLowerCase()
+                      }
+                    >
+                      {deleteAccount.isPending ? t("accountDeletion.deleting") : t("accountDeletion.submit")}
                     </Button>
                   </form>
                 </CardContent>

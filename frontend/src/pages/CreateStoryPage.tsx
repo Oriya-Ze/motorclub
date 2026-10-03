@@ -7,6 +7,7 @@ import PageHeading from "@/components/PageHeading";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { isImageFile } from "@/lib/cropImage";
+import { VIDEO_UPLOADS_ENABLED } from "@/lib/mediaUpload";
 
 export default function CreateStoryPage() {
   const { t } = useTranslation();
@@ -38,6 +39,10 @@ export default function CreateStoryPage() {
     if (!file) return;
 
     if (file.type.startsWith("video/")) {
+      if (!VIDEO_UPLOADS_ENABLED) {
+        toast.error(t("apiErrors.videoUploadsDisabled"));
+        return;
+      }
       await publishStory(file, "video");
       return;
     }
@@ -75,7 +80,7 @@ export default function CreateStoryPage() {
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+          accept={VIDEO_UPLOADS_ENABLED ? "image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime" : "image/jpeg,image/png,image/webp"}
           className="hidden"
           onChange={(e) => handleFile(e.target.files)}
           disabled={uploading || !!cropFile}

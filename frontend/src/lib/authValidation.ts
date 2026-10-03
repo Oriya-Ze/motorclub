@@ -14,14 +14,15 @@ export function loadAuthDraft(): AuthFormDraft | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as AuthFormDraft;
+    return { ...(JSON.parse(raw) as AuthFormDraft), password: "" };
   } catch {
     return null;
   }
 }
 
 export function saveAuthDraft(draft: AuthFormDraft): void {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  // The password stays in memory only, never in browser storage.
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...draft, password: "" }));
 }
 
 export function clearAuthDraft(): void {

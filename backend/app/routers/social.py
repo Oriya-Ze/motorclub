@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -119,6 +119,26 @@ async def list_stories(db: AsyncSession = Depends(get_db), _=Depends(get_current
     return stories
 
 
+@stories_router.delete("/{story_id}")
+async def delete_story(
+    story_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """Only the story's owner can remove it. Its file is deleted too."""
+    from app.services.media_cleanup import delete_media_files, unreferenced_media
+
+    story = await db.get(Story, story_id)
+    if not story or story.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Story not found")
+    media = [story.media_url]
+    await db.delete(story)
+    orphaned = await unreferenced_media(db, media)
+    await db.commit()
+    delete_media_files(orphaned)
+    return {"deleted": True}
+
+
 @stories_router.post("", response_model=StoryResponse)
 async def create_story(
     body: StoryCreate,
@@ -152,8 +172,11 @@ async def explore_posts(db: AsyncSession = Depends(get_db), _=Depends(get_curren
     result = await db.execute(
         select(Post).where(Post.image_urls != None, publicly_visible()).order_by(Post.created_at.desc()).limit(30)
     )
-    posts = result.scalars().all()
-    first_keys = [p.image_urls[0] for p in posts if p.image_urls]
+    from app.media.keys import is_private_storage_key
+
+    # A key still on the private path cannot load for anyone browsing, so it never becomes a tile.
+    posts = [p for p in result.scalars().all() if p.image_urls and not is_private_storage_key(p.image_urls[0])]
+    first_keys = [p.image_urls[0] for p in posts]
     image_media_map = await build_image_media_map(db, list(dict.fromkeys(first_keys)))
     items = []
     for p in posts:

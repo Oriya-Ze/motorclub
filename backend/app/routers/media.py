@@ -24,6 +24,10 @@ async def create_upload_request(
     user: User = Depends(get_user_model),
 ):
     purpose = validate_purpose(body.purpose)
+    from app import config as app_config
+
+    if body.content_type.split(";", 1)[0].strip().lower().startswith("video/") and not app_config.settings.video_uploads_enabled:
+        raise HTTPException(status_code=400, detail="video_uploads_disabled")
     storage = get_media_storage()
     request = await storage.create_upload_request(
         user_id=user.id,

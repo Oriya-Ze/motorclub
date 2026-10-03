@@ -438,7 +438,10 @@ async def update_product(
         raise HTTPException(status_code=404, detail="Product not found")
     if product.business_id != user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
+    from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
+
     was_published = product.listing_status == "published"
+    before = [*(product.image_urls or []), *(product.pending_image_urls or [])]
     _apply_product_fields(product, body)
     if body.publish:
         if not product.image_urls:
@@ -449,7 +452,10 @@ async def update_product(
     elif "image_urls" in body.model_dump(exclude_unset=True) and was_published:
         product.listing_status = "pending_review"
         product.moderation_status = "pending"
+    replaced = removed_media(before, [*(product.image_urls or []), *(product.pending_image_urls or [])])
+    orphaned = await unreferenced_media(db, replaced)
     await db.commit()
+    delete_media_files(orphaned)
     await db.refresh(product)
     return await _product_response(db, product)
 
@@ -465,8 +471,13 @@ async def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
     if product.business_id != user.id:
         raise HTTPException(status_code=403, detail="Not allowed")
+    from app.services.media_cleanup import delete_media_files, unreferenced_media
+
+    media = [*(product.image_urls or []), *(product.pending_image_urls or [])]
     await db.delete(product)
+    orphaned = await unreferenced_media(db, media)
     await db.commit()
+    delete_media_files(orphaned)
     return {"deleted": True}
 
 
