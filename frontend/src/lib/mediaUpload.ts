@@ -27,6 +27,8 @@ export interface MediaUploadRequestResponse {
 export interface UploadMediaResult {
   reference: string;
   mediaType: MediaType;
+  /** The scan result for a private image upload; "approved" images come back with their public key. */
+  decision?: string;
 }
 
 export class MediaUploadError extends Error {
@@ -285,6 +287,7 @@ async function finalizeImageUpload(
   return {
     reference: scanned.public_key || scanned.storage_key,
     mediaType: "image",
+    decision: scanned.decision,
   };
 }
 

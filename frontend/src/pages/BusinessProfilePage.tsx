@@ -526,7 +526,7 @@ export default function BusinessProfilePage() {
             </div>
           )}
           {isOwn && showAddVehicle && (
-            <AddVehicleForm existingCount={garage.length} onCreated={() => setShowAddVehicle(false)} />
+            <AddVehicleForm existingCount={garage.length} onCreated={() => setShowAddVehicle(false)} onClose={() => setShowAddVehicle(false)} />
           )}
           {garage.length === 0 && !showAddVehicle ? (
             <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60">

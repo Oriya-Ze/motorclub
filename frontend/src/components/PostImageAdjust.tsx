@@ -17,6 +17,8 @@ interface PostImageAdjustProps {
   fileName: string;
   canReset: boolean;
   busy?: boolean;
+  /** The ratio the crop starts at; 4:3 unless given. */
+  initialAspect?: (typeof ASPECTS)[number]["value"];
   onCancel: () => void;
   onReset: () => void;
   onApply: (file: File) => void;
@@ -28,13 +30,14 @@ export default function PostImageAdjust({
   fileName,
   canReset,
   busy = false,
+  initialAspect = 4 / 3,
   onCancel,
   onReset,
   onApply,
   onSourceError,
 }: PostImageAdjustProps) {
   const { t } = useTranslation();
-  const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["value"]>(4 / 3);
+  const [aspect, setAspect] = useState<(typeof ASPECTS)[number]["value"]>(initialAspect);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);

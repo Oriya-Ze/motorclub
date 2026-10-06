@@ -11,7 +11,7 @@ import ShareSheet from "@/components/ShareSheet";
 import VehicleCard from "@/components/VehicleCard";
 import VehicleImageCarousel from "@/components/VehicleImageCarousel";
 import VehicleModEditor from "@/components/VehicleModEditor";
-import VehiclePhotoEditor from "@/components/VehiclePhotoEditor";
+import VehiclePhotosField from "@/components/VehiclePhotosField";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -52,6 +52,7 @@ export default function VehiclePage() {
   const [showShare, setShowShare] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Partial<Vehicle>>({});
+  const [photosBusy, setPhotosBusy] = useState(false);
   const [uploadingClip, setUploadingClip] = useState<"walkaround" | "sound" | null>(null);
 
   const { data: vehicle, isLoading, error } = useQuery({
@@ -229,10 +230,11 @@ export default function VehiclePage() {
         <CardContent className="pt-4 pb-5 space-y-4">
           {editing ? (
             <div className="space-y-3">
-              <VehiclePhotoEditor
-                urls={draft.image_urls ?? []}
+              <VehiclePhotosField
+                initialUrls={draft.image_urls ?? []}
                 imageMedia={vehicle.image_media}
-                onChange={(image_urls) => setDraft({ ...draft, image_urls })}
+                onChange={(image_urls) => setDraft((prev) => ({ ...prev, image_urls }))}
+                onBusyChange={setPhotosBusy}
                 disabled={saveEdit.isPending}
               />
               <Input
@@ -283,7 +285,7 @@ export default function VehiclePage() {
               </>
               )}
               <div className="flex gap-2">
-                <Button className="flex-1" onClick={() => saveEdit.mutate()} disabled={!draft.make || !draft.model || saveEdit.isPending}>
+                <Button className="flex-1" onClick={() => saveEdit.mutate()} disabled={!draft.make || !draft.model || photosBusy || saveEdit.isPending}>
                   {t("garage.saveChanges")}
                 </Button>
                 <Button variant="outline" onClick={() => setEditing(false)}>

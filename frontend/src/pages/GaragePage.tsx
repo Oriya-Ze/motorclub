@@ -49,6 +49,7 @@ export default function GaragePage() {
       {showForm && (
         <AddVehicleForm
           existingCount={vehicles.length}
+          onClose={() => setShowForm(false)}
           onCreated={(vehicle) => {
             setShowForm(false);
             navigate(`/vehicles/${vehicle.id}`);

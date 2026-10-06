@@ -213,6 +213,7 @@ export default function ProfilePage() {
             <AddVehicleForm
               existingCount={garage.length}
               onCreated={() => setShowAddVehicle(false)}
+              onClose={() => setShowAddVehicle(false)}
             />
           )}
           {garage.length === 0 && !showAddVehicle ? (
