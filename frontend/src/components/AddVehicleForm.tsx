@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import VehicleModEditor from "@/components/VehicleModEditor";
 import VehiclePhotosField, { MAX_VEHICLE_PHOTOS } from "@/components/VehiclePhotosField";
+import StoredImage from "@/components/StoredImage";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -13,7 +14,6 @@ import { Select } from "@/components/ui/Select";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Vehicle, VehicleCatalogVariant, VehicleModItem } from "@/lib/api";
 import { formatEngineLabel } from "@/lib/formatLabels";
-import { mediaUrl } from "@/lib/media";
 import { digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
 const emptyForm = {
@@ -372,7 +372,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
             <p className="mb-2 text-xs font-medium text-muted-foreground">{t("garage.editor.preview")}</p>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               {images[0] ? (
-                <img src={mediaUrl(images[0])} alt="" className="aspect-video w-full object-cover" />
+                <StoredImage sourceKey={images[0]} className="aspect-video w-full object-cover" />
               ) : (
                 <VehiclePlaceholder className="aspect-video w-full rounded-none" iconClassName="h-10 w-10" />
               )}

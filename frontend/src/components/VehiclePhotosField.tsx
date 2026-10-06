@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import PostImageAdjust from "@/components/PostImageAdjust";
+import StoredImage, { loadStoredImageFile } from "@/components/StoredImage";
 import { api, type ImageMedia } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { MAX_IMAGE_BYTES, MediaUploadError, SUPPORTED_IMAGE_TYPES } from "@/lib/mediaUpload";
 import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
@@ -50,13 +50,7 @@ export default function VehiclePhotosField({
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<PhotoItem[]>(() =>
-    initialUrls.map((reference) => ({
-      id: newId(),
-      status: "ready",
-      progress: null,
-      reference,
-      previewUrl: mediaUrl(pickStoredImageUrl(reference, imageMedia, "feed")),
-    })),
+    initialUrls.map((reference) => ({ id: newId(), status: "ready", progress: null, reference })),
   );
   const [dragging, setDragging] = useState(false);
   const [adjust, setAdjust] = useState<{ id: string; src: string; name: string } | null>(null);
@@ -181,12 +175,9 @@ export default function VehiclePhotosField({
   const openCrop = async (item: PhotoItem) => {
     let source = item.original?.file ?? item.file;
     if (!source && (item.original?.reference || item.reference)) {
-      try {
-        const response = await fetch(mediaUrl(item.original?.reference || (item.reference as string)));
-        if (!response.ok) throw new Error("fetch failed");
-        const blob = await response.blob();
-        source = new File([blob], "vehicle.jpg", { type: blob.type || "image/jpeg" });
-      } catch {
+      // Saved photos have no local file, and their original is gone after processing: crop from the stored copy.
+      source = (await loadStoredImageFile(item.original?.reference || (item.reference as string))) ?? undefined;
+      if (!source) {
         toast.error(t("composer.cropNeedsFile"));
         return;
       }
@@ -255,6 +246,13 @@ export default function VehiclePhotosField({
             <li key={item.id} className="relative aspect-video overflow-hidden rounded-xl border border-border bg-muted">
               {item.previewUrl ? (
                 <img src={item.previewUrl} alt={t("garage.photoIndex", { n: index + 1, total: items.length })} className="h-full w-full object-cover" />
+              ) : item.reference ? (
+                <StoredImage
+                  sourceKey={item.reference}
+                  preferredKey={pickStoredImageUrl(item.reference, imageMedia, "feed")}
+                  alt={t("garage.photoIndex", { n: index + 1, total: items.length })}
+                  className="h-full w-full object-cover"
+                />
               ) : null}
 
               {item.status === "ready" && (index === 0 || item.lowRes) ? (
