@@ -64,6 +64,8 @@ def business_public_dict(u: User, *, rating_avg: float | None = None, review_cou
         "full_name": u.full_name,
         "username": u.username,
         "business_type": u.business_type,
+        "business_types": u.business_types or ([u.business_type] if u.business_type else []),
+        "business_entity": u.business_entity,
         "business_description": u.business_description,
         "business_phone": u.business_phone,
         "business_address": u.business_address,

@@ -492,10 +492,11 @@ def _list_businesses_query(
         User.is_active.is_(True),
         User.business_hidden.is_(False),
     )
+    # A business shows up under every category it chose, not only its primary one.
     if types is not None:
-        query = query.where(User.business_type.in_(types))
+        query = query.where(or_(User.business_type.in_(types), User.business_types.overlap(list(types))))
     if business_type:
-        query = query.where(User.business_type == business_type)
+        query = query.where(or_(User.business_type == business_type, User.business_types.any(business_type)))
     if q:
         stem = q.strip()
         term = f"%{stem}%"
@@ -588,6 +589,6 @@ async def get_workshop(
     _=Depends(get_current_user),
 ):
     user = await _get_active_business(db, user_id)
-    if user.business_type not in WORKSHOP_BUSINESS_TYPES:
+    if not ({user.business_type, *(user.business_types or [])} & WORKSHOP_BUSINESS_TYPES):
         raise HTTPException(status_code=404, detail="Workshop not found")
     return await _business_public(db, user)

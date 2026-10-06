@@ -13,6 +13,8 @@ export interface BusinessPublic {
   full_name: string;
   username?: string;
   business_type?: string | null;
+  business_types?: string[] | null;
+  business_entity?: string | null;
   business_description?: string | null;
   business_phone?: string | null;
   business_address?: string | null;

@@ -37,6 +37,7 @@ import {
   mapsUrl,
   whatsappUrl,
 } from "@/lib/businessProfile";
+import { businessTypesOf } from "@/lib/businessTypes";
 import { safeReturnTo } from "@/lib/returnTo";
 import ReportDialog from "@/components/ReportDialog";
 import { mediaUrl } from "@/lib/media";
@@ -229,8 +230,8 @@ export default function BusinessProfilePage() {
   const specializations = useMemo(() => {
     if (!business) return [];
     const items: string[] = [];
-    if (business.business_type) {
-      items.push(t(`businessCategories.${business.business_type}`, { defaultValue: business.business_type }));
+    for (const type of businessTypesOf(business)) {
+      items.push(t(`businessCategories.${type}`, { defaultValue: type }));
     }
     for (const cert of business.certifications ?? []) {
       const trimmed = cert.trim();

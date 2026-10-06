@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.business_types import is_valid_business_type
+from app.business_types import check_business_entity, chosen_business_types
 from app.config import settings
 from app.deps import is_platform_admin
 from app.models import BusinessUpgradeRequest, User
@@ -24,6 +24,8 @@ def _request_to_dict(req: BusinessUpgradeRequest) -> dict:
         "status": req.status,
         "business_name": req.business_name,
         "business_type": req.business_type,
+        "business_types": req.business_types or ([req.business_type] if req.business_type else None),
+        "business_entity": req.business_entity,
         "business_description": req.business_description,
         "business_phone": req.business_phone,
         "business_address": req.business_address,
@@ -56,8 +58,8 @@ async def submit_business_upgrade_request(
     if user.account_type == "business":
         raise HTTPException(status_code=400, detail="Account is already a business account")
 
-    if not is_valid_business_type(body.business_type):
-        raise HTTPException(status_code=400, detail="Invalid business category")
+    business_types = chosen_business_types(body.business_types, body.business_type)
+    business_entity = check_business_entity(body.business_entity)
 
     existing = await db.scalar(
         select(BusinessUpgradeRequest).where(
@@ -72,7 +74,9 @@ async def submit_business_upgrade_request(
         user_id=user.id,
         status="pending",
         business_name=body.business_name.strip(),
-        business_type=body.business_type,
+        business_type=business_types[0],
+        business_types=business_types,
+        business_entity=business_entity,
         business_description=body.business_description.strip(),
         business_phone=body.business_phone.strip(),
         business_address=body.business_address.strip(),
@@ -146,6 +150,8 @@ async def approve_business_upgrade_request(
     applicant.account_type = "business"
     applicant.full_name = req.business_name or applicant.full_name
     applicant.business_type = req.business_type
+    applicant.business_types = req.business_types or ([req.business_type] if req.business_type else None)
+    applicant.business_entity = req.business_entity
     applicant.business_description = req.business_description
     applicant.business_phone = req.business_phone
     applicant.business_address = req.business_address

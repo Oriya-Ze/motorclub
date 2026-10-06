@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useImageCropUpload } from "@/hooks/useImageCropUpload";
 import { api, Product } from "@/lib/api";
-import { ALL_BUSINESS_TYPES } from "@/lib/businessTypes";
+import BusinessCategoryFields from "@/components/BusinessCategoryFields";
+import { ALL_BUSINESS_TYPES, BUSINESS_ENTITIES, businessTypesOf, type BusinessEntity, type BusinessType } from "@/lib/businessTypes";
 import {
   BusinessHours,
   BusinessService,
@@ -29,7 +30,8 @@ export default function BusinessSettingsSection() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [businessName, setBusinessName] = useState("");
-  const [businessType, setBusinessType] = useState("");
+  const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
+  const [businessEntity, setBusinessEntity] = useState<BusinessEntity | "">("");
   const [businessPhone, setBusinessPhone] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [businessDescription, setBusinessDescription] = useState("");
@@ -48,7 +50,9 @@ export default function BusinessSettingsSection() {
   useEffect(() => {
     if (!user) return;
     setBusinessName(user.full_name ?? "");
-    setBusinessType(user.business_type ?? "garage");
+    const saved = businessTypesOf(user).filter((type): type is BusinessType => (ALL_BUSINESS_TYPES as readonly string[]).includes(type));
+    setBusinessTypes(saved.length ? saved : ["garage"]);
+    setBusinessEntity((BUSINESS_ENTITIES as readonly string[]).includes(user.business_entity ?? "") ? (user.business_entity as BusinessEntity) : "");
     setBusinessPhone(user.business_phone ?? "");
     setBusinessAddress(user.business_address ?? "");
     setBusinessDescription(user.business_description ?? "");
@@ -91,7 +95,9 @@ export default function BusinessSettingsSection() {
     mutationFn: () =>
       api.updateProfile({
         full_name: businessName.trim(),
-        business_type: businessType,
+        business_type: businessTypes[0],
+        business_types: businessTypes,
+        business_entity: businessEntity || undefined,
         business_phone: businessPhone.trim() || undefined,
         business_address: businessAddress.trim() || undefined,
         business_description: businessDescription.trim() || undefined,
@@ -216,20 +222,13 @@ export default function BusinessSettingsSection() {
           <label className="text-sm font-medium">{t("businessUpgradeForm.businessName")}</label>
           <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">{t("businessUpgradeForm.businessType")}</label>
-          <select
-            value={businessType}
-            onChange={(e) => setBusinessType(e.target.value)}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            {ALL_BUSINESS_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {t(`businessCategories.${type}`)}
-              </option>
-            ))}
-          </select>
-        </div>
+        <BusinessCategoryFields
+          types={businessTypes}
+          onTypesChange={setBusinessTypes}
+          entity={businessEntity}
+          onEntityChange={setBusinessEntity}
+          errors={{ types: businessTypes.length ? undefined : t("businessUpgradeForm.needCategory") }}
+        />
         <div className="space-y-2">
           <label className="text-sm font-medium">{t("businessUpgradeForm.businessPhone")}</label>
           <Input value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} dir="ltr" />
@@ -342,7 +341,7 @@ export default function BusinessSettingsSection() {
           </div>
         </div>
 
-        <Button size="sm" disabled={!businessName.trim() || updateBusiness.isPending} onClick={() => updateBusiness.mutate()}>
+        <Button size="sm" disabled={!businessName.trim() || !businessTypes.length || updateBusiness.isPending} onClick={() => updateBusiness.mutate()}>
           {t("profile.saveChanges")}
         </Button>
       </div>

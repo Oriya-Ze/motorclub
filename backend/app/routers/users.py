@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.business_types import is_valid_business_type
+from app.business_types import check_business_entity, chosen_business_types, is_valid_business_type
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_private, user_to_public
 from app.models import BusinessUpgradeRequest, Follower, Post, ProfileSettings, User
@@ -100,6 +100,8 @@ async def update_profile(
         del data["username"]
     business_fields = {
         "business_type",
+        "business_types",
+        "business_entity",
         "business_description",
         "business_phone",
         "business_address",
@@ -115,6 +117,15 @@ async def update_profile(
         raise HTTPException(status_code=400, detail="Business profile fields require a business account")
     if "business_type" in data and data["business_type"] is not None and not is_valid_business_type(data["business_type"]):
         raise HTTPException(status_code=400, detail="Invalid business category")
+    # Keep the list of categories and the primary category in step, whichever one the client sent.
+    if data.get("business_types") is not None:
+        data["business_types"] = chosen_business_types(data["business_types"])
+        data["business_type"] = data["business_types"][0]
+    elif data.get("business_type") is not None:
+        rest = [t for t in (user.business_types or []) if t != data["business_type"]]
+        data["business_types"] = [data["business_type"], *rest]
+    if "business_entity" in data:
+        check_business_entity(data["business_entity"])
     from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
 
     before = [user.profile_picture_url, user.cover_image_url, *(user.gallery_urls or [])]

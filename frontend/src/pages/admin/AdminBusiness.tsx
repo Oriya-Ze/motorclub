@@ -1,10 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { api } from "@/lib/api";
+import { businessTypesOf } from "@/lib/businessTypes";
 import { AdminCard, AdminEmpty, AdminLoading, AdminSection, FilterTabs, ReasonAction, formatDateTime } from "@/pages/admin/shared";
 
 type Status = "pending" | "approved" | "rejected";
+
+const ENTITY_LABELS: Record<string, string> = { self_employed: "עצמאי", company: "עסק" };
 
 export default function AdminBusiness() {
   const [status, setStatus] = useState<Status>("pending");
@@ -46,7 +50,12 @@ export default function AdminBusiness() {
                     {formatDateTime(req.created_at)}
                   </p>
                 </div>
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs">{req.business_type}</span>
+                <div className="flex flex-wrap justify-end gap-1">
+                  {businessTypesOf(req).map((type) => (
+                    <span key={type} className="rounded-full border border-border px-2 py-0.5 text-xs">{i18n.t(`businessCategories.${type}`, { defaultValue: type })}</span>
+                  ))}
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{ENTITY_LABELS[req.business_entity ?? ""] ?? "עצמאי/עסק לא צוין"}</span>
+                </div>
               </div>
               <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                 <div><dt className="inline text-muted-foreground">טלפון עסק: </dt><dd className="inline" dir="ltr">{req.business_phone}</dd></div>

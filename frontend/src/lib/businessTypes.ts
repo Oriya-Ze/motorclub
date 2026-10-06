@@ -6,6 +6,17 @@ export const ALL_BUSINESS_TYPES = [...WORKSHOP_BUSINESS_TYPES, ...SERVICE_BUSINE
 
 export type BusinessType = (typeof ALL_BUSINESS_TYPES)[number];
 
+/** Whether the business is run by a self-employed person or a company. */
+export const BUSINESS_ENTITIES = ["self_employed", "company"] as const;
+
+export type BusinessEntity = (typeof BUSINESS_ENTITIES)[number];
+
+/** Every category a business chose, primary first, also for businesses saved before there could be several. */
+export function businessTypesOf(business: { business_type?: string | null; business_types?: string[] | null }): string[] {
+  if (business.business_types?.length) return business.business_types;
+  return business.business_type ? [business.business_type] : [];
+}
+
 export function isWorkshopType(businessType?: string | null): boolean {
   return Boolean(
     businessType && WORKSHOP_BUSINESS_TYPES.includes(businessType as (typeof WORKSHOP_BUSINESS_TYPES)[number])
@@ -14,7 +25,10 @@ export function isWorkshopType(businessType?: string | null): boolean {
 
 export interface BusinessUpgradeFormData {
   business_name: string;
+  /** The primary category: the first of business_types. */
   business_type: BusinessType;
+  business_types: BusinessType[];
+  business_entity: BusinessEntity;
   business_phone: string;
   business_address: string;
   business_description: string;
@@ -31,6 +45,8 @@ export interface BusinessUpgradeRequest {
   status: "pending" | "approved" | "rejected";
   business_name: string | null;
   business_type: string | null;
+  business_types?: string[] | null;
+  business_entity?: string | null;
   business_description: string | null;
   business_phone: string | null;
   business_address: string | null;

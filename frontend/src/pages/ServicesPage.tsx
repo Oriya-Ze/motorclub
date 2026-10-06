@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
 import { api } from "@/lib/api";
 import { BusinessPublic, BUSINESS_CATEGORIES, getBusinessProfilePath } from "@/lib/businessProfile";
+import { businessTypesOf } from "@/lib/businessTypes";
 import { withReturnTo } from "@/lib/returnTo";
 import { cn } from "@/lib/utils";
 
@@ -141,9 +142,9 @@ function ServiceCard({ service }: { service: BusinessPublic }) {
                   </span>
                 )}
               </div>
-              {service.business_type && (
+              {businessTypesOf(service).length > 0 && (
                 <p className="text-xs text-primary mt-0.5">
-                  {t(`businessCategories.${service.business_type}`, { defaultValue: service.business_type })}
+                  {businessTypesOf(service).map((type) => t(`businessCategories.${type}`, { defaultValue: type })).join(" · ")}
                 </p>
               )}
               {service.rating_avg != null && (

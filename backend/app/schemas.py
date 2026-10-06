@@ -15,6 +15,8 @@ class UserPublic(BaseModel):
     profile_picture_url: str | None = None
     account_type: str = "personal"
     business_type: str | None = None
+    business_types: list[str] | None = None
+    business_entity: str | None = None
     business_description: str | None = None
     business_phone: str | None = None
     business_address: str | None = None
@@ -389,6 +391,8 @@ class ProfileUpdate(BaseModel):
     profile_picture_url: str | None = None
     cover_image_url: str | None = None
     business_type: str | None = None
+    business_types: list[str] | None = Field(default=None, max_length=11)
+    business_entity: str | None = None
     business_description: str | None = None
     business_phone: str | None = None
     business_address: str | None = None
@@ -599,7 +603,10 @@ class StoryResponse(BaseModel):
 
 class BusinessUpgradeRequestCreate(BaseModel):
     business_name: str = Field(min_length=2, max_length=255)
-    business_type: str = Field(min_length=2, max_length=50)
+    # Older clients send one business_type; newer ones send every category, primary first.
+    business_type: str | None = Field(default=None, max_length=50)
+    business_types: list[str] | None = Field(default=None, max_length=11)
+    business_entity: str | None = None
     business_phone: str = Field(min_length=7, max_length=30)
     business_address: str = Field(min_length=3, max_length=500)
     business_description: str = Field(min_length=10, max_length=2000)
@@ -616,6 +623,8 @@ class BusinessUpgradeRequestResponse(BaseModel):
     status: str
     business_name: str | None
     business_type: str | None
+    business_types: list[str] | None = None
+    business_entity: str | None = None
     business_description: str | None
     business_phone: str | None
     business_address: str | None

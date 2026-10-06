@@ -3,7 +3,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { ALL_BUSINESS_TYPES, type BusinessUpgradeFormData } from "@/lib/businessTypes";
+import BusinessCategoryFields from "@/components/BusinessCategoryFields";
+import type { BusinessEntity, BusinessType, BusinessUpgradeFormData } from "@/lib/businessTypes";
 
 interface BusinessUpgradeModalProps {
   open: boolean;
@@ -23,7 +24,6 @@ export default function BusinessUpgradeModal({
   const { t } = useTranslation();
   const [form, setForm] = useState({
     business_name: "",
-    business_type: "garage" as BusinessUpgradeFormData["business_type"],
     business_phone: "",
     business_address: "",
     business_description: "",
@@ -33,6 +33,9 @@ export default function BusinessUpgradeModal({
     business_website: "",
     additional_notes: "",
   });
+  const [types, setTypes] = useState<BusinessType[]>([]);
+  const [entity, setEntity] = useState<BusinessEntity | "">("");
+  const [errors, setErrors] = useState<{ types?: string; entity?: string }>({});
   const id = useId();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   // The parent passes a new function on every render; reading it from a ref keeps the effect from re-running and moving focus.
@@ -59,9 +62,17 @@ export default function BusinessUpgradeModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const missing = {
+      types: types.length ? undefined : t("businessUpgradeForm.needCategory"),
+      entity: entity ? undefined : t("businessUpgradeForm.needEntity"),
+    };
+    setErrors(missing);
+    if (missing.types || missing.entity || !entity) return;
     onSubmit({
       business_name: form.business_name.trim(),
-      business_type: form.business_type,
+      business_type: types[0],
+      business_types: types,
+      business_entity: entity,
       business_phone: form.business_phone.trim(),
       business_address: form.business_address.trim(),
       business_description: form.business_description.trim(),
@@ -96,31 +107,19 @@ export default function BusinessUpgradeModal({
               <label className="text-sm font-medium" htmlFor={`${id}-business_name`}>{t("businessUpgradeForm.businessName")}</label>
               <Input ref={firstFieldRef} id={`${id}-business_name`} value={form.business_name} onChange={(e) => set("business_name", e.target.value)} required />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor={`${id}-business_type`}>{t("businessUpgradeForm.category")}</label>
-              <select
-                id={`${id}-business_type`}
-                value={form.business_type}
-                onChange={(e) => set("business_type", e.target.value)}
-                className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
-                required
-              >
-                <optgroup label={t("businessUpgradeForm.workshopGroup")}>
-                  {ALL_BUSINESS_TYPES.filter((tpe) =>
-                    ["garage", "mechanic", "body_shop", "tires", "electric"].includes(tpe)
-                  ).map((type) => (
-                    <option key={type} value={type}>{t(`businessCategories.${type}`)}</option>
-                  ))}
-                </optgroup>
-                <optgroup label={t("businessUpgradeForm.serviceGroup")}>
-                  {ALL_BUSINESS_TYPES.filter((tpe) =>
-                    !["garage", "mechanic", "body_shop", "tires", "electric"].includes(tpe)
-                  ).map((type) => (
-                    <option key={type} value={type}>{t(`businessCategories.${type}`)}</option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
+            <BusinessCategoryFields
+              types={types}
+              onTypesChange={(next) => {
+                setTypes(next);
+                if (next.length) setErrors((prev) => ({ ...prev, types: undefined }));
+              }}
+              entity={entity}
+              onEntityChange={(next) => {
+                setEntity(next);
+                setErrors((prev) => ({ ...prev, entity: undefined }));
+              }}
+              errors={errors}
+            />
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor={`${id}-business_phone`}>{t("businessUpgradeForm.businessPhone")}</label>
               <Input id={`${id}-business_phone`} value={form.business_phone} onChange={(e) => set("business_phone", e.target.value)} required dir="ltr" />

@@ -9,7 +9,7 @@ from app.database import get_db, get_engine, get_session_factory
 from app.deps import get_user_model
 from app.main import app
 from app.media.keys import generate_storage_key, public_storage_key
-from app.models import Conversation, MediaScan, ModerationAction, Notification, Post, Product, User
+from app.models import BusinessUpgradeRequest, Conversation, MediaScan, ModerationAction, Notification, Post, Product, User
 from app.services.media_gate import _object_exists, write_local_bytes
 from tests.conftest import reload_settings
 from tests.test_post_publication_moderation import _token
@@ -259,3 +259,83 @@ async def test_rejecting_a_held_product_keeps_it_out_and_tells_the_seller(tmp_pa
     finally:
         app.dependency_overrides.clear()
         await _cleanup(seller, admin, keys=[key])
+
+
+UPGRADE = {
+    "business_name": "מוסך ופחחות הדגמה",
+    "business_phone": "0501234567",
+    "business_address": "רחוב הבדיקה 1",
+    "business_description": "מוסך ופחחות לבדיקת קטגוריות מרובות.",
+    "contact_full_name": "איש קשר",
+    "contact_phone": "0501234567",
+}
+
+
+@pytest.mark.asyncio
+async def test_a_business_can_pick_several_categories_and_its_entity(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    member, admin = _person("biz"), _person("adm", is_admin=True)
+    await _add(member, admin)
+    try:
+        async with _as(member) as client:
+            bad = await client.post("/api/v1/users/me/business-upgrade", json={**UPGRADE, "business_types": ["garage", "spaceships"], "business_entity": "self_employed"})
+            assert bad.status_code == 400
+            wrong_entity = await client.post("/api/v1/users/me/business-upgrade", json={**UPGRADE, "business_types": ["garage"], "business_entity": "nonprofit"})
+            assert wrong_entity.status_code == 400
+            sent = await client.post(
+                "/api/v1/users/me/business-upgrade",
+                json={**UPGRADE, "business_types": ["body_shop", "garage", "body_shop"], "business_entity": "self_employed"},
+            )
+            assert sent.status_code == 200, sent.text
+            assert sent.json()["business_types"] == ["body_shop", "garage"]
+            assert sent.json()["business_type"] == "body_shop"
+            assert sent.json()["business_entity"] == "self_employed"
+            request_id = sent.json()["id"]
+        async with _as(admin) as client:
+            listed = (await client.get("/api/v1/admin/business-upgrade-requests")).json()
+            row = next(r for r in listed if r["id"] == request_id)
+            assert row["business_types"] == ["body_shop", "garage"] and row["business_entity"] == "self_employed"
+            approved = await client.post(f"/api/v1/admin/business-upgrade-requests/{request_id}/approve", json={})
+            assert approved.status_code == 200, approved.text
+        async with get_session_factory()() as db:
+            stored = await db.get(User, member.id)
+            assert (stored.business_type, stored.business_types, stored.business_entity) == ("body_shop", ["body_shop", "garage"], "self_employed")
+        async with _as(member) as client:
+            # Found under its second category, and listed among workshops.
+            garages = (await client.get("/api/v1/services?business_type=garage")).json()
+            assert str(member.id) in {b["id"] for b in garages}
+            workshops = (await client.get("/api/v1/workshops")).json()
+            assert str(member.id) in {b["id"] for b in workshops}
+            profile = (await client.get(f"/api/v1/services/{member.id}")).json()
+            assert profile["business_types"] == ["body_shop", "garage"] and profile["business_entity"] == "self_employed"
+            # Settings can change the list; the primary category follows the first one.
+            updated = await client.patch("/api/v1/users/me", json={"business_types": ["detailing", "tires"], "business_entity": "company"})
+            assert updated.status_code == 200, updated.text
+            assert (updated.json()["business_type"], updated.json()["business_types"], updated.json()["business_entity"]) == ("detailing", ["detailing", "tires"], "company")
+            # An older client that only sends one category keeps the others.
+            single = await client.patch("/api/v1/users/me", json={"business_type": "tires"})
+            assert single.json()["business_types"] == ["tires", "detailing"]
+    finally:
+        app.dependency_overrides.clear()
+        async with get_session_factory()() as db:
+            await db.execute(delete(BusinessUpgradeRequest).where(BusinessUpgradeRequest.user_id == member.id))
+            await db.commit()
+        await _cleanup(member, admin)
+
+
+@pytest.mark.asyncio
+async def test_an_older_client_sending_one_category_still_works(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    member = _person("old")
+    await _add(member)
+    try:
+        async with _as(member) as client:
+            sent = await client.post("/api/v1/users/me/business-upgrade", json={**UPGRADE, "business_type": "towing"})
+            assert sent.status_code == 200, sent.text
+            assert sent.json()["business_types"] == ["towing"] and sent.json()["business_entity"] is None
+    finally:
+        app.dependency_overrides.clear()
+        async with get_session_factory()() as db:
+            await db.execute(delete(BusinessUpgradeRequest).where(BusinessUpgradeRequest.user_id == member.id))
+            await db.commit()
+        await _cleanup(member)

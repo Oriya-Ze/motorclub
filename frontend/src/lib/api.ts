@@ -16,6 +16,8 @@ export interface User {
   profile_picture_url?: string | null;
   account_type: string;
   business_type?: string | null;
+  business_types?: string[] | null;
+  business_entity?: string | null;
   business_description?: string | null;
   business_phone?: string | null;
   business_address?: string | null;
@@ -1262,6 +1264,8 @@ class ApiClient {
     profile_picture_url?: string;
     cover_image_url?: string;
     business_type?: string;
+    business_types?: string[];
+    business_entity?: string;
     business_description?: string;
     business_phone?: string;
     business_address?: string;

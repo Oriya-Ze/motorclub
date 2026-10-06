@@ -24,6 +24,8 @@ def _to_admin_response(req: BusinessUpgradeRequest, applicant: User) -> Business
         status=req.status,
         business_name=req.business_name,
         business_type=req.business_type,
+        business_types=req.business_types or ([req.business_type] if req.business_type else None),
+        business_entity=req.business_entity,
         business_description=req.business_description,
         business_phone=req.business_phone,
         business_address=req.business_address,

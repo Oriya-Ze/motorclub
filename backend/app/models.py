@@ -33,6 +33,9 @@ class User(Base):
     profile_picture_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     account_type: Mapped[str] = mapped_column(String(20), default="personal")
     business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Every category the business chose, primary first; business_type mirrors the first one.
+    business_types: Mapped[list[str] | None] = mapped_column(ARRAY(String(50)), nullable=True)
+    business_entity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     business_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     business_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     business_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -412,6 +415,8 @@ class BusinessUpgradeRequest(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     business_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    business_types: Mapped[list[str] | None] = mapped_column(ARRAY(String(50)), nullable=True)
+    business_entity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     business_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     business_phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     business_address: Mapped[str | None] = mapped_column(String(500), nullable=True)
