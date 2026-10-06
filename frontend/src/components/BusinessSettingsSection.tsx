@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Clock, ExternalLink, ImagePlus, MapPin, Package, Pencil, Plus, Trash2, Wrench } from "lucide-react";
+import { BarChart3, Clock, ExternalLink, ImagePlus, MapPin, Package, Plus, Trash2, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import CreateProductModal from "@/components/CreateProductModal";
-import EditProductModal from "@/components/EditProductModal";
+import MyProducts from "@/components/MyProducts";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -28,7 +28,6 @@ export default function BusinessSettingsSection() {
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
@@ -76,12 +75,6 @@ export default function BusinessSettingsSection() {
     onError: (err) => toast.error(err.message),
   });
 
-  const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ["my-products"],
-    queryFn: () => api.getMyProducts(),
-    enabled: user?.account_type === "business",
-  });
-
   const { data: services = [], isLoading: servicesLoading } = useQuery({
     queryKey: ["my-business-services"],
     queryFn: () => api.getMyBusinessServices(),
@@ -121,16 +114,6 @@ export default function BusinessSettingsSection() {
       queryClient.invalidateQueries({ queryKey: ["user"] });
       queryClient.invalidateQueries({ queryKey: ["services"] });
       toast.success(t("businessSettings.saved"));
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const deleteProduct = useMutation({
-    mutationFn: (id: string) => api.deleteProduct(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      toast.success(t("businessSettings.productDeleted"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -405,43 +388,7 @@ export default function BusinessSettingsSection() {
           </Button>
         </div>
 
-        {productsLoading ? (
-          <p className="text-sm text-muted-foreground">{t("loading")}</p>
-        ) : products.length === 0 ? (
-          <p className="text-sm text-muted-foreground rounded-xl bg-muted/30 p-4">{t("businessSettings.noProducts")}</p>
-        ) : (
-          <div className="space-y-2">
-            {products.map((product) => (
-              <div key={product.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-muted/20">
-                {product.image_urls?.[0] ? (
-                  <img src={mediaUrl(product.image_urls[0])} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                ) : (
-                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <Package className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{product.name}</p>
-                  <p className="text-primary text-sm">₪{product.price.toLocaleString()}</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setEditProduct(product)}>
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive shrink-0"
-                  disabled={deleteProduct.isPending}
-                  onClick={() => {
-                    if (window.confirm(t("businessSettings.confirmDelete"))) deleteProduct.mutate(product.id);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
+        <MyProducts />
       </div>
 
       <CreateProductModal
@@ -452,17 +399,6 @@ export default function BusinessSettingsSection() {
           void queryClient.invalidateQueries({ queryKey: ["products"] });
         }}
       />
-      {editProduct && (
-        <EditProductModal
-          product={editProduct}
-          open={Boolean(editProduct)}
-          onClose={() => setEditProduct(null)}
-          onUpdated={() => {
-            void queryClient.invalidateQueries({ queryKey: ["my-products"] });
-            void queryClient.invalidateQueries({ queryKey: ["products"] });
-          }}
-        />
-      )}
     </div>
   );
 }

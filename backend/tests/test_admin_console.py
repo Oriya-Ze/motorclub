@@ -9,7 +9,7 @@ from app.database import get_db, get_engine, get_session_factory
 from app.deps import get_user_model
 from app.main import app
 from app.media.keys import generate_storage_key, public_storage_key
-from app.models import Conversation, MediaScan, ModerationAction, Notification, Post, User
+from app.models import Conversation, MediaScan, ModerationAction, Notification, Post, Product, User
 from app.services.media_gate import _object_exists, write_local_bytes
 from tests.conftest import reload_settings
 from tests.test_post_publication_moderation import _token
@@ -52,6 +52,8 @@ async def _cleanup(*users: User, keys: list[str] | None = None) -> None:
         await db.execute(delete(ModerationAction).where(ModerationAction.actor_id.in_(ids)))
         await db.execute(delete(Conversation).where(Conversation.user1_id.in_(ids) | Conversation.user2_id.in_(ids)))
         await db.execute(delete(Post).where(Post.user_id.in_(ids)))
+        await db.execute(delete(Product).where(Product.business_id.in_(ids)))
+        await db.execute(delete(Notification).where(Notification.user_id.in_(ids)))
         if keys:
             await db.execute(delete(MediaScan).where(MediaScan.storage_key.in_(keys)))
         await db.execute(delete(User).where(User.id.in_(ids)))
@@ -189,3 +191,71 @@ async def test_a_new_message_notifies_the_recipient_once_until_read(tmp_path, mo
     finally:
         app.dependency_overrides.clear()
         await _cleanup(sender, recipient)
+
+
+async def _held_product(seller: User, decision: str) -> tuple[Product, MediaScan, str]:
+    key = generate_storage_key(user_id=seller.id, purpose="product", extension=".jpg", private=True)
+    write_local_bytes(key, b"held-product-image")
+    product = Product(
+        id=uuid.uuid4(), business_id=seller.id, name="מחזיר שמן", price=90, category="spareParts",
+        image_urls=[key], listing_status="pending_review", moderation_status=decision,
+    )
+    scan = MediaScan(storage_key=key, content_hash="", decision=decision, model_version="mock", policy_version="test")
+    await _add(product, scan)
+    return product, scan, key
+
+
+async def _product_notifications(seller: User) -> list[Notification]:
+    async with get_session_factory()() as db:
+        rows = await db.execute(select(Notification).where(Notification.user_id == seller.id, Notification.type == "product_review"))
+        return list(rows.scalars().all())
+
+
+@pytest.mark.asyncio
+async def test_approving_a_held_product_publishes_it_and_tells_the_seller(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    seller, admin = _person("sel"), _person("adm", is_admin=True)
+    await _add(seller, admin)
+    product, scan, key = await _held_product(seller, "error")
+    try:
+        async with _as(admin) as client:
+            res = await client.post(f"/api/v1/admin/media-scans/{scan.id}", json={"decision": "approved", "reason": "תקין"})
+            assert res.status_code == 200, res.text
+        async with get_session_factory()() as db:
+            stored = await db.get(Product, product.id)
+            assert stored.listing_status == "published"
+            assert stored.image_urls == [public_storage_key(key)]
+        [note] = await _product_notifications(seller)
+        assert note.title == "המוצר שלך פורסם בחנות"
+        assert note.link == f"/marketplace?product={product.id}"
+        assert note.actor_id is None
+    finally:
+        app.dependency_overrides.clear()
+        await _cleanup(seller, admin, keys=[key, public_storage_key(key)])
+
+
+@pytest.mark.asyncio
+async def test_rejecting_a_held_product_keeps_it_out_and_tells_the_seller(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    seller, admin = _person("sel"), _person("adm", is_admin=True)
+    await _add(seller, admin)
+    product, scan, key = await _held_product(seller, "needs_review")
+    try:
+        async with _as(admin) as client:
+            res = await client.post(f"/api/v1/admin/media-scans/{scan.id}", json={"decision": "rejected", "reason": "לא מתאים"})
+            assert res.status_code == 200, res.text
+        async with get_session_factory()() as db:
+            stored = await db.get(Product, product.id)
+            assert stored.moderation_status == "rejected"
+            assert stored.listing_status == "pending_review"
+        async with _as(seller) as client:
+            mine = (await client.get("/api/v1/marketplace/mine")).json()
+            assert [(p["id"], p["moderation_status"]) for p in mine] == [(str(product.id), "rejected")]
+            shop = (await client.get("/api/v1/marketplace?limit=50")).json()
+            assert str(product.id) not in {p["id"] for p in shop["items"]}
+        [note] = await _product_notifications(seller)
+        assert note.title == "המוצר שלך לא פורסם"
+        assert note.link == "/marketplace?mine=1"
+    finally:
+        app.dependency_overrides.clear()
+        await _cleanup(seller, admin, keys=[key])

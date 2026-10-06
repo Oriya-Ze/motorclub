@@ -2,14 +2,16 @@ import { ImagePlus } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import OwnerMediaThumb from "@/components/OwnerMediaThumb";
 import PostImageAdjust from "@/components/PostImageAdjust";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
-import { API_BASE, mediaUrl } from "@/lib/media";
+import { mediaUrl } from "@/lib/media";
 import { MAX_IMAGE_BYTES, MediaUploadError } from "@/lib/mediaUpload";
 
 const CATEGORIES = ["vehicles", "spareParts", "accessories", "other"] as const;
@@ -23,41 +25,13 @@ interface ProductEditorProps {
   product?: Product | null;
 }
 
-function EditorThumb({ storageKey }: { storageKey: string }) {
-  const [src, setSrc] = useState("");
-  useEffect(() => {
-    if (!storageKey.includes("/private/")) {
-      setSrc(mediaUrl(storageKey));
-      return;
-    }
-    let stop = false;
-    api.mediaAccessUrl(storageKey).then(async (result) => {
-      const target = result.url.startsWith("/") ? `${API_BASE}${result.url}` : result.url;
-      if (result.url.startsWith("http")) {
-        if (!stop) setSrc(target);
-        return;
-      }
-      const response = await fetch(target, { headers: { Authorization: `Bearer ${localStorage.getItem("access_token") || ""}` } });
-      if (!response.ok) throw new Error("preview failed");
-      const blobUrl = URL.createObjectURL(await response.blob());
-      if (!stop) setSrc(blobUrl);
-    }).catch(() => {
-      if (!stop) setSrc("");
-    });
-    return () => {
-      stop = true;
-    };
-  }, [storageKey]);
-  if (!src) return <div className="h-14 w-14 rounded-lg bg-muted" />;
-  return <img src={src} alt="" className="h-14 w-14 rounded-lg bg-muted object-contain" />;
-}
-
 function draftKey(userId: string) {
   return `motorclub_product_draft_v1:${userId}`;
 }
 
 export default function ProductEditor({ open, onClose, onSaved, product }: ProductEditorProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const titleId = useId();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -199,7 +173,12 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
         : await api.createProduct(body);
       if (!product && user) localStorage.removeItem(draftKey(user.id));
       if (saved.listing_status === "published") toast.success(t("productEditor.published"));
-      else if (publish) toast.success(t("productEditor.pendingReview"));
+      // The editor closes right away, so a held product gets a longer toast that says what happens next.
+      else if (publish) {
+        const action = { label: t("productEditor.held.action"), onClick: () => navigate("/marketplace?mine=1") };
+        if (saved.moderation_status === "rejected") toast.error(t("productEditor.held.rejectedTitle"), { description: t("productEditor.held.rejectedBody"), duration: 12000, action });
+        else toast.warning(t("productEditor.held.title"), { description: t(saved.moderation_status === "error" ? "productEditor.held.errorBody" : "productEditor.held.reviewBody"), duration: 12000, action });
+      }
       else toast.success(t("productEditor.draftSaved"));
       onSaved();
       onClose();
@@ -253,7 +232,7 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
               <ul className="mt-3 space-y-2">
                 {images.map((image, index) => (
                   <li key={`${image}-${index}`} className="flex items-center gap-2">
-                    <EditorThumb storageKey={image} />
+                    <OwnerMediaThumb className="h-14 w-14 rounded-lg object-contain" storageKey={image} />
                     <span className="text-xs">{index === 0 ? t("productEditor.primary") : index + 1}</span>
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" disabled={index === 0} onClick={() => setImages((prev) => { const next = prev.slice(); const [item] = next.splice(index, 1); next.unshift(item); return next; })}>{t("productEditor.makePrimary")}</button>
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" disabled={index === 0} onClick={() => setImages((prev) => { const next = prev.slice(); const [item] = next.splice(index, 1); next.splice(index - 1, 0, item); return next; })} aria-label={t("composer.moveEarlier")}>↑</button>
@@ -282,8 +261,8 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
             <div className="grid gap-2 sm:grid-cols-2">
               <Input value={fitMake} onChange={(event) => setFitMake(event.target.value)} placeholder={t("productEditor.fitMake")} aria-label={t("productEditor.fitMake")} />
               <Input value={fitModel} onChange={(event) => setFitModel(event.target.value)} placeholder={t("productEditor.fitModel")} aria-label={t("productEditor.fitModel")} />
-              <Input value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder={t("productEditor.yearFrom")} aria-label={t("productEditor.yearFrom")} dir="ltr" />
-              <Input value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder={t("productEditor.yearTo")} aria-label={t("productEditor.yearTo")} dir="ltr" />
+              <Input value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder={t("productEditor.yearFrom")} aria-label={t("productEditor.yearFrom")} />
+              <Input value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder={t("productEditor.yearTo")} aria-label={t("productEditor.yearTo")} />
               <Input value={brand} onChange={(event) => setBrand(event.target.value)} placeholder={t("productEditor.brand")} aria-label={t("productEditor.brand")} />
               <Input value={sku} onChange={(event) => setSku(event.target.value)} placeholder={t("productEditor.sku")} aria-label={t("productEditor.sku")} />
               <Input value={pickup} onChange={(event) => setPickup(event.target.value)} placeholder={t("productEditor.pickup")} aria-label={t("productEditor.pickup")} />

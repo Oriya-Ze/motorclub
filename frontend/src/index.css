@@ -591,3 +591,49 @@
       inset 0 1px 0 hsl(0 0% 100% / 0.08);
   }
 }
+
+/* Landing page graphics */
+@layer utilities {
+  .landing-road {
+    background-image: repeating-linear-gradient(90deg, hsl(var(--primary)) 0 22px, transparent 22px 36px);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  }
+
+  /* A faded finish-line flag along the top of the closing panel. */
+  .landing-checker {
+    background: repeating-conic-gradient(hsl(var(--foreground) / 0.09) 0 25%, transparent 0 50%) 0 0 / 24px 24px;
+    -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+    mask-image: linear-gradient(to bottom, #000, transparent);
+  }
+
+  .landing-needle {
+    transform-box: view-box;
+    transform-origin: 100px 100px;
+    transform: rotate(52deg);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .landing-needle {
+      animation: landingRev 2.4s cubic-bezier(0.3, 0.7, 0.2, 1) 0.4s both;
+    }
+
+    .landing-streak {
+      animation: landingStreak 3.6s linear infinite;
+    }
+  }
+
+  @keyframes landingRev {
+    0% { transform: rotate(-120deg); }
+    55% { transform: rotate(104deg); }
+    70% { transform: rotate(90deg); }
+    100% { transform: rotate(52deg); }
+  }
+
+  @keyframes landingStreak {
+    0% { transform: translateX(0); opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateX(-150%); opacity: 0; }
+  }
+}

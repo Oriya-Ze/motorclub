@@ -227,7 +227,7 @@ export default function AuthPage() {
       <Card className="w-full max-w-md shadow-glow">
         <CardHeader className="text-center space-y-4 pb-2">
           <div className="mx-auto w-16 h-16 rounded-2xl overflow-hidden shadow-glow">
-            <img src="/logo.png" alt={t("appName")} className="w-full h-full object-cover" />
+            <img src="/logo-192.png" alt={t("appName")} className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-4xl font-display tracking-wide text-primary">

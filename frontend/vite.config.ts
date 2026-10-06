@@ -8,11 +8,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["logo.png", "favicon.png", "icon-192.svg", "icon-512.svg"],
+      includeAssets: ["logo-192.png", "logo-512.png", "favicon-64.png", "icon-192.svg", "icon-512.svg"],
       manifest: false,
       workbox: {
         importScripts: ["/sw-redirect.js"],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // The full-size logo is only for link previews; the app uses logo-192.png.
+        globIgnores: ["**/logo.png"],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

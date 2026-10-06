@@ -57,7 +57,7 @@ export default function AdminConsole() {
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
-            <img src="/logo.png" alt="" className="h-8 w-8 rounded-lg" />
+            <img src="/logo-192.png" alt="" className="h-8 w-8 rounded-lg" />
             <span className="font-display text-lg tracking-wide">MotorClub</span>
             <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">ניהול</span>
           </div>

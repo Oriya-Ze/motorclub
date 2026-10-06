@@ -3,8 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import ProductCard from "@/components/ProductCard";
 import CreateProductModal from "@/components/CreateProductModal";
+import MyProducts from "@/components/MyProducts";
 import EmptyState from "@/components/EmptyState";
 import PageHeading from "@/components/PageHeading";
 import ProductDetailModal from "@/components/ProductDetailModal";
@@ -40,6 +42,27 @@ export default function MarketplacePage() {
   });
   const products = page.data?.items ?? [];
   const isLoading = page.isLoading;
+  const mine = searchParams.get("mine") === "1";
+  const productParam = searchParams.get("product");
+
+  const setMine = (value: boolean) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set("mine", "1");
+    else next.delete("mine");
+    setSearchParams(next, { replace: true });
+  };
+
+  // Links from notifications and the admin console open one product: /marketplace?product=<id>.
+  // Clearing the parameter re-runs this effect, so the request must not be cancelled by its cleanup.
+  useEffect(() => {
+    if (!productParam) return;
+    api.getProduct(productParam)
+      .then(setSelected)
+      .catch(() => toast.error(t("productEditor.unavailable")));
+    const next = new URLSearchParams(searchParams);
+    next.delete("product");
+    setSearchParams(next, { replace: true });
+  }, [productParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (searchParams.get("create") !== "1") return;
@@ -49,7 +72,7 @@ export default function MarketplacePage() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  if (isLoading) {
+  if (isLoading && !mine) {
     return <CardGridSkeleton count={8} className="grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" />;
   }
 
@@ -65,6 +88,28 @@ export default function MarketplacePage() {
           </Button>
       </div>
 
+      <div role="tablist" aria-label={t("productEditor.shopTitle")} className="inline-flex rounded-xl border border-border bg-card/50 p-1">
+        {[false, true].map((value) => (
+          <button
+            key={String(value)}
+            type="button"
+            role="tab"
+            aria-selected={mine === value}
+            onClick={() => setMine(value)}
+            className={cn(
+              "min-h-9 rounded-lg px-4 text-sm font-medium transition-colors",
+              mine === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60",
+            )}
+          >
+            {value ? t("productEditor.tabMine") : t("productEditor.tabAll")}
+          </button>
+        ))}
+      </div>
+
+      {mine ? (
+        <MyProducts />
+      ) : (
+      <>
       <div className="flex flex-wrap gap-2">
         <input
           value={queryText}
@@ -136,6 +181,8 @@ export default function MarketplacePage() {
             </button>
           ))}
         </div>
+      )}
+      </>
       )}
 
       {selected && (

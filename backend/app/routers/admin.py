@@ -400,6 +400,37 @@ async def list_media_scans(
     return items
 
 
+MY_PRODUCTS_LINK = "/marketplace?mine=1"
+
+
+async def notify_product_review(db: AsyncSession, product: Product, *, published: bool) -> None:
+    """Tell the seller how the review of their product ended. The reviewer stays anonymous."""
+    from app.routers.social import create_notification
+
+    await create_notification(
+        db,
+        user_id=product.business_id,
+        actor_id=None,
+        ntype="product_review",
+        title="המוצר שלך פורסם בחנות" if published else "המוצר שלך לא פורסם",
+        body=product.name if published else f"{product.name}: תמונה לא עומדת בכללי הקהילה. אפשר לערוך ולהחליף אותה.",
+        link=f"/marketplace?product={product.id}" if published else MY_PRODUCTS_LINK,
+    )
+
+
+async def _reject_products_using(db: AsyncSession, storage_key: str) -> None:
+    """A rejected image keeps its products out of the shop and tells their sellers."""
+    from app.services.media_cleanup import key_forms
+
+    forms = list(key_forms(storage_key))
+    products = (await db.execute(select(Product).where(or_(*[Product.image_urls.any(f) for f in forms])))).scalars().all()
+    for product in products:
+        product.moderation_status = "rejected"
+        if product.listing_status == "published":
+            product.listing_status = "hidden"
+        await notify_product_review(db, product, published=False)
+
+
 async def _remove_content_using(db: AsyncSession, storage_key: str, staff: User, reason: str) -> None:
     """A rejected video takes its post down as removed by a moderator, and deletes stories built on it."""
     from datetime import UTC, datetime
@@ -475,6 +506,7 @@ async def review_media_scan(
     if decision == "rejected":
         takedown_public_image(key)
         await _remove_content_using(db, key, staff, reason)
+        await _reject_products_using(db, key)
     elif _is_video(key):
         pass  # Already public. Approval only clears it from the queue.
     elif purpose == "posts":
@@ -489,9 +521,10 @@ async def review_media_scan(
         promoted = promote_private_image(key)
         for product in products:
             product.image_urls = [promoted if k == key else k for k in (product.image_urls or [])]
-            if all(not is_private_storage_key(k) for k in product.image_urls or []):
+            if all(not is_private_storage_key(k) for k in product.image_urls or []) and product.listing_status != "published":
                 product.moderation_status = "approved"
                 product.listing_status = "published"
+                await notify_product_review(db, product, published=True)
     else:
         promote_private_image(key)
     scan.decision = decision
@@ -540,7 +573,12 @@ async def retry_stuck_scans(
             from app.routers.events_marketplace import _moderate_listing
 
             for product in products:
+                before = product.listing_status
                 await _moderate_listing(db, product)
+                if product.listing_status == "published" and before != "published":
+                    await notify_product_review(db, product, published=True)
+                elif product.moderation_status == "rejected":
+                    await notify_product_review(db, product, published=False)
         elif decision.decision == "approved" and purpose_of(scan.storage_key) != "posts":
             # A post image only goes public when the whole post is published.
             promote_private_image(scan.storage_key)

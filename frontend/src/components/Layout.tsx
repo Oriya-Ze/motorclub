@@ -74,7 +74,7 @@ function AuthenticatedLayout() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="h-16 flex items-center justify-between gap-3 min-w-0">
             <Link to="/" className="flex items-center gap-2 shrink-0">
-              <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
+              <img src="/logo-192.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
               <span className="font-bold text-lg hidden sm:block font-display tracking-wide">{t("appName")}</span>
             </Link>
 
@@ -227,7 +227,7 @@ function GuestLayout() {
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
+            <img src="/logo-192.png" alt={t("appName")} className="w-9 h-9 rounded-xl object-cover" />
             <span className="font-bold text-lg font-display tracking-wide">{t("appName")}</span>
           </Link>
           <div className="flex items-center gap-2">

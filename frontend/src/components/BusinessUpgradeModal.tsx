@@ -1,5 +1,5 @@
 import { Building2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -33,6 +33,25 @@ export default function BusinessUpgradeModal({
     business_website: "",
     additional_notes: "",
   });
+  const id = useId();
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+  // The parent passes a new function on every render; reading it from a ref keeps the effect from re-running and moving focus.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    firstFieldRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -56,15 +75,15 @@ export default function BusinessUpgradeModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <button type="button" className="absolute inset-0 bg-black/60" onClick={onClose} aria-label={t("cancel")} />
-      <div className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-card border border-border shadow-glow">
+      <button type="button" className="absolute inset-0 bg-black/60" onClick={onClose} aria-label={t("cancel")} tabIndex={-1} />
+      <div role="dialog" aria-modal="true" aria-labelledby={`${id}-title`} className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-card border border-border shadow-glow">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-border/50 bg-card/95 backdrop-blur">
           <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-lg tracking-wide">{t("businessUpgradeForm.title")}</h2>
+            <Building2 className="w-5 h-5 text-primary" aria-hidden />
+            <h2 id={`${id}-title`} className="font-display text-lg tracking-wide">{t("businessUpgradeForm.title")}</h2>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-muted">
-            <X className="w-4 h-4" />
+          <button type="button" onClick={onClose} className="p-2 rounded-lg hover:bg-muted" aria-label={t("close")}>
+            <X className="w-4 h-4" aria-hidden />
           </button>
         </div>
 
@@ -74,12 +93,13 @@ export default function BusinessUpgradeModal({
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">{t("businessUpgradeForm.businessSection")}</h3>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.businessName")}</label>
-              <Input value={form.business_name} onChange={(e) => set("business_name", e.target.value)} required />
+              <label className="text-sm font-medium" htmlFor={`${id}-business_name`}>{t("businessUpgradeForm.businessName")}</label>
+              <Input ref={firstFieldRef} id={`${id}-business_name`} value={form.business_name} onChange={(e) => set("business_name", e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.category")}</label>
+              <label className="text-sm font-medium" htmlFor={`${id}-business_type`}>{t("businessUpgradeForm.category")}</label>
               <select
+                id={`${id}-business_type`}
                 value={form.business_type}
                 onChange={(e) => set("business_type", e.target.value)}
                 className="w-full h-10 rounded-xl border border-border bg-background px-3 text-sm"
@@ -102,16 +122,17 @@ export default function BusinessUpgradeModal({
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.businessPhone")}</label>
-              <Input value={form.business_phone} onChange={(e) => set("business_phone", e.target.value)} required dir="ltr" />
+              <label className="text-sm font-medium" htmlFor={`${id}-business_phone`}>{t("businessUpgradeForm.businessPhone")}</label>
+              <Input id={`${id}-business_phone`} value={form.business_phone} onChange={(e) => set("business_phone", e.target.value)} required dir="ltr" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.businessAddress")}</label>
-              <Input value={form.business_address} onChange={(e) => set("business_address", e.target.value)} required />
+              <label className="text-sm font-medium" htmlFor={`${id}-business_address`}>{t("businessUpgradeForm.businessAddress")}</label>
+              <Input id={`${id}-business_address`} value={form.business_address} onChange={(e) => set("business_address", e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.businessDescription")}</label>
+              <label className="text-sm font-medium" htmlFor={`${id}-business_description`}>{t("businessUpgradeForm.businessDescription")}</label>
               <textarea
+                id={`${id}-business_description`}
                 value={form.business_description}
                 onChange={(e) => set("business_description", e.target.value)}
                 required
@@ -122,8 +143,9 @@ export default function BusinessUpgradeModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.registrationId")}</label>
+              <label className="text-sm font-medium" htmlFor={`${id}-business_registration_id`}>{t("businessUpgradeForm.registrationId")}</label>
               <Input
+                id={`${id}-business_registration_id`}
                 value={form.business_registration_id}
                 onChange={(e) => set("business_registration_id", e.target.value)}
                 placeholder={t("businessUpgradeForm.registrationIdPlaceholder")}
@@ -131,8 +153,9 @@ export default function BusinessUpgradeModal({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.website")}</label>
+              <label className="text-sm font-medium" htmlFor={`${id}-business_website`}>{t("businessUpgradeForm.website")}</label>
               <Input
+                id={`${id}-business_website`}
                 value={form.business_website}
                 onChange={(e) => set("business_website", e.target.value)}
                 placeholder="https://"
@@ -144,18 +167,19 @@ export default function BusinessUpgradeModal({
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">{t("businessUpgradeForm.contactSection")}</h3>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.contactName")}</label>
-              <Input value={form.contact_full_name} onChange={(e) => set("contact_full_name", e.target.value)} required />
+              <label className="text-sm font-medium" htmlFor={`${id}-contact_full_name`}>{t("businessUpgradeForm.contactName")}</label>
+              <Input id={`${id}-contact_full_name`} value={form.contact_full_name} onChange={(e) => set("contact_full_name", e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">{t("businessUpgradeForm.contactPhone")}</label>
-              <Input value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} required dir="ltr" />
+              <label className="text-sm font-medium" htmlFor={`${id}-contact_phone`}>{t("businessUpgradeForm.contactPhone")}</label>
+              <Input id={`${id}-contact_phone`} value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} required dir="ltr" />
             </div>
           </section>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t("businessUpgradeForm.additionalNotes")}</label>
+            <label className="text-sm font-medium" htmlFor={`${id}-additional_notes`}>{t("businessUpgradeForm.additionalNotes")}</label>
             <textarea
+              id={`${id}-additional_notes`}
               value={form.additional_notes}
               onChange={(e) => set("additional_notes", e.target.value)}
               rows={2}
