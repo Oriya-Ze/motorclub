@@ -391,7 +391,7 @@ class ProfileUpdate(BaseModel):
     profile_picture_url: str | None = None
     cover_image_url: str | None = None
     business_type: str | None = None
-    business_types: list[str] | None = Field(default=None, max_length=11)
+    business_types: list[str] | None = Field(default=None, max_length=30)
     business_entity: str | None = None
     business_description: str | None = None
     business_phone: str | None = None
@@ -605,13 +605,14 @@ class BusinessUpgradeRequestCreate(BaseModel):
     business_name: str = Field(min_length=2, max_length=255)
     # Older clients send one business_type; newer ones send every category, primary first.
     business_type: str | None = Field(default=None, max_length=50)
-    business_types: list[str] | None = Field(default=None, max_length=11)
+    business_types: list[str] | None = Field(default=None, max_length=30)
     business_entity: str | None = None
     business_phone: str = Field(min_length=7, max_length=30)
-    business_address: str = Field(min_length=3, max_length=500)
+    # Required for a company; a self-employed person may work without a fixed address.
+    business_address: str | None = Field(default=None, max_length=500)
     business_description: str = Field(min_length=10, max_length=2000)
     contact_full_name: str = Field(min_length=2, max_length=255)
-    contact_phone: str = Field(min_length=7, max_length=30)
+    contact_phone: str | None = Field(default=None, max_length=30)
     business_registration_id: str | None = Field(default=None, max_length=50)
     business_website: str | None = Field(default=None, max_length=500)
     additional_notes: str | None = Field(default=None, max_length=2000)

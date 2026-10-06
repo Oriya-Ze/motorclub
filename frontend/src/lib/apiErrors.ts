@@ -77,6 +77,7 @@ const EXACT_ERROR_KEYS: Record<string, string> = {
   "Member not found": "apiErrors.memberNotFound",
   "Cannot remove the group owner": "apiErrors.cannotRemoveOwner",
   "Invalid business category": "apiErrors.invalidBusinessCategory",
+  "Business address is required": "apiErrors.businessAddressRequired",
   "A business upgrade request is already pending review": "apiErrors.businessUpgradePendingExists",
   "Account is already a business account": "apiErrors.alreadyBusinessAccount",
   "Admin access required": "apiErrors.adminRequired",

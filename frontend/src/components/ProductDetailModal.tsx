@@ -18,6 +18,31 @@ import { getUserProfilePath } from "@/lib/businessProfile";
 import { withReturnTo } from "@/lib/returnTo";
 import { mediaUrl } from "@/lib/media";
 import { formatHandle } from "@/lib/utils";
+import { categoryFields } from "@/lib/productFields";
+import type { TFunction } from "i18next";
+
+/** Labelled details for the product page, using the same per-category fields as the editor. */
+function productDetails(product: Product, t: TFunction): [string, string][] {
+  const fields = categoryFields(product.category).fields;
+  const rows: [string, string][] = [];
+  if (product.condition) rows.push([t("productEditor.conditionLabel"), t(`productEditor.condition.${product.condition}`)]);
+  if (product.category === "vehicles") {
+    if (product.fit_make) rows.push([t("productEditor.vehicleMake"), product.fit_make]);
+    if (product.fit_model) rows.push([t("productEditor.vehicleModel"), product.fit_model]);
+    if (product.fit_year_from) rows.push([t("productEditor.vehicleYear"), String(product.fit_year_from)]);
+  } else {
+    const from = fields.includes("yearFrom") ? product.fit_year_from : null;
+    const to = fields.includes("yearTo") ? product.fit_year_to : null;
+    const years = from && to ? t("productEditor.detail.yearsRange", { from, to }) : from ? t("productEditor.detail.yearsFrom", { from }) : to ? t("productEditor.detail.yearsTo", { to }) : "";
+    const fits = [fields.includes("fitMake") && product.fit_make, fields.includes("fitModel") && product.fit_model, years].filter(Boolean).join(" ");
+    if (fits) rows.push([t("productEditor.detail.fits"), fits]);
+    if (fields.includes("brand") && product.brand) rows.push([t("productEditor.detail.brand"), product.brand]);
+    if (fields.includes("sku") && product.sku) rows.push([t("productEditor.detail.sku"), product.sku]);
+  }
+  if (product.pickup_area) rows.push([t("productEditor.pickup"), product.pickup_area]);
+  if (fields.includes("ships") && product.ships) rows.push([t("productEditor.detail.shipping"), t("productEditor.detail.shipsYes")]);
+  return rows;
+}
 
 interface ProductDetailModalProps {
   product: Product;
@@ -32,6 +57,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
   const [photoOpen, setPhotoOpen] = useState(false);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [editing, setEditing] = useState(false);
+  const details = productDetails(product, t);
   const [reporting, setReporting] = useState(false);
   const photos = product.image_urls ?? [];
   const isOwner = user?.id === product.business_id;
@@ -86,10 +112,15 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
 
           <p className="text-3xl font-display tracking-wide text-primary">₪{product.price.toLocaleString()}</p>
 
-          {(product.condition || product.pickup_area || product.fit_make) && (
-            <p className="text-sm text-muted-foreground">
-              {[product.condition && t(`productEditor.condition.${product.condition}`), product.fit_make, product.fit_model, product.pickup_area].filter(Boolean).join(" · ")}
-            </p>
+          {details.length > 0 && (
+            <dl className="grid grid-cols-2 gap-2 text-sm">
+              {details.map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-muted/30 px-3 py-2">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="font-medium"><bdi>{value}</bdi></dd>
+                </div>
+              ))}
+            </dl>
           )}
           {product.description && (
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{product.description}</p>

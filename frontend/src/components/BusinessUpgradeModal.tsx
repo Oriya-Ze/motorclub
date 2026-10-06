@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import BusinessCategoryFields from "@/components/BusinessCategoryFields";
 import type { BusinessEntity, BusinessType, BusinessUpgradeFormData } from "@/lib/businessTypes";
+import { digitsOnly, PHONE_MAX_DIGITS, REGISTRATION_DIGITS } from "@/lib/numericInput";
 
 interface BusinessUpgradeModalProps {
   open: boolean;
@@ -74,10 +75,10 @@ export default function BusinessUpgradeModal({
       business_types: types,
       business_entity: entity,
       business_phone: form.business_phone.trim(),
-      business_address: form.business_address.trim(),
+      business_address: form.business_address.trim() || undefined,
       business_description: form.business_description.trim(),
       contact_full_name: form.contact_full_name.trim(),
-      contact_phone: form.contact_phone.trim(),
+      contact_phone: form.contact_phone.trim() || undefined,
       business_registration_id: form.business_registration_id.trim() || undefined,
       business_website: form.business_website.trim() || undefined,
       additional_notes: form.additional_notes.trim() || undefined,
@@ -122,11 +123,13 @@ export default function BusinessUpgradeModal({
             />
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor={`${id}-business_phone`}>{t("businessUpgradeForm.businessPhone")}</label>
-              <Input id={`${id}-business_phone`} value={form.business_phone} onChange={(e) => set("business_phone", e.target.value)} required dir="ltr" />
+              <Input id={`${id}-business_phone`} value={form.business_phone} onChange={(e) => set("business_phone", digitsOnly(e.target.value, PHONE_MAX_DIGITS))} required minLength={7} dir="ltr" inputMode="tel" autoComplete="tel" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium" htmlFor={`${id}-business_address`}>{t("businessUpgradeForm.businessAddress")}</label>
-              <Input id={`${id}-business_address`} value={form.business_address} onChange={(e) => set("business_address", e.target.value)} required />
+              <label className="text-sm font-medium" htmlFor={`${id}-business_address`}>
+                {t(entity === "self_employed" ? "businessUpgradeForm.businessAddressOptional" : "businessUpgradeForm.businessAddress")}
+              </label>
+              <Input id={`${id}-business_address`} value={form.business_address} onChange={(e) => set("business_address", e.target.value)} required={entity !== "self_employed"} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor={`${id}-business_description`}>{t("businessUpgradeForm.businessDescription")}</label>
@@ -146,9 +149,10 @@ export default function BusinessUpgradeModal({
               <Input
                 id={`${id}-business_registration_id`}
                 value={form.business_registration_id}
-                onChange={(e) => set("business_registration_id", e.target.value)}
+                onChange={(e) => set("business_registration_id", digitsOnly(e.target.value, REGISTRATION_DIGITS))}
                 placeholder={t("businessUpgradeForm.registrationIdPlaceholder")}
                 dir="ltr"
+                inputMode="numeric"
               />
             </div>
             <div className="space-y-2">
@@ -171,7 +175,7 @@ export default function BusinessUpgradeModal({
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor={`${id}-contact_phone`}>{t("businessUpgradeForm.contactPhone")}</label>
-              <Input id={`${id}-contact_phone`} value={form.contact_phone} onChange={(e) => set("contact_phone", e.target.value)} required dir="ltr" />
+              <Input id={`${id}-contact_phone`} value={form.contact_phone} onChange={(e) => set("contact_phone", digitsOnly(e.target.value, PHONE_MAX_DIGITS))} dir="ltr" inputMode="tel" autoComplete="tel" />
             </div>
           </section>
 

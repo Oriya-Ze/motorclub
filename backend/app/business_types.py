@@ -7,6 +7,12 @@ WORKSHOP_BUSINESS_TYPES: frozenset[str] = frozenset(
         "body_shop",
         "tires",
         "electric",
+        "diagnostics",
+        "exhausts",
+        "glass",
+        "upholstery",
+        "wraps",
+        "motorcycles",
     }
 )
 
@@ -18,6 +24,10 @@ SERVICE_BUSINESS_TYPES: frozenset[str] = frozenset(
         "rental",
         "parts",
         "other",
+        "car_wash",
+        "batteries",
+        "car_sales",
+        "appraisal",
     }
 )
 

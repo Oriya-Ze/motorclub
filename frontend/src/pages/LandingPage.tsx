@@ -1,4 +1,4 @@
-import { Bike, Building2, ChevronDown, ChevronLeft, ShoppingBag } from "lucide-react";
+import { Building2, Car, ChevronDown, ChevronLeft, ShoppingBag } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -81,7 +81,7 @@ export default function LandingPage() {
       <section className="space-y-6" aria-labelledby="landing-pillars-title">
         <SectionHeading id="landing-pillars-title" title={t("landing.pillarsTitle")} />
         <div className="grid gap-4 md:grid-cols-3">
-          <Pillar index={1} icon={Bike} title={t("landing.pillarStoryTitle")} body={t("landing.pillarStoryBody")}>
+          <Pillar index={1} icon={Car} title={t("landing.pillarStoryTitle")} body={t("landing.pillarStoryBody")}>
             <TextLink href="#landing-sample">{t("landing.pillarStoryLink")}</TextLink>
           </Pillar>
           <Pillar index={2} icon={ShoppingBag} title={t("landing.pillarPartsTitle")} body={t("landing.pillarPartsBody")}>
@@ -338,7 +338,7 @@ function Pillar({
   children,
 }: {
   index: number;
-  icon: typeof Bike;
+  icon: typeof Car;
   title: string;
   body: string;
   children?: ReactNode;

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
+import { CODE_DIGITS, digitsOnly } from "@/lib/numericInput";
 
 export default function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -61,7 +62,7 @@ export default function ResetPasswordPage() {
               <label className="text-sm font-medium">{t("verificationCode")}</label>
               <Input
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(digitsOnly(e.target.value, CODE_DIGITS))}
                 required
                 dir="ltr"
                 inputMode="numeric"

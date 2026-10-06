@@ -23,6 +23,7 @@ import { mediaUrl } from "@/lib/media";
 import { VIDEO_UPLOADS_ENABLED } from "@/lib/mediaUpload";
 import { formatEngineLabel } from "@/lib/formatLabels";
 import { displayName, formatHandle } from "@/lib/utils";
+import { digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
 function SpecItem({ label, value }: { label: string; value: string }) {
   return (
@@ -244,7 +245,7 @@ export default function VehiclePage() {
               <div className="grid grid-cols-2 gap-2">
                 <Input value={draft.make ?? ""} onChange={(e) => setDraft({ ...draft, make: e.target.value })} placeholder={t("garage.make")} />
                 <Input value={draft.model ?? ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })} placeholder={t("garage.model")} />
-                <Input value={draft.year ? String(draft.year) : ""} onChange={(e) => setDraft({ ...draft, year: e.target.value ? Number(e.target.value) : undefined })} placeholder={t("garage.year")} dir="ltr" />
+                <Input value={draft.year ? String(draft.year) : ""} onChange={(e) => { const year = digitsOnly(e.target.value, YEAR_DIGITS); setDraft({ ...draft, year: year ? Number(year) : undefined }); }} placeholder={t("garage.year")} dir="ltr" inputMode="numeric" />
                 <Input value={draft.trim ?? ""} onChange={(e) => setDraft({ ...draft, trim: e.target.value })} placeholder={t("garage.trim")} />
                 <Input value={draft.color ?? ""} onChange={(e) => setDraft({ ...draft, color: e.target.value })} placeholder={t("garage.color")} />
                 <Input value={draft.engine ?? ""} onChange={(e) => setDraft({ ...draft, engine: e.target.value })} placeholder={t("garage.engine")} />

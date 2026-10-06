@@ -339,3 +339,28 @@ async def test_an_older_client_sending_one_category_still_works(tmp_path, monkey
             await db.execute(delete(BusinessUpgradeRequest).where(BusinessUpgradeRequest.user_id == member.id))
             await db.commit()
         await _cleanup(member)
+
+
+@pytest.mark.asyncio
+async def test_address_is_optional_only_for_the_self_employed_and_contact_phone_is_optional(tmp_path, monkeypatch):
+    _env(tmp_path, monkeypatch)
+    company, freelancer = _person("co"), _person("fr")
+    await _add(company, freelancer)
+    lean = {k: v for k, v in UPGRADE.items() if k not in {"business_address", "contact_phone"}}
+    try:
+        async with _as(company) as client:
+            missing = await client.post("/api/v1/users/me/business-upgrade", json={**lean, "business_types": ["glass"], "business_entity": "company"})
+            assert missing.status_code == 400 and missing.json()["detail"] == "Business address is required"
+            ok = await client.post("/api/v1/users/me/business-upgrade", json={**lean, "business_address": "רחוב 1", "business_types": ["glass", "car_wash"], "business_entity": "company"})
+            assert ok.status_code == 200, ok.text
+            assert ok.json()["contact_phone"] is None
+        async with _as(freelancer) as client:
+            sent = await client.post("/api/v1/users/me/business-upgrade", json={**lean, "business_types": ["wraps", "appraisal"], "business_entity": "self_employed"})
+            assert sent.status_code == 200, sent.text
+            assert sent.json()["business_address"] is None and sent.json()["business_types"] == ["wraps", "appraisal"]
+    finally:
+        app.dependency_overrides.clear()
+        async with get_session_factory()() as db:
+            await db.execute(delete(BusinessUpgradeRequest).where(BusinessUpgradeRequest.user_id.in_([company.id, freelancer.id])))
+            await db.commit()
+        await _cleanup(company, freelancer)

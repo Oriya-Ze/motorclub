@@ -23,6 +23,7 @@ import {
   mapsEmbedUrl,
 } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
+import { decimalOnly, digitsOnly, PHONE_MAX_DIGITS, REGISTRATION_DIGITS } from "@/lib/numericInput";
 
 export default function BusinessSettingsSection() {
   const { t } = useTranslation();
@@ -231,7 +232,7 @@ export default function BusinessSettingsSection() {
         />
         <div className="space-y-2">
           <label className="text-sm font-medium">{t("businessUpgradeForm.businessPhone")}</label>
-          <Input value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} dir="ltr" />
+          <Input value={businessPhone} onChange={(e) => setBusinessPhone(digitsOnly(e.target.value, PHONE_MAX_DIGITS))} dir="ltr" inputMode="tel" autoComplete="tel" />
         </div>
       </div>
 
@@ -257,7 +258,7 @@ export default function BusinessSettingsSection() {
         </div>
         <div className="space-y-2">
           <label className="text-sm font-medium">{t("businessUpgradeForm.registrationId")}</label>
-          <Input value={businessRegistrationId} onChange={(e) => setBusinessRegistrationId(e.target.value)} dir="ltr" />
+          <Input value={businessRegistrationId} onChange={(e) => setBusinessRegistrationId(digitsOnly(e.target.value, REGISTRATION_DIGITS))} dir="ltr" inputMode="numeric" />
         </div>
       </div>
 
@@ -353,7 +354,7 @@ export default function BusinessSettingsSection() {
         </div>
         <div className="space-y-2 rounded-xl border border-border/50 p-3">
           <Input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder={t("businessSettings.serviceName")} />
-          <Input value={newServicePrice} onChange={(e) => setNewServicePrice(e.target.value)} placeholder={t("businessSettings.servicePriceFrom")} dir="ltr" type="number" />
+          <Input value={newServicePrice} onChange={(e) => setNewServicePrice(decimalOnly(e.target.value))} placeholder={t("businessSettings.servicePriceFrom")} dir="ltr" inputMode="decimal" />
           <textarea
             value={newServiceDesc}
             onChange={(e) => setNewServiceDesc(e.target.value)}

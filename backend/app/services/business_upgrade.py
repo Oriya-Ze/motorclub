@@ -60,6 +60,9 @@ async def submit_business_upgrade_request(
 
     business_types = chosen_business_types(body.business_types, body.business_type)
     business_entity = check_business_entity(body.business_entity)
+    address = (body.business_address or "").strip()
+    if not address and business_entity != "self_employed":
+        raise HTTPException(status_code=400, detail="Business address is required")
 
     existing = await db.scalar(
         select(BusinessUpgradeRequest).where(
@@ -79,11 +82,11 @@ async def submit_business_upgrade_request(
         business_entity=business_entity,
         business_description=body.business_description.strip(),
         business_phone=body.business_phone.strip(),
-        business_address=body.business_address.strip(),
+        business_address=address or None,
         business_registration_id=body.business_registration_id.strip() if body.business_registration_id else None,
         business_website=body.business_website.strip() if body.business_website else None,
         contact_full_name=body.contact_full_name.strip(),
-        contact_phone=body.contact_phone.strip(),
+        contact_phone=(body.contact_phone or "").strip() or None,
         additional_notes=body.additional_notes.strip() if body.additional_notes else None,
     )
     db.add(req)

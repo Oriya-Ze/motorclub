@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { api, Vehicle, VehicleCatalogVariant, VehicleModItem } from "@/lib/api";
 import { formatEngineLabel } from "@/lib/formatLabels";
+import { digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
 const emptyForm = {
   makeId: "",
@@ -258,7 +259,7 @@ export default function AddVehicleForm({ existingCount, onCreated }: Props) {
             <Input
               placeholder={t("garage.year")}
               value={form.year}
-              onChange={(e) => setForm({ ...form, year: e.target.value })}
+              onChange={(e) => setForm({ ...form, year: digitsOnly(e.target.value, YEAR_DIGITS) })}
               dir="ltr"
               inputMode="numeric"
             />

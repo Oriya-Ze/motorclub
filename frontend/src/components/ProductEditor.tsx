@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import OwnerMediaThumb from "@/components/OwnerMediaThumb";
+import { categoryFields, fieldLabel, PRODUCT_CATEGORIES, type ProductField } from "@/lib/productFields";
 import PostImageAdjust from "@/components/PostImageAdjust";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/Button";
@@ -13,9 +14,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { MAX_IMAGE_BYTES, MediaUploadError } from "@/lib/mediaUpload";
+import { decimalOnly, digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
-const CATEGORIES = ["vehicles", "spareParts", "accessories", "other"] as const;
-const CONDITIONS = ["new", "used", "refurbished"] as const;
+const CATEGORIES = PRODUCT_CATEGORIES;
 const MAX_IMAGES = 8;
 
 interface ProductEditorProps {
@@ -97,21 +98,24 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
     }
   }, [open, product, user]);
 
+  // Fields that do not belong to the chosen category are saved empty, so nothing typed before switching stays behind.
+  const fields = categoryFields(category);
+  const has = (field: ProductField) => fields.fields.includes(field);
   const payload = {
     name: name.trim(),
     description: description.trim() || null,
     price: Number(price),
     category,
     image_urls: images,
-    condition: condition || null,
-    fit_make: fitMake.trim() || null,
-    fit_model: fitModel.trim() || null,
-    fit_year_from: yearFrom ? Number(yearFrom) : null,
-    fit_year_to: yearTo ? Number(yearTo) : null,
-    brand: brand.trim() || null,
-    sku: sku.trim() || null,
+    condition: condition && (fields.conditions as readonly string[]).includes(condition) ? condition : null,
+    fit_make: has("fitMake") ? fitMake.trim() || null : null,
+    fit_model: has("fitModel") ? fitModel.trim() || null : null,
+    fit_year_from: has("yearFrom") && yearFrom ? Number(yearFrom) : null,
+    fit_year_to: has("yearTo") && yearTo ? Number(yearTo) : null,
+    brand: has("brand") ? brand.trim() || null : null,
+    sku: has("sku") ? sku.trim() || null : null,
     pickup_area: pickup.trim() || null,
-    ships,
+    ships: has("ships") ? ships : false,
   };
 
   const missing = [
@@ -252,25 +256,27 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
             <label className="block text-sm" htmlFor="product-condition">{t("productEditor.conditionLabel")}</label>
             <select id="product-condition" value={condition} onChange={(event) => setCondition(event.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
               <option value="">{t("productEditor.unspecified")}</option>
-              {CONDITIONS.map((item) => <option key={item} value={item}>{t(`productEditor.condition.${item}`)}</option>)}
+              {fields.conditions.map((item) => <option key={item} value={item}>{t(`productEditor.condition.${item}`)}</option>)}
             </select>
             <label className="block text-sm" htmlFor="product-price">{t("businessSettings.productPrice")}</label>
-            <Input id="product-price" value={price} onChange={(event) => setPrice(event.target.value)} inputMode="decimal" dir="ltr" />
+            <Input id="product-price" value={price} onChange={(event) => setPrice(decimalOnly(event.target.value))} inputMode="decimal" dir="ltr" />
             <label className="block text-sm" htmlFor="product-description">{t("businessSettings.productDescription")}</label>
             <textarea id="product-description" value={description} onChange={(event) => setDescription(event.target.value)} rows={4} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input value={fitMake} onChange={(event) => setFitMake(event.target.value)} placeholder={t("productEditor.fitMake")} aria-label={t("productEditor.fitMake")} />
-              <Input value={fitModel} onChange={(event) => setFitModel(event.target.value)} placeholder={t("productEditor.fitModel")} aria-label={t("productEditor.fitModel")} />
-              <Input value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder={t("productEditor.yearFrom")} aria-label={t("productEditor.yearFrom")} />
-              <Input value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder={t("productEditor.yearTo")} aria-label={t("productEditor.yearTo")} />
-              <Input value={brand} onChange={(event) => setBrand(event.target.value)} placeholder={t("productEditor.brand")} aria-label={t("productEditor.brand")} />
-              <Input value={sku} onChange={(event) => setSku(event.target.value)} placeholder={t("productEditor.sku")} aria-label={t("productEditor.sku")} />
+              {has("fitMake") && <Input value={fitMake} onChange={(event) => setFitMake(event.target.value)} placeholder={t(fieldLabel(category, "fitMake"))} aria-label={t(fieldLabel(category, "fitMake"))} />}
+              {has("fitModel") && <Input value={fitModel} onChange={(event) => setFitModel(event.target.value)} placeholder={t(fieldLabel(category, "fitModel"))} aria-label={t(fieldLabel(category, "fitModel"))} />}
+              {has("yearFrom") && <Input value={yearFrom} onChange={(event) => setYearFrom(digitsOnly(event.target.value, YEAR_DIGITS))} placeholder={t(fieldLabel(category, "yearFrom"))} aria-label={t(fieldLabel(category, "yearFrom"))} inputMode="numeric" />}
+              {has("yearTo") && <Input value={yearTo} onChange={(event) => setYearTo(digitsOnly(event.target.value, YEAR_DIGITS))} placeholder={t(fieldLabel(category, "yearTo"))} aria-label={t(fieldLabel(category, "yearTo"))} inputMode="numeric" />}
+              {has("brand") && <Input value={brand} onChange={(event) => setBrand(event.target.value)} placeholder={t(fieldLabel(category, "brand"))} aria-label={t(fieldLabel(category, "brand"))} />}
+              {has("sku") && <Input value={sku} onChange={(event) => setSku(event.target.value)} placeholder={t(fieldLabel(category, "sku"))} aria-label={t(fieldLabel(category, "sku"))} />}
               <Input value={pickup} onChange={(event) => setPickup(event.target.value)} placeholder={t("productEditor.pickup")} aria-label={t("productEditor.pickup")} />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={ships} onChange={(event) => setShips(event.target.checked)} />
-              {t("productEditor.ships")}
-            </label>
+            {has("ships") && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={ships} onChange={(event) => setShips(event.target.checked)} />
+                {t("productEditor.ships")}
+              </label>
+            )}
             {fieldError && <p className="text-sm text-destructive" role="alert">{fieldError}</p>}
             {savedAt && <p className="text-xs text-muted-foreground">{t("productEditor.savedAt", { time: savedAt })}</p>}
           </div>

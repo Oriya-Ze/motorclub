@@ -59,8 +59,11 @@ export default function AdminBusiness() {
               </div>
               <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                 <div><dt className="inline text-muted-foreground">טלפון עסק: </dt><dd className="inline" dir="ltr">{req.business_phone}</dd></div>
-                <div><dt className="inline text-muted-foreground">כתובת: </dt><dd className="inline">{req.business_address}</dd></div>
-                <div><dt className="inline text-muted-foreground">איש קשר: </dt><dd className="inline">{req.contact_full_name} · <span dir="ltr">{req.contact_phone}</span></dd></div>
+                <div><dt className="inline text-muted-foreground">כתובת: </dt><dd className="inline">{req.business_address || "לא צוינה"}</dd></div>
+                <div>
+                  <dt className="inline text-muted-foreground">איש קשר: </dt>
+                  <dd className="inline">{req.contact_full_name}{req.contact_phone ? <> · <span dir="ltr">{req.contact_phone}</span></> : null}</dd>
+                </div>
                 {req.business_registration_id && <div><dt className="inline text-muted-foreground">ח.פ / ע.מ: </dt><dd className="inline" dir="ltr">{req.business_registration_id}</dd></div>}
                 {req.business_website && <div><dt className="inline text-muted-foreground">אתר: </dt><dd className="inline" dir="ltr">{req.business_website}</dd></div>}
               </dl>

@@ -1,6 +1,29 @@
-export const WORKSHOP_BUSINESS_TYPES = ["garage", "mechanic", "body_shop", "tires", "electric"] as const;
+export const WORKSHOP_BUSINESS_TYPES = [
+  "garage",
+  "mechanic",
+  "body_shop",
+  "electric",
+  "diagnostics",
+  "tires",
+  "exhausts",
+  "glass",
+  "upholstery",
+  "wraps",
+  "motorcycles",
+] as const;
 
-export const SERVICE_BUSINESS_TYPES = ["towing", "detailing", "insurance", "rental", "parts", "other"] as const;
+export const SERVICE_BUSINESS_TYPES = [
+  "detailing",
+  "car_wash",
+  "towing",
+  "batteries",
+  "parts",
+  "car_sales",
+  "rental",
+  "appraisal",
+  "insurance",
+  "other",
+] as const;
 
 export const ALL_BUSINESS_TYPES = [...WORKSHOP_BUSINESS_TYPES, ...SERVICE_BUSINESS_TYPES] as const;
 
@@ -30,10 +53,11 @@ export interface BusinessUpgradeFormData {
   business_types: BusinessType[];
   business_entity: BusinessEntity;
   business_phone: string;
-  business_address: string;
+  /** Optional for the self-employed. */
+  business_address?: string;
   business_description: string;
   contact_full_name: string;
-  contact_phone: string;
+  contact_phone?: string;
   business_registration_id?: string;
   business_website?: string;
   additional_notes?: string;

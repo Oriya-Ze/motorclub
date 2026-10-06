@@ -18,6 +18,7 @@ import {
 } from "@/lib/authValidation";
 import { api, type OAuthConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { CODE_DIGITS, digitsOnly } from "@/lib/numericInput";
 
 export default function AuthPage() {
   const { t } = useTranslation();
@@ -365,7 +366,7 @@ export default function AuthPage() {
                 <Input
                   id="auth-code"
                   value={form.code}
-                  onChange={(e) => setForm({ code: e.target.value })}
+                  onChange={(e) => setForm({ code: digitsOnly(e.target.value, CODE_DIGITS) })}
                   required
                   dir="ltr"
                   inputMode="numeric"

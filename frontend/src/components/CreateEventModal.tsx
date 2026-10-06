@@ -14,6 +14,7 @@ import EventScheduleField, {
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { digitsOnly } from "@/lib/numericInput";
 
 const EVENT_TYPES = ["meetup", "workshop", "exhibition", "trip", "race", "training"] as const;
 
@@ -129,12 +130,10 @@ export default function CreateEventModal({ open, onClose, onCreated }: CreateEve
           <div className="space-y-2">
             <label className="text-sm font-medium">{t("eventForm.fieldMaxParticipants")}</label>
             <Input
-              type="number"
-              min="1"
-              step="1"
+              inputMode="numeric"
               dir="ltr"
               value={maxParticipants}
-              onChange={(e) => setMaxParticipants(e.target.value)}
+              onChange={(e) => setMaxParticipants(digitsOnly(e.target.value, 5))}
               placeholder={t("eventForm.fieldMaxParticipantsPlaceholder")}
             />
           </div>
