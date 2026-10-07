@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import BusinessListingBadge from "@/components/BusinessListingBadge";
 import Avatar from "@/components/Avatar";
+import StoredImage from "@/components/StoredImage";
 import { Product } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
 
@@ -14,32 +13,30 @@ export function formatIls(price: number): string {
 export default function ProductCard({
   product,
   className,
-  preferOriginal = false,
+  imageSrc,
 }: {
   product: Product;
   className?: string;
-  preferOriginal?: boolean;
+  /** An on-device preview of the first photo, used by the editor before the processed copy exists. */
+  imageSrc?: string;
 }) {
   const { t } = useTranslation();
   const image = product.image_urls?.[0];
   const seller = product.seller;
-  const original = mediaUrl(image);
-  const preferred = mediaUrl(preferOriginal ? image : pickStoredImageUrl(image, null, "detail"));
-  const [useOriginal, setUseOriginal] = useState(false);
-  const src = useOriginal ? original : preferred;
   return (
     <article className={cn("flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card", className)}>
-      <div className="relative aspect-square overflow-hidden bg-muted/40">
+      <div className={cn("relative aspect-square overflow-hidden", image ? "bg-black" : "bg-muted/40")}>
         {image ? (
-          <img
-            src={src}
-            alt=""
-            className="absolute inset-0 h-full w-full object-contain"
-            loading="lazy"
-            onError={() => {
-              if (!useOriginal && original && original !== src) setUseOriginal(true);
-            }}
-          />
+          imageSrc ? (
+            <img src={imageSrc} alt="" className="absolute inset-0 h-full w-full object-contain" />
+          ) : (
+            <StoredImage
+              sourceKey={image}
+              preferredKey={pickStoredImageUrl(image, null, "detail")}
+              className="absolute inset-0 h-full w-full object-contain"
+              loading="lazy"
+            />
+          )
         ) : (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">{t("productEditor.noPhoto")}</div>
         )}

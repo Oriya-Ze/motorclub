@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { MAX_IMAGE_BYTES, MediaUploadError } from "@/lib/mediaUpload";
 import { decimalOnly, digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
@@ -50,7 +49,11 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
   const [pickup, setPickup] = useState("");
   const [ships, setShips] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [adjustIndex, setAdjustIndex] = useState<number | null>(null);
+  // Cropping is part of uploading: photos added in this session keep their file here, keyed by reference.
+  const [localFiles, setLocalFiles] = useState<Record<string, File>>({});
+  // On-device previews of those photos, so the editor shows them before the processed copies exist.
+  const [localPreviews, setLocalPreviews] = useState<Record<string, string>>({});
+  const [adjust, setAdjust] = useState<{ index: number; src: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState("");
@@ -151,11 +154,15 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
       try {
         const result = await api.uploadMedia(file, "product");
         setImages((prev) => [...prev, result.reference].slice(0, MAX_IMAGES));
+        setLocalFiles((prev) => ({ ...prev, [result.reference]: file }));
+        const preview = URL.createObjectURL(file);
+        setLocalPreviews((prev) => ({ ...prev, [result.reference]: preview }));
+        // Measured on the device; downloading the upload just to read its size would cost a transfer.
         const probe = new Image();
         probe.onload = () => {
           if (probe.naturalWidth < 600 || probe.naturalHeight < 600) setLowQuality(true);
         };
-        probe.src = mediaUrl(result.reference);
+        probe.src = preview;
       } catch (err) {
         const message = err instanceof MediaUploadError ? err.message : t("composer.uploadFailed");
         toast.error(message);
@@ -191,6 +198,11 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
     } finally {
       setBusy(false);
     }
+  };
+
+  const closeAdjust = () => {
+    if (adjust) URL.revokeObjectURL(adjust.src);
+    setAdjust(null);
   };
 
   if (!open) return null;
@@ -236,12 +248,18 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
               <ul className="mt-3 space-y-2">
                 {images.map((image, index) => (
                   <li key={`${image}-${index}`} className="flex items-center gap-2">
-                    <OwnerMediaThumb className="h-14 w-14 rounded-lg object-contain" storageKey={image} />
+                    {localPreviews[image] ? (
+                      <img src={localPreviews[image]} alt="" className="h-14 w-14 rounded-lg bg-black object-contain" />
+                    ) : (
+                      <OwnerMediaThumb className="h-14 w-14 rounded-lg bg-black object-contain" storageKey={image} />
+                    )}
                     <span className="text-xs">{index === 0 ? t("productEditor.primary") : index + 1}</span>
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" disabled={index === 0} onClick={() => setImages((prev) => { const next = prev.slice(); const [item] = next.splice(index, 1); next.unshift(item); return next; })}>{t("productEditor.makePrimary")}</button>
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" disabled={index === 0} onClick={() => setImages((prev) => { const next = prev.slice(); const [item] = next.splice(index, 1); next.splice(index - 1, 0, item); return next; })} aria-label={t("composer.moveEarlier")}>↑</button>
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" disabled={index === images.length - 1} onClick={() => setImages((prev) => { const next = prev.slice(); const [item] = next.splice(index, 1); next.splice(index + 1, 0, item); return next; })} aria-label={t("composer.moveLater")}>↓</button>
-                    <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" onClick={() => setAdjustIndex(index)}>{t("composer.editCrop")}</button>
+                    {localFiles[image] ? (
+                      <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" onClick={() => setAdjust({ index, src: URL.createObjectURL(localFiles[image]) })}>{t("composer.editCrop")}</button>
+                    ) : null}
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs text-destructive" onClick={() => setImages((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}>{t("composer.remove")}</button>
                   </li>
                 ))}
@@ -281,7 +299,7 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
             {savedAt && <p className="text-xs text-muted-foreground">{t("productEditor.savedAt", { time: savedAt })}</p>}
           </div>
           <aside className="hidden border-s border-border bg-muted/20 p-4 md:block">
-            <ProductCard product={previewProduct} preferOriginal />
+            <ProductCard product={previewProduct} imageSrc={images[0] ? localPreviews[images[0]] : undefined} />
           </aside>
         </div>
         <footer className="flex flex-wrap items-center gap-2 border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
@@ -291,18 +309,31 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
           </Button>
           {missing.length > 0 && <p className="text-xs text-muted-foreground">{missing.join(" · ")}</p>}
         </footer>
-        {adjustIndex != null && images[adjustIndex] && (
+        {adjust && images[adjust.index] && (
           <PostImageAdjust
-            src={mediaUrl(images[adjustIndex])}
+            src={adjust.src}
             fileName="product.jpg"
+            initialAspect={1}
             canReset={false}
-            onCancel={() => setAdjustIndex(null)}
-            onReset={() => setAdjustIndex(null)}
-            onSourceError={() => toast.error(t("composer.cropNeedsFile"))}
+            onCancel={() => closeAdjust()}
+            onReset={() => closeAdjust()}
+            onSourceError={() => {
+              toast.error(t("composer.cropNeedsFile"));
+              closeAdjust();
+            }}
             onApply={async (file) => {
-              const result = await api.uploadMedia(file, "product");
-              setImages((prev) => prev.map((item, index) => index === adjustIndex ? result.reference : item));
-              setAdjustIndex(null);
+              const { index } = adjust;
+              const previous = images[index];
+              try {
+                const result = await api.uploadMedia(file, "product");
+                setImages((prev) => prev.map((item, itemIndex) => itemIndex === index ? result.reference : item));
+                // A second crop starts again from the photo as it was uploaded.
+                setLocalFiles((prev) => ({ ...prev, [result.reference]: prev[previous] ?? file }));
+                setLocalPreviews((prev) => ({ ...prev, [result.reference]: URL.createObjectURL(file) }));
+              } catch (err) {
+                toast.error(err instanceof MediaUploadError ? err.message : t("composer.uploadFailed"));
+              }
+              closeAdjust();
             }}
           />
         )}

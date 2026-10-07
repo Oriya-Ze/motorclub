@@ -94,6 +94,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   const [images, setImages] = useState<string[]>(restored?.images ?? []);
   const [photosKey, setPhotosKey] = useState(0);
   const [photosBusy, setPhotosBusy] = useState(false);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [showRestored, setShowRestored] = useState(Boolean(restored && (restored.form.make || restored.images.length)));
   const [tried, setTried] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -243,7 +244,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
             ) : null}
 
             <Section icon={Camera} title={t("garage.editor.sectionPhotos")} hint={t("garage.editor.sectionPhotosHint", { count: MAX_VEHICLE_PHOTOS })}>
-              <VehiclePhotosField key={photosKey} initialUrls={images} onChange={setImages} onBusyChange={setPhotosBusy} disabled={busy} />
+              <VehiclePhotosField key={photosKey} initialUrls={images} onChange={setImages} onBusyChange={setPhotosBusy} onCoverPreview={setCoverPreview} disabled={busy} />
             </Section>
 
             <Section icon={Car} title={t("garage.editor.sectionDetails")}>
@@ -371,8 +372,10 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
           <aside className="hidden min-h-0 overflow-y-auto border-s border-border bg-muted/20 p-4 md:block" aria-label={t("garage.editor.preview")}>
             <p className="mb-2 text-xs font-medium text-muted-foreground">{t("garage.editor.preview")}</p>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-              {images[0] ? (
-                <StoredImage sourceKey={images[0]} className="aspect-video w-full object-cover" />
+              {coverPreview ? (
+                <img src={coverPreview} alt="" className="aspect-video w-full bg-black object-contain" />
+              ) : images[0] ? (
+                <StoredImage sourceKey={images[0]} className="aspect-video w-full bg-black object-contain" />
               ) : (
                 <VehiclePlaceholder className="aspect-video w-full rounded-none" iconClassName="h-10 w-10" />
               )}

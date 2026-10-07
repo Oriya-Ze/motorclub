@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { API_BASE, mediaUrl } from "@/lib/media";
+import StoredImage from "@/components/StoredImage";
+import { API_BASE } from "@/lib/media";
+import { derivedImageVariantKey } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
 
 /**
  * An image the viewer owns, including one still in the private path while it waits for review.
- * Private keys have no public URL, so they are read through the owner-only access endpoint.
+ * Private keys have no public URL, so they are read through the owner-only access endpoint; public ones come
+ * from their processed thumbnail.
  */
 export default function OwnerMediaThumb({ storageKey, className }: { storageKey: string; className?: string }) {
+  const isPrivate = storageKey.includes("/private/");
   const [src, setSrc] = useState("");
   useEffect(() => {
-    if (!storageKey.includes("/private/")) {
-      setSrc(mediaUrl(storageKey));
-      return;
-    }
+    if (!isPrivate) return;
     let stop = false;
     let blobUrl = "";
     api.mediaAccessUrl(storageKey).then(async (result) => {
@@ -33,7 +34,8 @@ export default function OwnerMediaThumb({ storageKey, className }: { storageKey:
       stop = true;
       if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
-  }, [storageKey]);
+  }, [storageKey, isPrivate]);
+  if (!isPrivate) return <StoredImage sourceKey={storageKey} preferredKey={derivedImageVariantKey(storageKey, "thumb")} className={className} />;
   if (!src) return <div className={cn("bg-muted", className)} />;
   return <img src={src} alt="" className={cn("bg-muted", className)} />;
 }

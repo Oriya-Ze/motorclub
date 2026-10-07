@@ -3,13 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import PostImageAdjust from "@/components/PostImageAdjust";
-import StoredImage, { loadStoredImageFile } from "@/components/StoredImage";
+import StoredImage from "@/components/StoredImage";
 import { api, type ImageMedia } from "@/lib/api";
-import { MAX_IMAGE_BYTES, MediaUploadError, SUPPORTED_IMAGE_TYPES } from "@/lib/mediaUpload";
+import { MAX_IMAGE_BYTES, MediaUploadError } from "@/lib/mediaUpload";
 import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
 
 export const MAX_VEHICLE_PHOTOS = 12;
+/** Still photos only: a GIF is refused by the scan as an animation. */
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 /** Photos narrower than this look soft as a cover on the vehicle page. */
 const LOW_RES_WIDTH = 1000;
 
@@ -39,12 +41,15 @@ export default function VehiclePhotosField({
   imageMedia,
   onChange,
   onBusyChange,
+  onCoverPreview,
   disabled,
 }: {
   initialUrls: string[];
   imageMedia?: ImageMedia[] | null;
   onChange: (urls: string[]) => void;
   onBusyChange?: (busy: boolean) => void;
+  /** The cover's on-device preview, when it was uploaded in this session. */
+  onCoverPreview?: (url: string | null) => void;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -56,8 +61,8 @@ export default function VehiclePhotosField({
   const [adjust, setAdjust] = useState<{ id: string; src: string; name: string } | null>(null);
   const chainRef = useRef<Promise<void>>(Promise.resolve());
   const objectUrls = useRef<string[]>([]);
-  const callbacks = useRef({ onChange, onBusyChange });
-  callbacks.current = { onChange, onBusyChange };
+  const callbacks = useRef({ onChange, onBusyChange, onCoverPreview });
+  callbacks.current = { onChange, onBusyChange, onCoverPreview };
   const reported = useRef("");
 
   useEffect(() => () => objectUrls.current.forEach((url) => URL.revokeObjectURL(url)), []);
@@ -66,11 +71,13 @@ export default function VehiclePhotosField({
   useEffect(() => {
     const ready = items.filter((item) => item.status === "ready" && item.reference).map((item) => item.reference as string);
     const busy = items.some((item) => item.status === "uploading");
-    const signature = `${ready.join("|")}#${busy}`;
+    const cover = items.find((item) => item.status === "ready" && item.reference)?.previewUrl ?? null;
+    const signature = `${ready.join("|")}#${busy}#${cover}`;
     if (signature === reported.current) return;
     reported.current = signature;
     callbacks.current.onChange(ready);
     callbacks.current.onBusyChange?.(busy);
+    callbacks.current.onCoverPreview?.(cover);
   }, [items]);
 
   const localUrl = (file: Blob) => {
@@ -138,7 +145,7 @@ export default function VehiclePhotosField({
         toast.error(t("garage.editor.tooMany", { count: MAX_VEHICLE_PHOTOS }));
         break;
       }
-      if (!SUPPORTED_IMAGE_TYPES.includes(file.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) {
+      if (!PHOTO_TYPES.includes(file.type)) {
         toast.error(t("garage.editor.photoType", { name: file.name }));
         continue;
       }
@@ -172,16 +179,9 @@ export default function VehiclePhotosField({
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const openCrop = async (item: PhotoItem) => {
-    let source = item.original?.file ?? item.file;
-    if (!source && (item.original?.reference || item.reference)) {
-      // Saved photos have no local file, and their original is gone after processing: crop from the stored copy.
-      source = (await loadStoredImageFile(item.original?.reference || (item.reference as string))) ?? undefined;
-      if (!source) {
-        toast.error(t("composer.cropNeedsFile"));
-        return;
-      }
-    }
+  // Cropping is part of uploading: only photos added in this session have their file on the device to crop from.
+  const openCrop = (item: PhotoItem) => {
+    const source = item.original?.file ?? item.file;
     if (!source) return;
     setAdjust({ id: item.id, src: localUrl(source), name: source.name || "vehicle.jpg" });
   };
@@ -215,7 +215,7 @@ export default function VehiclePhotosField({
       <input
         ref={inputRef}
         type="file"
-        accept={SUPPORTED_IMAGE_TYPES.join(",")}
+        accept={PHOTO_TYPES.join(",")}
         multiple
         className="sr-only"
         tabIndex={-1}
@@ -243,15 +243,15 @@ export default function VehiclePhotosField({
       ) : (
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {items.map((item, index) => (
-            <li key={item.id} className="relative aspect-video overflow-hidden rounded-xl border border-border bg-muted">
+            <li key={item.id} className="relative aspect-video overflow-hidden rounded-xl border border-border bg-black">
               {item.previewUrl ? (
-                <img src={item.previewUrl} alt={t("garage.photoIndex", { n: index + 1, total: items.length })} className="h-full w-full object-cover" />
+                <img src={item.previewUrl} alt={t("garage.photoIndex", { n: index + 1, total: items.length })} className="h-full w-full object-contain" />
               ) : item.reference ? (
                 <StoredImage
                   sourceKey={item.reference}
                   preferredKey={pickStoredImageUrl(item.reference, imageMedia, "feed")}
                   alt={t("garage.photoIndex", { n: index + 1, total: items.length })}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : null}
 
@@ -308,9 +308,11 @@ export default function VehiclePhotosField({
                         <Star className="h-4 w-4" aria-hidden />
                       </button>
                     ) : null}
-                    <button type="button" className={iconButton} disabled={disabled} onClick={() => void openCrop(item)} aria-label={t("garage.editor.crop")} title={t("garage.editor.crop")}>
-                      <Crop className="h-4 w-4" aria-hidden />
-                    </button>
+                    {item.file ? (
+                      <button type="button" className={iconButton} disabled={disabled} onClick={() => openCrop(item)} aria-label={t("garage.editor.crop")} title={t("garage.editor.crop")}>
+                        <Crop className="h-4 w-4" aria-hidden />
+                      </button>
+                    ) : null}
                   </div>
                   <div className="flex gap-1">
                     <button type="button" className={iconButton} disabled={disabled || index === 0} onClick={() => move(index, index - 1)} aria-label={t("garage.movePhotoEarlier")} title={t("garage.movePhotoEarlier")}>

@@ -460,7 +460,7 @@ const resources = {
         editor: {
           title: "כלי חדש",
           sectionPhotos: "תמונות",
-          sectionPhotosHint: "עד {{count}} תמונות. אפשר לחתוך ולסדר אחרי ההעלאה.",
+          sectionPhotosHint: "עד {{count}} תמונות. אפשר לחתוך תמונה מיד אחרי שמעלים אותה, ולסדר בכל זמן.",
           sectionDetails: "פרטי הכלי",
           sectionStory: "שם וסיפור",
           sectionMods: "שדרוגים",
@@ -1698,7 +1698,7 @@ const resources = {
         editor: {
           title: "New machine",
           sectionPhotos: "Photos",
-          sectionPhotosHint: "Up to {{count}} photos. Crop and reorder after uploading.",
+          sectionPhotosHint: "Up to {{count}} photos. Crop a photo right after uploading it; reorder any time.",
           sectionDetails: "Machine details",
           sectionStory: "Name and story",
           sectionMods: "Mods",

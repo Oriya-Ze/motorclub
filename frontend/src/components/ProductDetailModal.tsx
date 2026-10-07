@@ -16,7 +16,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api, Product } from "@/lib/api";
 import { getUserProfilePath } from "@/lib/businessProfile";
 import { withReturnTo } from "@/lib/returnTo";
+import StoredImage from "@/components/StoredImage";
 import { mediaUrl } from "@/lib/media";
+import { pickStoredImageUrl } from "@/lib/postMedia";
 import { formatHandle } from "@/lib/utils";
 import { categoryFields } from "@/lib/productFields";
 import type { TFunction } from "i18next";
@@ -96,7 +98,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
         <div className="p-4 space-y-4">
           {photos[0] ? (
             <button type="button" className="relative block w-full" onClick={() => { setPhotoIdx(0); setPhotoOpen(true); }} aria-label={t("viewFullMedia")}>
-              <img src={mediaUrl(photos[0])} alt={product.name} className="w-full h-56 object-cover rounded-xl" />
+              <StoredImage sourceKey={photos[0]} preferredKey={pickStoredImageUrl(photos[0], null, "detail")} alt={product.name} className="w-full h-56 rounded-xl bg-black object-contain" />
               {product.seller?.account_type === "business" && (
                 <BusinessListingBadge className="absolute top-2 start-2" />
               )}
@@ -192,7 +194,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
     )}
     <MediaLightbox
       open={photoOpen}
-      items={photos.map((url) => ({ kind: "image" as const, src: mediaUrl(url), alt: product.name }))}
+      items={photos.map((url) => ({ kind: "image" as const, src: mediaUrl(pickStoredImageUrl(url, null, "detail")), alt: product.name }))}
       index={photoIdx}
       onClose={() => setPhotoOpen(false)}
       onIndexChange={setPhotoIdx}

@@ -68,7 +68,7 @@ export default function MyProducts() {
           return (
             <li key={product.id} className="flex items-start gap-3 rounded-2xl border border-border/50 bg-card/50 p-3">
               {product.image_urls?.[0] ? (
-                <OwnerMediaThumb storageKey={product.image_urls[0]} className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+                <OwnerMediaThumb storageKey={product.image_urls[0]} className="h-16 w-16 shrink-0 rounded-xl bg-black object-contain" />
               ) : (
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-muted">
                   <Package className="h-5 w-5 text-muted-foreground" aria-hidden />

@@ -1,10 +1,10 @@
 import { Camera, Star, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import StoredImage from "@/components/StoredImage";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Vehicle } from "@/lib/api";
-import { mediaUrl } from "@/lib/media";
 import { pickStoredImageUrl } from "@/lib/postMedia";
 import { formatEngineLabel } from "@/lib/formatLabels";
 import { cn } from "@/lib/utils";
@@ -31,10 +31,11 @@ export default function VehicleCard({ vehicle: v, featured = false, showPrimary 
       <Card className="overflow-hidden hover:shadow-glow transition-shadow h-full cursor-pointer">
         <div className="relative">
           {v.image_urls?.[0] ? (
-            <img
-              src={mediaUrl(pickStoredImageUrl(v.image_urls[0], v.image_media, "feed"))}
+            <StoredImage
+              sourceKey={v.image_urls[0]}
+              preferredKey={pickStoredImageUrl(v.image_urls[0], v.image_media, "feed")}
               alt={alt}
-              className={cn("w-full object-cover", featured ? "h-52" : "h-40")}
+              className={cn("w-full bg-black object-contain", featured ? "h-52" : "h-40")}
               loading="lazy"
             />
           ) : (

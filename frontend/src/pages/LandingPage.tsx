@@ -185,6 +185,7 @@ function SamplePassport() {
     >
       <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-1 bg-gradient-to-l from-primary via-primary/60 to-transparent" />
       <VehicleImageCarousel
+        fit="cover"
         urls={DEMO_PHOTOS}
         className="rounded-none"
         imageClassName="rounded-none h-56 sm:h-80 lg:h-[30rem]"

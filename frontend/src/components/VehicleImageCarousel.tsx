@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import MediaLightbox from "@/components/MediaLightbox";
+import StoredImage from "@/components/StoredImage";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import { mediaUrl } from "@/lib/media";
 import { pickStoredImageUrl } from "@/lib/postMedia";
@@ -15,9 +16,11 @@ interface VehicleImageCarouselProps {
   imageClassName?: string;
   alt?: string;
   alts?: string[];
+  /** "contain" shows the whole photo with black bars (the default); "cover" fills the frame and may cut the edges. */
+  fit?: "contain" | "cover";
 }
 
-export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts }: VehicleImageCarouselProps) {
+export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts, fit = "contain" }: VehicleImageCarouselProps) {
   const { t, i18n } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -60,10 +63,11 @@ export default function VehicleImageCarousel({ urls, imageMedia, className, imag
           onClick={() => setLightbox(true)}
           aria-label={t("viewFullMedia")}
         >
-          <img
-            src={mediaUrl(pickStoredImageUrl(urls[idx], imageMedia, "detail"))}
+          <StoredImage
+            sourceKey={urls[idx]}
+            preferredKey={pickStoredImageUrl(urls[idx], imageMedia, "detail")}
             alt={alts?.[idx] || t("garage.photoIndex", { n: idx + 1, total: urls.length, name: label })}
-            className={cn("w-full h-56 sm:h-64 object-cover rounded-xl bg-asphalt", imageClassName)}
+            className={cn("w-full h-56 sm:h-64 rounded-xl bg-black", fit === "contain" ? "object-contain" : "object-cover", imageClassName)}
             draggable={false}
             decoding="async"
             fetchPriority={idx === 0 ? "high" : "low"}
