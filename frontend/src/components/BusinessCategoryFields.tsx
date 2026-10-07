@@ -34,8 +34,8 @@ function CheckMark({ checked, className }: { checked: boolean; className?: strin
 }
 
 /**
- * The business categories (several allowed, the first picked is the primary one) and whether the
- * business is self-employed or a company. Shared by the upgrade request and the business settings.
+ * Whether the business is self-employed or a company, then its categories (several allowed, the first picked
+ * is the primary one). Shared by the upgrade request and the business settings.
  * Native checkboxes and radios stay in place, visually hidden, so keyboards and screen readers work.
  */
 export default function BusinessCategoryFields({
@@ -58,6 +58,44 @@ export default function BusinessCategoryFields({
 
   return (
     <>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">{t("businessUpgradeForm.entity")}</legend>
+        <div className="grid grid-cols-2 gap-2">
+          {BUSINESS_ENTITIES.map((value) => {
+            const Icon = ENTITY_ICONS[value];
+            const checked = entity === value;
+            return (
+              <label key={value} className="cursor-pointer">
+                <input
+                  type="radio"
+                  name={`${id}-entity`}
+                  value={value}
+                  checked={checked}
+                  onChange={() => onEntityChange(value)}
+                  className="peer sr-only"
+                />
+                <span
+                  className={cn(
+                    "flex h-full items-center gap-3 rounded-2xl border p-3 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
+                    checked ? "border-primary bg-primary/10" : errors?.entity ? "border-destructive/60 hover:bg-muted/40" : "border-border hover:bg-muted/40",
+                  )}
+                >
+                  <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", checked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
+                    <Icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{t(`businessUpgradeForm.entity_${value}`)}</span>
+                    <span className="block text-xs text-muted-foreground">{t(`businessUpgradeForm.entityHint_${value}`)}</span>
+                  </span>
+                  <CheckMark checked={checked} />
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        {errors?.entity ? <p className="text-xs text-destructive" role="alert">{errors.entity}</p> : null}
+      </fieldset>
+
       <fieldset className="space-y-2" aria-describedby={`${id}-types-hint`}>
         <legend className="text-sm font-medium">{t("businessUpgradeForm.category")}</legend>
         <p id={`${id}-types-hint`} className="text-xs text-muted-foreground">{t("businessUpgradeForm.categoryHint")}</p>
@@ -96,44 +134,6 @@ export default function BusinessCategoryFields({
           ))}
         </div>
         {errors?.types ? <p className="text-xs text-destructive" role="alert">{errors.types}</p> : null}
-      </fieldset>
-
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">{t("businessUpgradeForm.entity")}</legend>
-        <div className="grid grid-cols-2 gap-2">
-          {BUSINESS_ENTITIES.map((value) => {
-            const Icon = ENTITY_ICONS[value];
-            const checked = entity === value;
-            return (
-              <label key={value} className="cursor-pointer">
-                <input
-                  type="radio"
-                  name={`${id}-entity`}
-                  value={value}
-                  checked={checked}
-                  onChange={() => onEntityChange(value)}
-                  className="peer sr-only"
-                />
-                <span
-                  className={cn(
-                    "flex h-full items-center gap-3 rounded-2xl border p-3 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring",
-                    checked ? "border-primary bg-primary/10" : errors?.entity ? "border-destructive/60 hover:bg-muted/40" : "border-border hover:bg-muted/40",
-                  )}
-                >
-                  <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", checked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
-                    <Icon className="h-5 w-5" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold">{t(`businessUpgradeForm.entity_${value}`)}</span>
-                    <span className="block text-xs text-muted-foreground">{t(`businessUpgradeForm.entityHint_${value}`)}</span>
-                  </span>
-                  <CheckMark checked={checked} />
-                </span>
-              </label>
-            );
-          })}
-        </div>
-        {errors?.entity ? <p className="text-xs text-destructive" role="alert">{errors.entity}</p> : null}
       </fieldset>
     </>
   );
