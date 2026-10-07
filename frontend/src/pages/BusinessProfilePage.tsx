@@ -266,8 +266,9 @@ export default function BusinessProfilePage() {
     );
   }
 
-  const listPath = safeReturnTo(searchParams.get("from")) || getBusinessListPath(business.business_type);
-  const backLabel = searchParams.get("from") ? t("productEditor.back") : t("productEditor.backToBusinesses");
+  // A back link only when the visitor really came from a list; reaching a profile from the menu, a post or a
+  // shared link should not present the business directory as where they came from.
+  const backPath = safeReturnTo(searchParams.get("from"));
   const reviewCount = business.review_count ?? reviews.length;
   const canReview = Boolean(authUser && !isOwn);
 
@@ -292,13 +293,15 @@ export default function BusinessProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-20 md:pb-8">
-      <Link
-        to={listPath}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-        {backLabel}
-      </Link>
+      {backPath && (
+        <Link
+          to={backPath}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+          {t("productEditor.back")}
+        </Link>
+      )}
       {!isOwn && (
         <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setReporting(true)}>
           {t("reports.title")}
