@@ -4,7 +4,8 @@ import { validateUsername } from "@/lib/authValidation";
 
 export type UsernameCheckStatus = "idle" | "checking" | "available" | "taken" | "invalid" | "reserved" | "error";
 
-export function useDebouncedUsernameCheck(username: string, enabled: boolean, debounceMs = 450) {
+/** `email` lets the server ignore the pending sign-up of that same email, so signing up again is not "taken". */
+export function useDebouncedUsernameCheck(username: string, enabled: boolean, email = "", debounceMs = 450) {
   const [status, setStatus] = useState<UsernameCheckStatus>("idle");
   const [normalized, setNormalized] = useState<string>("");
 
@@ -32,7 +33,7 @@ export function useDebouncedUsernameCheck(username: string, enabled: boolean, de
     setStatus("checking");
     const timer = window.setTimeout(() => {
       void api
-        .checkUsername(trimmed)
+        .checkUsername(trimmed, /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? email.trim() : undefined)
         .then((result: UsernameCheckResult) => {
           setNormalized(result.username);
           if (!result.valid) {
@@ -47,7 +48,7 @@ export function useDebouncedUsernameCheck(username: string, enabled: boolean, de
     }, debounceMs);
 
     return () => window.clearTimeout(timer);
-  }, [username, enabled, debounceMs]);
+  }, [username, enabled, email, debounceMs]);
 
   return { status, normalized };
 }

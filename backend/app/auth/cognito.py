@@ -16,7 +16,7 @@ from app.auth.validation import (
     validate_username,
 )
 from app.models import ProfileSettings, User
-from app.services.auth_lookup import check_registration_availability, resolve_login_email
+from app.services.auth_lookup import resolve_login_email
 from app.services.pending_password_reset import (
     cleanup_expired_password_resets,
     create_or_refresh_password_reset,
@@ -264,8 +264,9 @@ class CognitoAuthProvider(AuthProvider):
         full_name = validate_full_name(full_name)
         validate_password_for_registration(password, email, username)
 
-        await check_registration_availability(self.db, email, username)
-
+        # Clear expired sign-ups first, then let the pending sign-up check availability itself: it excludes the
+        # member's own pending sign-up, so signing up again with the same email sends a fresh code instead of
+        # failing with "Email already registered".
         await cleanup_expired_pending_signups(self.db)
         await create_or_refresh_pending_signup(
             self.db,

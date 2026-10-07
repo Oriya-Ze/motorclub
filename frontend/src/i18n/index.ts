@@ -903,6 +903,7 @@ const resources = {
         usernameTaken: "שם המשתמש כבר תפוס",
         usernameCheckError: "לא ניתן לבדוק כרגע — נסה שוב",
         captchaRequired: "יש לאמת CAPTCHA לפני המשך",
+        newCodeSent: "האימייל עוד לא אומת. שלחנו לך קוד אימות חדש למייל.",
       },
       settingsTabs: {
         profile: "פרופיל",
@@ -2133,6 +2134,7 @@ const resources = {
         usernameTaken: "Username is already taken",
         usernameCheckError: "Could not check right now — try again",
         captchaRequired: "Please complete the CAPTCHA before continuing",
+        newCodeSent: "Your email isn't confirmed yet. We sent you a new code.",
       },
       settingsTabs: {
         profile: "Profile",

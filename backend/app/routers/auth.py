@@ -56,6 +56,7 @@ async def _require_captcha(request: Request, token: str | None) -> None:
 async def check_username(
     request: Request,
     username: str = Query(min_length=1, max_length=30),
+    email: str | None = Query(default=None, max_length=255),
     db: AsyncSession = Depends(get_db),
 ):
     await enforce_rate_limit(request, "auth:check-username", limit=60, window_seconds=3600)
@@ -66,7 +67,7 @@ async def check_username(
         limit=30,
         window_seconds=3600,
     )
-    result = await check_username_availability(db, username)
+    result = await check_username_availability(db, username, email)
     return UsernameCheckResponse(**result)
 
 

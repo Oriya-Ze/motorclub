@@ -16,9 +16,11 @@ import {
   validateLoginForm,
   validateRegisterForm,
 } from "@/lib/authValidation";
-import { api, type OAuthConfig } from "@/lib/api";
+import { api, ApiError, type OAuthConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { CODE_DIGITS, digitsOnly } from "@/lib/numericInput";
+
+const EMAIL_NOT_VERIFIED = "Email not verified. Enter the confirmation code sent to your email.";
 
 export default function AuthPage() {
   const { t } = useTranslation();
@@ -39,10 +41,13 @@ export default function AuthPage() {
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const turnstileEnabled = Boolean(oauthConfig?.turnstile_enabled && oauthConfig.turnstile_site_key);
-  const captchaReady = !turnstileEnabled || Boolean(captchaToken);
+  // The captcha guards sign-up and login only; confirming the emailed code has no captcha widget.
+  const captchaNeeded = turnstileEnabled && mode !== "confirm";
+  const captchaReady = !captchaNeeded || Boolean(captchaToken);
   const { status: usernameStatus } = useDebouncedUsernameCheck(
     form.username,
     mode === "register",
+    form.email,
   );
 
   const resetCaptcha = useCallback(() => {
@@ -134,7 +139,7 @@ export default function AuthPage() {
       return;
     }
 
-    if (turnstileEnabled && !captchaToken) {
+    if (captchaNeeded && !captchaToken) {
       toast.error(t("authValidation.captchaRequired"));
       return;
     }
@@ -142,7 +147,24 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (mode === "login") {
-        await login(form.email.trim(), form.password, captchaToken ?? undefined);
+        try {
+          await login(form.email.trim(), form.password, captchaToken ?? undefined);
+        } catch (err) {
+          // Signed up but never entered the code: go to the code step with a fresh code, keeping the password.
+          if (err instanceof ApiError && err.detail === EMAIL_NOT_VERIFIED) {
+            resetCaptcha();
+            setForm({ code: "" });
+            setMode("confirm");
+            try {
+              await resendConfirmation(form.email.trim());
+              toast.success(t("authValidation.newCodeSent"));
+            } catch {
+              toast.message(t("apiErrors.emailNotVerified"));
+            }
+            return;
+          }
+          throw err;
+        }
         resetDraft();
         toast.success(t("loginSuccess"));
         finishAuth();

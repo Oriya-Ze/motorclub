@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,8 +33,12 @@ async def resolve_login_email(db: AsyncSession, email: str) -> None:
         raise HTTPException(status_code=401, detail="Email not registered")
 
 
-async def check_username_availability(db: AsyncSession, username: str) -> dict:
-    """Validate username format and check Neon availability (no Cognito)."""
+async def check_username_availability(db: AsyncSession, username: str, email: str | None = None) -> dict:
+    """Validate username format and check Neon availability (no Cognito).
+
+    A username held by an expired sign-up, or by the pending sign-up of the same email (someone signing up
+    again), counts as available: registering clears expired sign-ups and refreshes the member's own one.
+    """
     from app.auth.validation import validate_username
 
     raw = normalize_username(username)
@@ -50,9 +56,13 @@ async def check_username_availability(db: AsyncSession, username: str) -> dict:
 
     username_key = cleaned.lower()
     user_taken = await db.scalar(select(User.id).where(func.lower(User.username) == username_key))
-    pending_taken = await db.scalar(
-        select(PendingSignup.id).where(func.lower(PendingSignup.username) == username_key)
+    pending_query = select(PendingSignup.id).where(
+        func.lower(PendingSignup.username) == username_key,
+        PendingSignup.expires_at > datetime.now(UTC),
     )
+    if email:
+        pending_query = pending_query.where(PendingSignup.email != normalize_email(email))
+    pending_taken = await db.scalar(pending_query)
 
     if user_taken or pending_taken:
         return {

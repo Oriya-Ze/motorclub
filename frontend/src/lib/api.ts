@@ -504,9 +504,10 @@ class ApiClient {
     return this.request<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify(data) });
   }
 
-  checkUsername(username: string) {
+  checkUsername(username: string, email?: string) {
     const q = encodeURIComponent(username.trim());
-    return this.request<UsernameCheckResult>(`/auth/check-username?username=${q}`);
+    const byEmail = email ? `&email=${encodeURIComponent(email)}` : "";
+    return this.request<UsernameCheckResult>(`/auth/check-username?username=${q}${byEmail}`);
   }
 
   getOAuthConfig() {
