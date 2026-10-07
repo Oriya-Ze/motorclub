@@ -223,7 +223,7 @@ export default function VehiclePage() {
             urls={vehicle.image_urls ?? []}
             imageMedia={vehicle.image_media}
             className="rounded-none"
-            imageClassName="rounded-none h-64 sm:h-80"
+            imageClassName="rounded-none aspect-video h-auto sm:h-auto"
             alt={title}
           />
         )}

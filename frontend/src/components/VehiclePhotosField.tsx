@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import PostImageAdjust from "@/components/PostImageAdjust";
+import FitImage from "@/components/FitImage";
 import StoredImage from "@/components/StoredImage";
 import { api, type ImageMedia } from "@/lib/api";
 import { MAX_IMAGE_BYTES, MediaUploadError } from "@/lib/mediaUpload";
@@ -245,13 +246,13 @@ export default function VehiclePhotosField({
           {items.map((item, index) => (
             <li key={item.id} className="relative aspect-video overflow-hidden rounded-xl border border-border bg-black">
               {item.previewUrl ? (
-                <img src={item.previewUrl} alt={t("garage.photoIndex", { n: index + 1, total: items.length })} className="h-full w-full object-contain" />
+                <FitImage src={item.previewUrl} alt={t("garage.photoIndex", { n: index + 1, total: items.length })} className="h-full w-full" />
               ) : item.reference ? (
                 <StoredImage
                   sourceKey={item.reference}
                   preferredKey={pickStoredImageUrl(item.reference, imageMedia, "feed")}
                   alt={t("garage.photoIndex", { n: index + 1, total: items.length })}
-                  className="h-full w-full object-contain"
+                  className="h-full w-full"
                 />
               ) : null}
 

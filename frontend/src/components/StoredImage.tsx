@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ImgHTMLAttributes } from "react";
+import FitImage, { type ImageFit } from "@/components/FitImage";
 import { mediaUrl } from "@/lib/media";
 import { derivedImageVariantKey } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
@@ -21,9 +22,12 @@ export default function StoredImage({
   preferredKey,
   alt = "",
   className,
+  fit = "smart",
   ...imgProps
 }: Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "onError"> & {
   sourceKey: string;
+  /** "smart" fills the frame unless that would cut too much of the photo (see FitImage). */
+  fit?: ImageFit;
   /** Tried first, e.g. the exact thumbnail from the record's image_media. */
   preferredKey?: string | null;
   alt?: string;
@@ -66,5 +70,5 @@ export default function StoredImage({
   if (waiting || !candidates.length) return <div className={cn("bg-black", className)} aria-hidden={!alt} />;
   // A new query string on each retry keeps the browser from reusing the failed response.
   const src = attempt ? `${candidates[index]}${candidates[index].includes("?") ? "&" : "?"}r=${attempt}` : candidates[index];
-  return <img {...imgProps} src={src} alt={alt} className={className} onError={handleError} />;
+  return <FitImage {...imgProps} fit={fit} src={src} alt={alt} className={className} onError={handleError} />;
 }

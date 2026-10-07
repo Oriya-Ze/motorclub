@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import FitImage from "@/components/FitImage";
 import OwnerMediaThumb from "@/components/OwnerMediaThumb";
 import { categoryFields, fieldLabel, PRODUCT_CATEGORIES, type ProductField } from "@/lib/productFields";
 import PostImageAdjust from "@/components/PostImageAdjust";
@@ -249,9 +250,9 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
                 {images.map((image, index) => (
                   <li key={`${image}-${index}`} className="flex items-center gap-2">
                     {localPreviews[image] ? (
-                      <img src={localPreviews[image]} alt="" className="h-14 w-14 rounded-lg bg-black object-contain" />
+                      <FitImage src={localPreviews[image]} alt="" className="h-14 w-14 rounded-lg bg-black" />
                     ) : (
-                      <OwnerMediaThumb className="h-14 w-14 rounded-lg bg-black object-contain" storageKey={image} />
+                      <OwnerMediaThumb className="h-14 w-14 rounded-lg bg-black" storageKey={image} />
                     )}
                     <span className="text-xs">{index === 0 ? t("productEditor.primary") : index + 1}</span>
                     <button type="button" className="min-h-8 rounded-lg border px-2 text-xs" disabled={index === 0} onClick={() => setImages((prev) => { const next = prev.slice(); const [item] = next.splice(index, 1); next.unshift(item); return next; })}>{t("productEditor.makePrimary")}</button>

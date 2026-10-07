@@ -8,6 +8,7 @@ import { mediaUrl } from "@/lib/media";
 import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
 import type { ImageMedia } from "@/lib/api";
+import type { ImageFit } from "@/components/FitImage";
 
 interface VehicleImageCarouselProps {
   urls: string[];
@@ -16,11 +17,11 @@ interface VehicleImageCarouselProps {
   imageClassName?: string;
   alt?: string;
   alts?: string[];
-  /** "contain" shows the whole photo with black bars (the default); "cover" fills the frame and may cut the edges. */
-  fit?: "contain" | "cover";
+  /** "smart" (the default) fills the frame unless that would cut too much, then shows the whole photo on black. */
+  fit?: ImageFit;
 }
 
-export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts, fit = "contain" }: VehicleImageCarouselProps) {
+export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts, fit = "smart" }: VehicleImageCarouselProps) {
   const { t, i18n } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -67,7 +68,8 @@ export default function VehicleImageCarousel({ urls, imageMedia, className, imag
             sourceKey={urls[idx]}
             preferredKey={pickStoredImageUrl(urls[idx], imageMedia, "detail")}
             alt={alts?.[idx] || t("garage.photoIndex", { n: idx + 1, total: urls.length, name: label })}
-            className={cn("w-full h-56 sm:h-64 rounded-xl bg-black", fit === "contain" ? "object-contain" : "object-cover", imageClassName)}
+            fit={fit}
+            className={cn("w-full h-56 sm:h-64 rounded-xl bg-black", imageClassName)}
             draggable={false}
             decoding="async"
             fetchPriority={idx === 0 ? "high" : "low"}

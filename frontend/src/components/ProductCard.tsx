@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import BusinessListingBadge from "@/components/BusinessListingBadge";
 import Avatar from "@/components/Avatar";
+import FitImage from "@/components/FitImage";
 import StoredImage from "@/components/StoredImage";
 import { Product } from "@/lib/api";
 import { pickStoredImageUrl } from "@/lib/postMedia";
@@ -28,12 +29,12 @@ export default function ProductCard({
       <div className={cn("relative aspect-square overflow-hidden", image ? "bg-black" : "bg-muted/40")}>
         {image ? (
           imageSrc ? (
-            <img src={imageSrc} alt="" className="absolute inset-0 h-full w-full object-contain" />
+            <FitImage src={imageSrc} alt="" className="absolute inset-0 h-full w-full" />
           ) : (
             <StoredImage
               sourceKey={image}
               preferredKey={pickStoredImageUrl(image, null, "detail")}
-              className="absolute inset-0 h-full w-full object-contain"
+              className="absolute inset-0 h-full w-full"
               loading="lazy"
             />
           )

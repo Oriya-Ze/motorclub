@@ -35,11 +35,11 @@ export default function VehicleCard({ vehicle: v, featured = false, showPrimary 
               sourceKey={v.image_urls[0]}
               preferredKey={pickStoredImageUrl(v.image_urls[0], v.image_media, "feed")}
               alt={alt}
-              className={cn("w-full bg-black object-contain", featured ? "h-52" : "h-40")}
+              className="aspect-video w-full bg-black"
               loading="lazy"
             />
           ) : (
-            <VehiclePlaceholder className={featured ? "h-52" : "h-40"} />
+            <VehiclePlaceholder className="aspect-video w-full" />
           )}
           <div className="absolute top-2 start-2 flex flex-wrap gap-1.5">
             {showPrimary && v.is_primary && (

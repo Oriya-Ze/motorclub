@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import FitImage from "@/components/FitImage";
 import StoredImage from "@/components/StoredImage";
 import { API_BASE } from "@/lib/media";
 import { derivedImageVariantKey } from "@/lib/postMedia";
@@ -37,5 +38,5 @@ export default function OwnerMediaThumb({ storageKey, className }: { storageKey:
   }, [storageKey, isPrivate]);
   if (!isPrivate) return <StoredImage sourceKey={storageKey} preferredKey={derivedImageVariantKey(storageKey, "thumb")} className={className} />;
   if (!src) return <div className={cn("bg-muted", className)} />;
-  return <img src={src} alt="" className={cn("bg-muted", className)} />;
+  return <FitImage src={src} alt="" className={cn("bg-muted", className)} />;
 }

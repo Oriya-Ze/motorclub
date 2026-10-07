@@ -98,7 +98,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
         <div className="p-4 space-y-4">
           {photos[0] ? (
             <button type="button" className="relative block w-full" onClick={() => { setPhotoIdx(0); setPhotoOpen(true); }} aria-label={t("viewFullMedia")}>
-              <StoredImage sourceKey={photos[0]} preferredKey={pickStoredImageUrl(photos[0], null, "detail")} alt={product.name} className="w-full h-56 rounded-xl bg-black object-contain" />
+              <StoredImage sourceKey={photos[0]} preferredKey={pickStoredImageUrl(photos[0], null, "detail")} alt={product.name} className="aspect-square max-h-[60vh] w-full rounded-xl bg-black" />
               {product.seller?.account_type === "business" && (
                 <BusinessListingBadge className="absolute top-2 start-2" />
               )}
