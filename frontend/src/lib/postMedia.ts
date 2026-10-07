@@ -8,7 +8,7 @@ function isMobileViewport(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 }
 
-/** Feed: 480p mobile, 720p desktop. Full post: 720p mobile, 1080p desktop. */
+/** Feed: 720p on both phone and desktop. Full post: 720p on a phone, 1080p on desktop. */
 export function pickVideoPlaybackUrl(
   item: Extract<PostMediaItem, { type: "video" }>,
   mode: "feed" | "detail",
@@ -17,9 +17,7 @@ export function pickVideoPlaybackUrl(
   if (video?.status === "ready") {
     const mobile = isMobileViewport();
     if (mode === "feed") {
-      return mobile
-        ? (video.url_480p ?? video.url_720p ?? video.url_1080p ?? item.url)
-        : (video.url_720p ?? video.url_1080p ?? video.url_480p ?? item.url);
+      return video.url_720p ?? video.url_1080p ?? video.url_480p ?? item.url;
     }
     return mobile
       ? (video.url_720p ?? video.url_1080p ?? video.url_480p ?? item.url)
