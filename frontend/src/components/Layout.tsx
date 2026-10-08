@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell, Building2, Calendar, Compass, Home, LogOut, Menu, MessageSquare, Plus, Settings,
+  Bell, Building2, Calendar, Compass, Home, Menu, MessageSquare, Plus, Settings,
   ShoppingBag, UserCircle, Users, X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -32,7 +32,7 @@ const navItems = [
 
 function AuthenticatedLayout() {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -62,11 +62,6 @@ function AuthenticatedLayout() {
 
   const edgeToEdge =
     location.pathname === "/" || /^\/posts\/[^/]+$/.test(location.pathname);
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
 
   return (
     <>
@@ -106,7 +101,6 @@ function AuthenticatedLayout() {
                 <span className="text-sm font-medium hidden xl:inline">{displayUsername(user!)}</span>
               </Link>
               <Link to="/settings"><Button variant="ghost" size="icon"><Settings className="w-5 h-5" /></Button></Link>
-              <Button variant="ghost" size="icon" onClick={handleLogout} className="hidden md:flex"><LogOut className="w-5 h-5" /></Button>
               <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
                 {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>

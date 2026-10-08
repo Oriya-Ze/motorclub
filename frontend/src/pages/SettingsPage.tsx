@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell, Building2, Camera, Eye, Globe, KeyRound, Lock, Moon, Palette, Shield, Sun, UserCircle,
+  LogOut,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -448,6 +449,28 @@ export default function SettingsPage() {
                       {t("changePassword")}
                     </Button>
                   </form>
+                </CardContent>
+              </Card>
+            )}
+
+            {activeTab === "account" && user && (
+              <Card>
+                <CardContent className="pt-5 pb-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <LogOut className="w-4 h-4 text-primary" aria-hidden />
+                    <h3 className="font-semibold">{t("logoutTitle")}</h3>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // A full load of the home page: no bounce to the login screen, and nothing from the session stays in memory.
+                      logout();
+                      window.location.replace("/");
+                    }}
+                  >
+                    {t("logout")}
+                  </Button>
                 </CardContent>
               </Card>
             )}
