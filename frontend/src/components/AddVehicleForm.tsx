@@ -27,6 +27,8 @@ const emptyForm = {
   trim: "",
   color: "",
   engine: "",
+  /** Manual entry only; saved inside the engine text, like the catalog does ("2.0L · 150 כ״ס"). */
+  horsepower: "",
   description: "",
   nickname: "",
   mods: [] as VehicleModItem[],
@@ -166,6 +168,10 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
     return years ? `${variant.trim} (${years})` : variant.trim;
   };
 
+  // Catalog variants already carry their horsepower in the engine text; manual entry adds it the same way.
+  const engineText = formatEngineLabel(
+    [form.engine.trim(), form.manual && form.horsepower ? `${form.horsepower} כ״ס` : ""].filter(Boolean).join(" · "),
+  );
   const missing = [!form.make.trim() && t("garage.editor.needMake"), !form.model.trim() && t("garage.editor.needModel")].filter(Boolean) as string[];
 
   const createVehicle = useMutation({
@@ -176,7 +182,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
         year: form.year ? parseInt(form.year, 10) : undefined,
         trim: form.trim || undefined,
         color: form.color || undefined,
-        engine: form.engine || undefined,
+        engine: engineText || undefined,
         description: form.description || undefined,
         nickname: form.nickname.trim() || undefined,
         mod_items: form.mods.filter((item) => item.name.trim()),
@@ -208,7 +214,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   };
 
   const title = [form.year, form.make, form.model].filter(Boolean).join(" ");
-  const chips = [form.trim, formatEngineLabel(form.engine), form.color].filter(Boolean);
+  const chips = [form.trim, formatEngineLabel(engineText), form.color].filter(Boolean);
   const mods = form.mods.filter((item) => item.name.trim()).length;
   const busy = createVehicle.isPending;
 
@@ -346,6 +352,17 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                 <Field id={`${id}-engine`} label={t("garage.engine")} className={form.manual ? undefined : "sm:col-span-2"}>
                   <Input id={`${id}-engine`} value={form.engine} onChange={(e) => setForm({ ...form, engine: e.target.value })} />
                 </Field>
+                {form.manual ? (
+                  <Field id={`${id}-horsepower`} label={t("garage.editor.horsepower")}>
+                    <Input
+                      id={`${id}-horsepower`}
+                      value={form.horsepower}
+                      onChange={(e) => setForm({ ...form, horsepower: digitsOnly(e.target.value, 4) })}
+                      dir="ltr"
+                      inputMode="numeric"
+                    />
+                  </Field>
+                ) : null}
               </div>
             </Section>
 
