@@ -5,7 +5,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_optional_user_model, get_user_model, user_to_public
+from app.deps import get_optional_user_model, get_user_model, load_users, user_to_public
 from app.media.image_assets import image_media_for_keys
 from app.models import Post, User, Vehicle, VehicleFollower, VehicleSpot
 from app.routers.social import create_notification
@@ -21,7 +21,7 @@ from app.schemas import (
     VehicleUpdate,
 )
 from app.services.vehicle_brands import canonical_make, make_match_names, make_search_terms
-from app.services.visibility import can_view_profile_content
+from app.services.visibility import can_view_profile_content, viewable_owner_ids
 
 router = APIRouter(prefix="/garage", tags=["garage"])
 
@@ -350,12 +350,13 @@ async def search_vehicles(
             )
         ).limit(40)
     )
+    rows = result.scalars().all()
+    user_map = await load_users(db, (vehicle.user_id for vehicle in rows))
+    viewable = await viewable_owner_ids(db, user_map, viewer.id if viewer else None)
     items: list[VehicleDetailResponse] = []
-    for vehicle in result.scalars().all():
-        owner = await db.get(User, vehicle.user_id)
-        if not owner:
-            continue
-        if not await can_view_profile_content(db, owner.id, viewer.id if viewer else None):
+    for vehicle in rows:
+        owner = user_map.get(vehicle.user_id)
+        if not owner or owner.id not in viewable:
             continue
         items.append(await _detail(db, vehicle, owner, viewer))
         if len(items) >= 20:
@@ -402,12 +403,13 @@ async def similar_vehicles(
         .order_by(year_distance, Vehicle.created_at.desc())
         .limit(24)
     )
+    rows = result.scalars().all()
+    user_map = await load_users(db, (other.user_id for other in rows))
+    viewable = await viewable_owner_ids(db, user_map, viewer.id if viewer else None)
     items: list[VehicleDetailResponse] = []
-    for other in result.scalars().all():
-        owner = await db.get(User, other.user_id)
-        if not owner:
-            continue
-        if not await can_view_profile_content(db, owner.id, viewer.id if viewer else None):
+    for other in rows:
+        owner = user_map.get(other.user_id)
+        if not owner or owner.id not in viewable:
             continue
         items.append(await _detail(db, other, owner, viewer))
         if len(items) >= 8:

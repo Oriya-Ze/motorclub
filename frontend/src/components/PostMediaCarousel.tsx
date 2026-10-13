@@ -73,6 +73,7 @@ function VideoSlide({ item, mode, autoplayEnabled, isActiveSlide, onOpenFull, me
         <img
           src={mediaUrl(posterKey)}
           alt=""
+          loading="lazy"
           className={cn(
             "w-full object-contain mx-auto",
             isDetail ? "h-full max-h-[75vh]" : "max-h-[min(70vh,640px)]",

@@ -42,14 +42,7 @@ export default function CreateFab({ onClick }: CreateFabProps) {
               numOctaves="3"
               seed="4"
               result="noise"
-            >
-              <animate
-                attributeName="baseFrequency"
-                dur="18s"
-                values="0.016 0.019;0.021 0.016;0.016 0.019"
-                repeatCount="indefinite"
-              />
-            </feTurbulence>
+            />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" xChannelSelector="R" yChannelSelector="G" />
           </filter>
         </defs>

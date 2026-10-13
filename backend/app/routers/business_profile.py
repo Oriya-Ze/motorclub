@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.media.image_assets import build_image_media_map, public_image_key
-from app.deps import get_current_user, get_optional_user_model, get_user_model, user_to_public
+from app.deps import get_current_user, get_optional_user_model, get_user_model, load_users, user_to_public
 from app.models import BusinessReview, BusinessService, BusinessView, User, Vehicle
 from app.schemas import (
     BusinessAnalyticsResponse,
@@ -23,7 +23,7 @@ from app.schemas import (
 )
 from app.services.business_public import business_public_dict, review_stats
 from app.services.vehicle_brands import canonical_make
-from app.services.visibility import can_view_profile_content
+from app.services.visibility import viewable_owner_ids
 
 router = APIRouter(prefix="/business", tags=["business-profile"])
 
@@ -194,9 +194,12 @@ async def list_business_works(
         .order_by(Vehicle.created_at.desc())
         .limit(24)
     )
+    vehicles = result.scalars().all()
+    user_map = await load_users(db, (vehicle.user_id for vehicle in vehicles))
+    viewable = await viewable_owner_ids(db, (vehicle.user_id for vehicle in vehicles), viewer.id if viewer else None)
     rows: list[tuple[Vehicle, str, str, str, str, str | None]] = []
-    for vehicle in result.scalars().all():
-        if not await can_view_profile_content(db, vehicle.user_id, viewer.id if viewer else None):
+    for vehicle in vehicles:
+        if vehicle.user_id not in viewable:
             continue
         tagged = [
             item
@@ -205,7 +208,7 @@ async def list_business_works(
         ]
         if not tagged:
             continue
-        owner = await db.get(User, vehicle.user_id)
+        owner = user_map.get(vehicle.user_id)
         catalog = " ".join(str(part) for part in [vehicle.year, canonical_make(vehicle.make) or vehicle.make, vehicle.model] if part)
         title = (vehicle.nickname or "").strip() or catalog
         first = tagged[0]
@@ -251,8 +254,9 @@ async def list_reviews(
     )
     reviews = result.scalars().all()
     out: list[BusinessReviewResponse] = []
+    user_map = await load_users(db, (r.reviewer_id for r in reviews))
     for r in reviews:
-        reviewer = await db.get(User, r.reviewer_id)
+        reviewer = user_map.get(r.reviewer_id)
         out.append(
             BusinessReviewResponse(
                 id=r.id,

@@ -1,6 +1,8 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, type AuthResponse, type OAuthConfig, type User } from "@/lib/api";
 import { buildGoogleAuthorizeUrl } from "@/lib/cognitoOAuth";
+import { prefetchAppData } from "@/lib/prefetch";
 
 interface AuthContextType {
   user: User | null;
@@ -52,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cachedUser = readCachedUser();
   const [user, setUser] = useState<User | null>(cachedUser);
   const [loading, setLoading] = useState(() => Boolean(api.getToken()) && !cachedUser);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const token = api.getToken();
@@ -62,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    prefetchAppData(queryClient);
     api.me()
       .then((u) => {
         setUser(u);
@@ -73,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cacheUser(null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [queryClient]);
 
   const login = async (email: string, password: string, captchaToken?: string) => {
     const res = await api.login({

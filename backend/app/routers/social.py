@@ -6,8 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, get_optional_user_model, get_user_model, user_to_public
-from app.services.visibility import can_view_profile_content
+from app.deps import get_current_user, get_optional_user_model, get_user_model, load_users, user_to_public
+from app.services.visibility import can_view_profile_content, viewable_owner_ids
 from app.media.image_assets import build_image_media_map, public_image_key
 from app.models import Notification, Post, Story, User, Vehicle
 from app.schemas import NotificationResponse, StoryCreate, StoryResponse
@@ -179,8 +179,9 @@ async def explore_posts(db: AsyncSession = Depends(get_db), _=Depends(get_curren
     first_keys = [p.image_urls[0] for p in posts]
     image_media_map = await build_image_media_map(db, list(dict.fromkeys(first_keys)))
     items = []
+    user_map = await load_users(db, (p.user_id for p in posts))
     for p in posts:
-        author = await db.get(User, p.user_id)
+        author = user_map.get(p.user_id)
         source = p.image_urls[0] if p.image_urls else None
         media = image_media_map.get(source) if source else None
         thumb = (media.thumb_key if media else None) or source
@@ -245,9 +246,11 @@ async def explore_vehicles(
 
     visible: list[tuple[Vehicle, User, dict | None]] = []
     viewer_id = viewer.id if viewer else None
+    user_map = await load_users(db, (v.user_id for v in vehicles))
+    viewable = await viewable_owner_ids(db, user_map, viewer_id)
     for v, preview in zip(vehicles, previews, strict=True):
-        owner = await db.get(User, v.user_id)
-        if not owner or not await can_view_profile_content(db, owner.id, viewer_id):
+        owner = user_map.get(v.user_id)
+        if not owner or owner.id not in viewable:
             continue
         visible.append((v, owner, preview))
         if len(visible) >= 20:

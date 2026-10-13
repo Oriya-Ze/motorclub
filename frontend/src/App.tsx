@@ -1,33 +1,35 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import AuthPage from "@/pages/AuthPage";
-import OAuthCallbackPage from "@/pages/OAuthCallbackPage";
-import CreateStoryPage from "@/pages/CreateStoryPage";
-import StoryViewerPage from "@/pages/StoryViewerPage";
-import EventsPage from "@/pages/EventsPage";
-import ExplorePage from "@/pages/ExplorePage";
 import HomePage from "@/pages/HomePage";
-import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
-import ResetPasswordPage from "@/pages/ResetPasswordPage";
-import ForumTopicPage from "@/pages/ForumTopicPage";
-import ForumTopicsPage from "@/pages/ForumTopicsPage";
-import ForumsPage from "@/pages/ForumsPage";
-import GaragePage from "@/pages/GaragePage";
-import GroupDetailPage from "@/pages/GroupDetailPage";
-import GroupsPage from "@/pages/GroupsPage";
-import { LegalPage } from "@/pages/LegalPage";
-import MarketplacePage from "@/pages/MarketplacePage";
-import MessagesRedirect from "@/pages/MessagesRedirect";
-import NotificationsPage from "@/pages/NotificationsPage";
-import PostPage from "@/pages/PostPage";
-import ProfilePage from "@/pages/ProfilePage";
-import ServicesPage from "@/pages/ServicesPage";
-import SettingsPage from "@/pages/SettingsPage";
-import BusinessProfilePage from "@/pages/BusinessProfilePage";
-import CommunityPage from "@/pages/CommunityPage";
-import VehiclePage from "@/pages/VehiclePage";
+import { pageLoaders, preloadAllPagesWhenIdle } from "@/lib/pageLoaders";
+
+const AuthPage = lazy(pageLoaders.auth);
+const OAuthCallbackPage = lazy(pageLoaders.oauthCallback);
+const ForgotPasswordPage = lazy(pageLoaders.forgotPassword);
+const ResetPasswordPage = lazy(pageLoaders.resetPassword);
+const LegalPage = lazy(() => pageLoaders.legal().then((m) => ({ default: m.LegalPage })));
+const VehiclePage = lazy(pageLoaders.vehicle);
+const StoryViewerPage = lazy(pageLoaders.storyViewer);
+const CreateStoryPage = lazy(pageLoaders.createStory);
+const ExplorePage = lazy(pageLoaders.explore);
+const PostPage = lazy(pageLoaders.post);
+const BusinessProfilePage = lazy(pageLoaders.businessProfile);
+const GaragePage = lazy(pageLoaders.garage);
+const NotificationsPage = lazy(pageLoaders.notifications);
+const CommunityPage = lazy(pageLoaders.community);
+const GroupsPage = lazy(pageLoaders.groups);
+const GroupDetailPage = lazy(pageLoaders.groupDetail);
+const ForumsPage = lazy(pageLoaders.forums);
+const ForumTopicsPage = lazy(pageLoaders.forumTopics);
+const ForumTopicPage = lazy(pageLoaders.forumTopic);
+const MessagesRedirect = lazy(pageLoaders.messages);
+const EventsPage = lazy(pageLoaders.events);
+const MarketplacePage = lazy(pageLoaders.marketplace);
+const ServicesPage = lazy(pageLoaders.services);
+const ProfilePage = lazy(pageLoaders.profile);
+const SettingsPage = lazy(pageLoaders.settings);
 
 // The admin console is a separate page with its own layout, loaded only when staff open it.
 const AdminConsole = lazy(() => import("@/pages/admin/AdminConsole"));
@@ -38,8 +40,13 @@ function WorkshopRedirect() {
 }
 
 export default function App() {
+  useEffect(() => {
+    preloadAllPagesWhenIdle();
+  }, []);
+
   return (
     <BrowserRouter>
+      <Suspense fallback={<div className="min-h-screen gradient-bg" role="status" aria-label="טוען" />}>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
@@ -91,6 +98,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

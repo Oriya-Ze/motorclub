@@ -432,6 +432,8 @@
     }
   }
 
+  /* The create button is drawn once and stays still. It floats over the scrolling feed, and any looping
+     animation here kept the browser repainting every frame, which made scrolling heavy on phones. */
   .create-fab-wrap {
     display: grid;
     place-items: center;
@@ -463,20 +465,17 @@
 
   .create-fab__flow--a {
     stroke-dasharray: 6 94;
-    animation: createFabFlowTravel 14s linear infinite;
   }
 
   .create-fab__flow--b {
     stroke-dasharray: 3 18 2 77;
     opacity: 0.28;
-    animation: createFabFlowTravel 18s linear infinite reverse;
   }
 
   .create-fab__flow--c {
     stroke-dasharray: 1.5 48 1 49.5;
     opacity: 0.22;
-    animation: createFabFlowTravel 22s linear infinite;
-    animation-delay: -7s;
+    stroke-dashoffset: -32;
   }
 
   .create-fab {
@@ -508,7 +507,6 @@
     backdrop-filter: saturate(1.32) contrast(1.12) brightness(1.05);
     -webkit-backdrop-filter: saturate(1.32) contrast(1.12) brightness(1.05);
     filter: url(#createFabDistort);
-    animation: createFabDistortShift 16s ease-in-out infinite;
   }
 
   .create-fab__distort::before {
@@ -523,7 +521,6 @@
       transparent 60px
     );
     mix-blend-mode: soft-light;
-    animation: createFabShimmer 20s linear infinite;
   }
 
   .dark .create-fab {
@@ -556,31 +553,6 @@
   .dark .create-fab__icon {
     color: hsl(45 100% 92%);
     filter: drop-shadow(0 0 10px hsl(25 95% 55% / 0.85));
-  }
-
-  @keyframes createFabFlowTravel {
-    to {
-      stroke-dashoffset: -100;
-    }
-  }
-
-  @keyframes createFabDistortShift {
-    0%,
-    100% {
-      transform: perspective(140px) scale(1) skew(0deg, 0deg);
-    }
-    33% {
-      transform: perspective(140px) scale(1.014) skew(0.85deg, -0.55deg);
-    }
-    66% {
-      transform: perspective(140px) scale(0.992) skew(-0.7deg, 0.75deg);
-    }
-  }
-
-  @keyframes createFabShimmer {
-    to {
-      transform: translate3d(12%, 8%, 0) rotate(4deg);
-    }
   }
 
   .create-fab:active {

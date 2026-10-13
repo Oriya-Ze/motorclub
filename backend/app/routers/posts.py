@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, get_user_model, user_to_public
+from app.deps import get_current_user, get_user_model, load_users, user_to_public
 from app.models import Comment, Post, PostLike, SavedPost, User, Vehicle, VehicleFollower
 from app.routers.social import create_notification
 from app.media.image_assets import build_image_media_map
@@ -455,8 +455,9 @@ async def list_comments(post_id: uuid.UUID, db: AsyncSession = Depends(get_db), 
     )
     comments = result.scalars().all()
     responses = []
+    user_map = await load_users(db, (c.user_id for c in comments))
     for c in comments:
-        author = await db.get(User, c.user_id)
+        author = user_map.get(c.user_id)
         responses.append(
             CommentResponse(
                 id=c.id,

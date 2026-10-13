@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, get_user_model, user_to_public
+from app.deps import get_current_user, get_user_model, load_users, user_to_public
 from app.models import Forum, ForumReply, ForumTopic, Group, GroupMember, GroupMessage, User
 from app.routers.social import create_notification
 from app.schemas import (
@@ -165,8 +165,9 @@ async def list_group_members(
     )
     members = result.scalars().all()
     responses: list[GroupMemberResponse] = []
+    user_map = await load_users(db, (member.user_id for member in members))
     for member in members:
-        member_user = await db.get(User, member.user_id)
+        member_user = user_map.get(member.user_id)
         if not member_user:
             continue
         responses.append(
@@ -268,8 +269,10 @@ async def list_join_requests(
         .order_by(GroupMember.joined_at.asc())
     )
     responses: list[GroupMemberResponse] = []
-    for member in result.scalars().all():
-        member_user = await db.get(User, member.user_id)
+    rows = result.scalars().all()
+    user_map = await load_users(db, (member.user_id for member in rows))
+    for member in rows:
+        member_user = user_map.get(member.user_id)
         if not member_user:
             continue
         responses.append(
@@ -438,8 +441,9 @@ async def list_group_messages(
     )
     messages = result.scalars().all()
     responses = []
+    user_map = await load_users(db, (m.user_id for m in messages))
     for m in messages:
-        author = await db.get(User, m.user_id)
+        author = user_map.get(m.user_id)
         responses.append(
             GroupMessageResponse(
                 id=m.id,
@@ -499,8 +503,9 @@ async def list_topics(forum_id: uuid.UUID, db: AsyncSession = Depends(get_db), _
     )
     topics = result.scalars().all()
     responses = []
+    user_map = await load_users(db, (t.user_id for t in topics))
     for t in topics:
-        author = await db.get(User, t.user_id)
+        author = user_map.get(t.user_id)
         replies_count = await db.scalar(
             select(func.count()).select_from(ForumReply).where(ForumReply.topic_id == t.id)
         )
@@ -586,8 +591,9 @@ async def list_replies(topic_id: uuid.UUID, db: AsyncSession = Depends(get_db), 
     )
     replies = result.scalars().all()
     responses = []
+    user_map = await load_users(db, (r.user_id for r in replies))
     for r in replies:
-        author = await db.get(User, r.user_id)
+        author = user_map.get(r.user_id)
         responses.append(
             ForumReplyResponse(
                 id=r.id,

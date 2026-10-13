@@ -3,21 +3,25 @@ import {
   Bell, Building2, Calendar, Compass, Home, Menu, MessageSquare, Plus, Settings,
   ShoppingBag, UserCircle, Users, X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "@/components/BottomNav";
 import CreateFab from "@/components/CreateFab";
-import CreatePostModal from "@/components/CreatePostModal";
 import MobileHeaderActions from "@/components/MobileHeaderActions";
 import { MessagesPanelProvider, MessagesSideButton } from "@/components/MessagesPanel";
 import ThemeSync from "@/components/ThemeSync";
+import { conversationsQuery, LIVE_POLL_MS, unreadCountQuery } from "@/lib/liveQueries";
 import UserSearch from "@/components/UserSearch";
 import Avatar from "@/components/Avatar";
 import { Button, buttonClassName } from "@/components/ui/Button";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
+import { pageLoaders } from "@/lib/pageLoaders";
 import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
+
+// The composer and its cropper load with the first tap on "create", not with every page.
+const CreatePostModal = lazy(pageLoaders.createPost);
 import { cn, displayUsername } from "@/lib/utils";
 
 const navItems = [
@@ -38,6 +42,9 @@ function AuthenticatedLayout() {
   const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  // Stays mounted after the first open, as it did before, so a closed composer keeps its state.
+  const [createMounted, setCreateMounted] = useState(false);
+  if (showCreate && !createMounted) setCreateMounted(true);
   const [createVehicleId, setCreateVehicleId] = useState<string | undefined>();
   const [createReturnTo, setCreateReturnTo] = useState<string | undefined>();
 
@@ -54,11 +61,8 @@ function AuthenticatedLayout() {
     if (user) prefetchAppData(queryClient);
   }, [user, queryClient]);
 
-  const { data: unread } = useQuery({
-    queryKey: ["unread-count"],
-    queryFn: () => api.getUnreadCount(),
-    refetchInterval: 30000,
-  });
+  const { data: unread } = useQuery({ ...unreadCountQuery, refetchInterval: LIVE_POLL_MS });
+  useQuery({ ...conversationsQuery, refetchInterval: LIVE_POLL_MS });
 
   const edgeToEdge =
     location.pathname === "/" || /^\/posts\/[^/]+$/.test(location.pathname);
@@ -171,24 +175,30 @@ function AuthenticatedLayout() {
           edgeToEdge ? "px-0 md:px-4" : "px-4",
         )}
       >
-        <Outlet />
+        <Suspense fallback={<div className="min-h-[50vh]" role="status" aria-label={t("loading")} />}>
+          <Outlet />
+        </Suspense>
       </main>
       <ThemeSync />
       <CreateFab onClick={() => setShowCreate(true)} />
       <MessagesSideButton />
       <BottomNav />
-      <CreatePostModal
-        open={showCreate}
-        onClose={() => {
-          setShowCreate(false);
-          setCreateVehicleId(undefined);
-          setCreateReturnTo(undefined);
-        }}
-        initialVehicleId={createVehicleId}
-        onPublished={() => {
-          if (createReturnTo) navigate(createReturnTo);
-        }}
-      />
+      {createMounted ? (
+        <Suspense fallback={null}>
+          <CreatePostModal
+            open={showCreate}
+            onClose={() => {
+              setShowCreate(false);
+              setCreateVehicleId(undefined);
+              setCreateReturnTo(undefined);
+            }}
+            initialVehicleId={createVehicleId}
+            onPublished={() => {
+              if (createReturnTo) navigate(createReturnTo);
+            }}
+          />
+        </Suspense>
+      ) : null}
     </>
   );
 }
@@ -231,7 +241,9 @@ function GuestLayout() {
         </div>
       </header>
       <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">
-        <Outlet />
+        <Suspense fallback={<div className="min-h-[50vh]" role="status" aria-label={t("loading")} />}>
+          <Outlet />
+        </Suspense>
       </main>
     </>
   );

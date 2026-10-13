@@ -5,7 +5,6 @@ from functools import lru_cache
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.config import settings
 from app.models import Base
@@ -21,7 +20,10 @@ def _is_lambda_runtime() -> bool:
 def get_engine() -> AsyncEngine:
     engine_kwargs: dict = {"echo": False}
     if _is_lambda_runtime():
-        engine_kwargs["poolclass"] = NullPool
+        # A Lambda instance serves one request at a time and reuses its event loop, so it keeps one warm
+        # connection instead of paying for TCP, TLS and login to Neon on every request. Pre-ping replaces a
+        # connection Neon closed while the instance was frozen, and recycling stays under Neon's idle timeout.
+        engine_kwargs.update(pool_size=1, max_overflow=2, pool_pre_ping=True, pool_recycle=240)
     return create_async_engine(settings.database_url, **engine_kwargs)
 
 

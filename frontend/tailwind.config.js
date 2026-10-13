@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Heebo", "Rubik", "sans-serif"],
+        sans: ["Heebo", "sans-serif"],
         display: ["Bebas Neue", "sans-serif"],
       },
       colors: {

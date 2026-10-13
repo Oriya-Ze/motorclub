@@ -1,5 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { preloadPage } from "@/lib/pageLoaders";
+import { conversationsQuery, unreadCountQuery } from "@/lib/liveQueries";
 
 const PAGE_SIZE = 10;
 
@@ -15,9 +17,14 @@ function prefetchFeed(queryClient: QueryClient) {
   });
 }
 
-/** Warm common caches after login so navigation feels instant. */
+/**
+ * Warm common caches so navigation feels instant. With a stored token this starts at boot, alongside the
+ * session check, so the feed does not wait for /auth/me first; a stale token is refreshed once for all of them.
+ */
 export function prefetchAppData(queryClient: QueryClient) {
   prefetchFeed(queryClient);
+  void queryClient.prefetchQuery(unreadCountQuery);
+  void queryClient.prefetchQuery(conversationsQuery);
   void queryClient.prefetchQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
@@ -62,6 +69,7 @@ const routePrefetch: Record<string, (qc: QueryClient) => void> = {
 };
 
 export function prefetchRoute(queryClient: QueryClient, path: string) {
+  preloadPage(path);
   const prefetch = routePrefetch[path];
   if (prefetch) prefetch(queryClient);
 }

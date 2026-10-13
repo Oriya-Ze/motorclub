@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/Input";
 import { useAuth } from "@/contexts/AuthContext";
 import { api, type ConversationSummary, type User } from "@/lib/api";
 import { getUserProfilePath } from "@/lib/businessProfile";
+import { conversationsQuery } from "@/lib/liveQueries";
 import { cn, displayName, formatHandle } from "@/lib/utils";
 
 function dayKeyFromDate(date: Date) {
@@ -91,11 +92,7 @@ export function MessagesSideButton() {
   const { t } = useTranslation();
   const { openMessages } = useMessagesPanel();
 
-  const { data: conversations = [] } = useQuery({
-    queryKey: ["conversations"],
-    queryFn: () => api.getConversations(),
-    refetchInterval: 30000,
-  });
+  const { data: conversations = [] } = useQuery(conversationsQuery);
 
   const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 
@@ -160,11 +157,7 @@ function MessagesPanel({ conversationId, onClose, onConversationChange }: Messag
     };
   }, [onClose]);
 
-  const { data: conversations = [], isLoading } = useQuery({
-    queryKey: ["conversations"],
-    queryFn: () => api.getConversations(),
-    refetchInterval: 10000,
-  });
+  const { data: conversations = [], isLoading } = useQuery({ ...conversationsQuery, refetchInterval: 10000 });
 
   const activeConversation = conversations.find((c) => c.id === conversationId);
 

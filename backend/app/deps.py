@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from uuid import UUID
 
 from fastapi import Depends, HTTPException
@@ -64,6 +65,15 @@ async def get_user_model(user: AuthUser = Depends(get_current_user), db: AsyncSe
     if db_user.suspended_until and db_user.suspended_until > datetime.now(UTC):
         raise HTTPException(status_code=403, detail="Account suspended")
     return db_user
+
+
+async def load_users(db: AsyncSession, user_ids: Iterable[UUID]) -> dict[UUID, User]:
+    """The users behind a list of rows, in one query instead of one per row."""
+    ids = {user_id for user_id in user_ids if user_id}
+    if not ids:
+        return {}
+    result = await db.execute(select(User).where(User.id.in_(ids)))
+    return {user.id: user for user in result.scalars().all()}
 
 
 async def require_admin(user: User = Depends(get_user_model)) -> User:

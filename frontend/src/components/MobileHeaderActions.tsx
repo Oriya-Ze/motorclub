@@ -3,23 +3,14 @@ import { Bell, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { useMessagesPanel } from "@/components/MessagesPanel";
-import { api } from "@/lib/api";
+import { conversationsQuery, unreadCountQuery } from "@/lib/liveQueries";
 
 export default function MobileHeaderActions() {
   const { t } = useTranslation();
   const { openMessages } = useMessagesPanel();
 
-  const { data: unread } = useQuery({
-    queryKey: ["unread-count"],
-    queryFn: () => api.getUnreadCount(),
-    refetchInterval: 30000,
-  });
-
-  const { data: conversations = [] } = useQuery({
-    queryKey: ["conversations"],
-    queryFn: () => api.getConversations(),
-    refetchInterval: 30000,
-  });
+  const { data: unread } = useQuery(unreadCountQuery);
+  const { data: conversations = [] } = useQuery(conversationsQuery);
 
   const messagesUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
 

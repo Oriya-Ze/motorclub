@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -34,44 +34,53 @@ async def list_conversations(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
+    # Polled by every open page, so it runs a fixed number of queries however many conversations there are.
     result = await db.execute(
         select(Conversation).where(
             or_(Conversation.user1_id == user.id, Conversation.user2_id == user.id)
         )
     )
     conversations = result.scalars().all()
-    summaries: list[ConversationSummary] = []
+    if not conversations:
+        return []
+    conversation_ids = [conv.id for conv in conversations]
+    other_ids = {conv.user2_id if conv.user1_id == user.id else conv.user1_id for conv in conversations}
 
+    users_result = await db.execute(select(User).where(User.id.in_(other_ids)))
+    others = {other.id: other for other in users_result.scalars().all()}
+
+    last_result = await db.execute(
+        select(DirectMessage.conversation_id, DirectMessage.content, DirectMessage.created_at)
+        .where(DirectMessage.conversation_id.in_(conversation_ids))
+        .distinct(DirectMessage.conversation_id)
+        .order_by(DirectMessage.conversation_id, DirectMessage.created_at.desc())
+    )
+    last_messages = {row.conversation_id: row for row in last_result}
+
+    unread_result = await db.execute(
+        select(DirectMessage.conversation_id, func.count())
+        .where(
+            DirectMessage.conversation_id.in_(conversation_ids),
+            DirectMessage.sender_id != user.id,
+            DirectMessage.is_read.is_(False),
+        )
+        .group_by(DirectMessage.conversation_id)
+    )
+    unread_counts = dict(unread_result.all())
+
+    summaries: list[ConversationSummary] = []
     for conv in conversations:
-        other_id = conv.user2_id if conv.user1_id == user.id else conv.user1_id
-        other = await db.get(User, other_id)
+        other = others.get(conv.user2_id if conv.user1_id == user.id else conv.user1_id)
         if not other:
             continue
-
-        msg_result = await db.execute(
-            select(DirectMessage)
-            .where(DirectMessage.conversation_id == conv.id)
-            .order_by(DirectMessage.created_at.desc())
-            .limit(1)
-        )
-        last_msg = msg_result.scalar_one_or_none()
-
-        unread_result = await db.execute(
-            select(DirectMessage).where(
-                DirectMessage.conversation_id == conv.id,
-                DirectMessage.sender_id != user.id,
-                DirectMessage.is_read.is_(False),
-            )
-        )
-        unread_count = len(unread_result.scalars().all())
-
+        last_msg = last_messages.get(conv.id)
         summaries.append(
             ConversationSummary(
                 id=conv.id,
                 other_user=user_to_public(other),
                 last_message=last_msg.content if last_msg else None,
                 last_message_at=last_msg.created_at.isoformat() if last_msg else None,
-                unread_count=unread_count,
+                unread_count=unread_counts.get(conv.id, 0),
             )
         )
 

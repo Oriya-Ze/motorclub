@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.business_types import check_business_entity, chosen_business_types, is_valid_business_type
 from app.database import get_db
-from app.deps import get_current_user, get_user_model, user_to_private, user_to_public
+from app.deps import get_current_user, get_user_model, load_users, user_to_private, user_to_public
 from app.models import BusinessUpgradeRequest, Follower, Post, ProfileSettings, User
 from app.routers.social import create_notification
 from app.schemas import (
@@ -233,8 +233,10 @@ async def list_follow_requests(
         .order_by(Follower.created_at.asc())
     )
     responses: list[FollowRequestResponse] = []
-    for row in result.scalars().all():
-        requester = await db.get(User, row.follower_id)
+    rows = result.scalars().all()
+    user_map = await load_users(db, (row.follower_id for row in rows))
+    for row in rows:
+        requester = user_map.get(row.follower_id)
         if not requester:
             continue
         responses.append(
