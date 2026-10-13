@@ -171,6 +171,7 @@ export default function BusinessProfilePage() {
   const businessProducts = productPage?.items ?? [];
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const reviewFormRef = useRef<HTMLDivElement>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
   const [jumpToReview, setJumpToReview] = useState(false);
 
   const { data: savedPosts = [], isLoading: savedLoading } = useQuery({
@@ -266,6 +267,18 @@ export default function BusinessProfilePage() {
     }
     return null;
   }, [business, reviews]);
+
+  // Keep the active tab visible in the (horizontally scrolling) tab bar. Only the bar scrolls, never the page,
+  // so this does not interrupt the scroll to the review form below.
+  useEffect(() => {
+    const bar = tabBarRef.current;
+    const active = bar?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!bar || !active) return;
+    const barBox = bar.getBoundingClientRect();
+    const box = active.getBoundingClientRect();
+    if (box.left < barBox.left) bar.scrollBy({ left: box.left - barBox.left - 8 });
+    else if (box.right > barBox.right) bar.scrollBy({ left: box.right - barBox.right + 8 });
+  }, [tab]);
 
   // After «דרג»: once the reviews tab has rendered its form, scroll to it and focus the first star.
   useEffect(() => {
@@ -537,13 +550,12 @@ export default function BusinessProfilePage() {
 
       {/* Tabs */}
       <div className="sticky top-0 z-20 -mx-1 px-1 bg-background/90 backdrop-blur-md border-b border-border/50">
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+        <div ref={tabBarRef} className="flex gap-1 overflow-x-auto scrollbar-hide">
           {tabs.map(({ id, label }) => (
             <button
               key={id}
               type="button"
               aria-current={tab === id ? "page" : undefined}
-              ref={tab === id ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
               onClick={() => setTab(id)}
               className={cn(
                 "shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
