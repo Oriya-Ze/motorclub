@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Eye, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
+import { Camera, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -11,6 +11,7 @@ import ShareSheet from "@/components/ShareSheet";
 import VehicleCard from "@/components/VehicleCard";
 import VehicleImageCarousel from "@/components/VehicleImageCarousel";
 import VehicleModEditor from "@/components/VehicleModEditor";
+import VehicleSaleSection from "@/components/VehicleSaleSection";
 import VehiclePhotosField from "@/components/VehiclePhotosField";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
@@ -127,19 +128,6 @@ export default function VehiclePage() {
         follower_count: data.follower_count,
       });
       toast.success(data.following ? t("garage.followSuccess") : t("garage.unfollowSuccess"));
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const spotMut = useMutation({
-    mutationFn: () => api.spotVehicle(vehicleId!),
-    onSuccess: (data) => {
-      queryClient.setQueryData(["vehicle", vehicleId], {
-        ...vehicle,
-        has_spotted: data.spotted,
-        spot_count: data.spot_count,
-      });
-      toast.success(t("garage.spotSuccess"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -324,9 +312,6 @@ export default function VehiclePage() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
                   {t("garage.followersCount", { count: vehicle.follower_count ?? 0 })}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-                  {t("garage.spotCount", { count: vehicle.spot_count ?? 0 })}
-                </span>
                 {photoCount > 0 && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
                     <Camera className="w-3.5 h-3.5" />
@@ -341,23 +326,14 @@ export default function VehiclePage() {
                 )}
               </div>
 
+              <VehicleSaleSection vehicle={vehicle} isOwner={isOwner} />
+
               {!isOwner && (
                 <div className="flex flex-wrap gap-2">
                   {user ? (
-                    <>
-                      <Button size="sm" variant={vehicle.is_following ? "outline" : "default"} disabled={followMut.isPending} onClick={() => followMut.mutate()}>
-                        {vehicle.is_following ? t("garage.unfollowVehicle") : t("garage.followVehicle")}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={spotMut.isPending || vehicle.has_spotted}
-                        onClick={() => spotMut.mutate()}
-                      >
-                        <Eye className="w-4 h-4 me-1" />
-                        {vehicle.has_spotted ? t("garage.spotted") : t("garage.spot")}
-                      </Button>
-                    </>
+                    <Button size="sm" variant={vehicle.is_following ? "outline" : "default"} disabled={followMut.isPending} onClick={() => followMut.mutate()}>
+                      {vehicle.is_following ? t("garage.unfollowVehicle") : t("garage.followVehicle")}
+                    </Button>
                   ) : (
                     <Link to="/auth">
                       <Button size="sm">{t("login")}</Button>

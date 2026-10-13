@@ -145,8 +145,17 @@ export interface Product {
   ships?: boolean | null;
   listing_status?: string;
   moderation_status?: string;
+  /** Set when the listing sells a vehicle card; the shop then links to the card. */
+  vehicle_id?: string | null;
   created_at: string;
   seller?: User | null;
+}
+
+export interface VehicleSaleListing {
+  id: string;
+  price: number;
+  description?: string | null;
+  listing_status: string;
 }
 
 export interface ProductPage {
@@ -269,8 +278,7 @@ export interface Vehicle {
   owner?: User;
   follower_count?: number;
   is_following?: boolean;
-  spot_count?: number;
-  has_spotted?: boolean;
+  sale_listing?: VehicleSaleListing | null;
 }
 
 export interface VehicleCatalogMake {
@@ -665,12 +673,6 @@ class ApiClient {
     });
   }
 
-  spotVehicle(vehicleId: string) {
-    return this.request<{ spotted: boolean; spot_count: number }>(`/garage/${vehicleId}/spot`, {
-      method: "POST",
-    });
-  }
-
   searchVehicles(q: string) {
     return this.request<Vehicle[]>(`/garage/search?q=${encodeURIComponent(q)}`);
   }
@@ -1019,6 +1021,13 @@ class ApiClient {
 
   getMyProducts() {
     return this.request<Product[]>("/marketplace/mine");
+  }
+
+  listVehicleForSale(data: { vehicle_id: string; price: number; description?: string | null }) {
+    return this.request<Product>("/marketplace/vehicle-listings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   createProduct(data: Record<string, unknown>) {

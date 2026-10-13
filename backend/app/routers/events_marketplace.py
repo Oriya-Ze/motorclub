@@ -8,8 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.business_types import WORKSHOP_BUSINESS_TYPES
 from app.database import get_db
 from app.deps import get_current_user, get_user_model, user_to_public
-from app.models import Event, EventParticipant, Product, User
-from app.schemas import EventCreate, EventResponse, ProductCreate, ProductPage, ProductResponse, ProductUpdate
+from app.models import Event, EventParticipant, Product, User, Vehicle
+from app.schemas import (
+    EventCreate,
+    EventResponse,
+    ProductCreate,
+    ProductPage,
+    ProductResponse,
+    ProductUpdate,
+    VehicleListingCreate,
+)
+from app.services.vehicle_brands import canonical_make
 
 events_router = APIRouter(prefix="/events", tags=["events"])
 marketplace_router = APIRouter(prefix="/marketplace", tags=["marketplace"])
@@ -37,6 +46,23 @@ async def _business_public(db: AsyncSession, u: User) -> dict:
 
 MAX_PRODUCT_IMAGES = 8
 PRODUCT_CONDITIONS = frozenset({"new", "used", "refurbished"})
+# Vehicles are sold only from their card (POST /marketplace/vehicle-listings), never as a general product.
+VEHICLE_CATEGORY = "vehicles"
+# The only fields an owner sets on a vehicle listing; the rest comes from the vehicle card.
+VEHICLE_LISTING_FIELDS = frozenset({"price", "description"})
+
+
+def _vehicle_title(vehicle: Vehicle) -> str:
+    parts = [canonical_make(vehicle.make) or vehicle.make, vehicle.model, str(vehicle.year) if vehicle.year else None]
+    return " ".join(part for part in parts if part)[:255]
+
+
+async def _listing_vehicles(db: AsyncSession, products: list[Product]) -> dict[uuid.UUID, Vehicle]:
+    ids = {product.vehicle_id for product in products if product.vehicle_id}
+    if not ids:
+        return {}
+    result = await db.execute(select(Vehicle).where(Vehicle.id.in_(ids)))
+    return {vehicle.id: vehicle for vehicle in result.scalars().all()}
 
 
 def _clean(value: str | None, limit: int) -> str | None:
@@ -134,20 +160,26 @@ def _read_media_bytes(key: str) -> bytes:
         return b""
 
 
-async def _product_response(db: AsyncSession, product: Product) -> ProductResponse:
+async def _product_response(
+    db: AsyncSession, product: Product, vehicles: dict[uuid.UUID, Vehicle] | None = None
+) -> ProductResponse:
     seller = await db.get(User, product.business_id)
+    vehicle = None
+    if product.vehicle_id:
+        vehicle = (vehicles or {}).get(product.vehicle_id) or await db.get(Vehicle, product.vehicle_id)
+    # A vehicle listing always shows its card as it is now: name, photos, make, model and year.
     return ProductResponse(
         id=product.id,
         business_id=product.business_id,
-        name=product.name,
+        name=_vehicle_title(vehicle) if vehicle else product.name,
         description=product.description,
         price=product.price,
         category=product.category,
-        image_urls=product.image_urls,
+        image_urls=vehicle.image_urls if vehicle else product.image_urls,
         condition=product.condition,
-        fit_make=product.fit_make,
-        fit_model=product.fit_model,
-        fit_year_from=product.fit_year_from,
+        fit_make=(canonical_make(vehicle.make) or vehicle.make) if vehicle else product.fit_make,
+        fit_model=vehicle.model if vehicle else product.fit_model,
+        fit_year_from=vehicle.year if vehicle else product.fit_year_from,
         fit_year_to=product.fit_year_to,
         brand=product.brand,
         sku=product.sku,
@@ -155,6 +187,7 @@ async def _product_response(db: AsyncSession, product: Product) -> ProductRespon
         ships=product.ships,
         listing_status=product.listing_status,
         moderation_status=product.moderation_status,
+        vehicle_id=product.vehicle_id,
         created_at=product.created_at,
         seller=user_to_public(seller) if seller and seller.is_active else None,
     )
@@ -372,7 +405,8 @@ async def list_products(
         order = Product.price.desc()
     result = await db.execute(base.order_by(order).offset(max(skip, 0)).limit(min(max(limit, 1), 48)))
     products = result.scalars().all()
-    return ProductPage(items=[await _product_response(db, p) for p in products], total=int(total))
+    vehicles = await _listing_vehicles(db, products)
+    return ProductPage(items=[await _product_response(db, p, vehicles) for p in products], total=int(total))
 
 
 @marketplace_router.get("/mine", response_model=list[ProductResponse])
@@ -383,7 +417,9 @@ async def list_my_products(
     result = await db.execute(
         select(Product).where(Product.business_id == user.id).order_by(Product.created_at.desc())
     )
-    return [await _product_response(db, p) for p in result.scalars().all()]
+    products = result.scalars().all()
+    vehicles = await _listing_vehicles(db, products)
+    return [await _product_response(db, p, vehicles) for p in products]
 
 
 @marketplace_router.get("/{product_id}", response_model=ProductResponse)
@@ -406,6 +442,8 @@ async def create_product(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
+    if body.category == VEHICLE_CATEGORY:
+        raise HTTPException(status_code=400, detail="List a vehicle for sale from its card")
     product = Product(
         business_id=user.id,
         name=body.name.strip(),
@@ -426,6 +464,35 @@ async def create_product(
     return await _product_response(db, product)
 
 
+@marketplace_router.post("/vehicle-listings", response_model=ProductResponse)
+async def list_vehicle_for_sale(
+    body: VehicleListingCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    vehicle = await db.get(Vehicle, body.vehicle_id)
+    if not vehicle or vehicle.user_id != user.id:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    if await db.scalar(select(Product.id).where(Product.vehicle_id == vehicle.id)):
+        raise HTTPException(status_code=409, detail="This vehicle is already listed")
+    # The card's photos already passed moderation when they were added to it, so the listing goes live at once.
+    product = Product(
+        business_id=user.id,
+        vehicle_id=vehicle.id,
+        name=_vehicle_title(vehicle),
+        description=_clean(body.description, 4000),
+        price=body.price,
+        category=VEHICLE_CATEGORY,
+        condition="used",
+        listing_status="published",
+        moderation_status="approved",
+    )
+    db.add(product)
+    await db.commit()
+    await db.refresh(product)
+    return await _product_response(db, product)
+
+
 @marketplace_router.patch("/{product_id}", response_model=ProductResponse)
 async def update_product(
     product_id: uuid.UUID,
@@ -440,6 +507,19 @@ async def update_product(
         raise HTTPException(status_code=403, detail="Not allowed")
     from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
 
+    changes = body.model_dump(exclude_unset=True)
+    if product.vehicle_id:
+        if set(changes) - VEHICLE_LISTING_FIELDS - {"publish"}:
+            raise HTTPException(status_code=400, detail="A vehicle listing takes only a price and a description")
+        if changes.get("price") is not None:
+            product.price = changes["price"]
+        if "description" in changes:
+            product.description = _clean(changes["description"], 4000)
+        await db.commit()
+        await db.refresh(product)
+        return await _product_response(db, product)
+    if changes.get("category") == VEHICLE_CATEGORY and product.category != VEHICLE_CATEGORY:
+        raise HTTPException(status_code=400, detail="List a vehicle for sale from its card")
     was_published = product.listing_status == "published"
     before = [*(product.image_urls or []), *(product.pending_image_urls or [])]
     _apply_product_fields(product, body)

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import AddVehicleForm from "@/components/AddVehicleForm";
@@ -170,6 +170,7 @@ export default function BusinessProfilePage() {
   });
   const businessProducts = productPage?.items ?? [];
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const navigate = useNavigate();
   const reviewFormRef = useRef<HTMLDivElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [jumpToReview, setJumpToReview] = useState(false);
@@ -631,7 +632,9 @@ export default function BusinessProfilePage() {
               <button
                 key={product.id}
                 type="button"
-                onClick={() => setSelectedProduct(product)}
+                onClick={() =>
+                  product.vehicle_id ? navigate(`/vehicles/${product.vehicle_id}`) : setSelectedProduct(product)
+                }
                 className="h-full min-w-0 text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
                 <ProductCard product={product} className="h-full" />

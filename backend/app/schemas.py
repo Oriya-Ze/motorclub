@@ -333,6 +333,12 @@ class ProductCreate(BaseModel):
     publish: bool = False
 
 
+class VehicleListingCreate(BaseModel):
+    vehicle_id: UUID
+    price: float = Field(gt=0)
+    description: str | None = Field(default=None, max_length=4000)
+
+
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=255)
     description: str | None = None
@@ -370,6 +376,7 @@ class ProductResponse(BaseModel):
     ships: bool | None = None
     listing_status: str = "published"
     moderation_status: str = "unscanned"
+    vehicle_id: UUID | None = None
     created_at: datetime
     seller: UserPublic | None = None
 
@@ -540,12 +547,18 @@ class VehicleResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class VehicleSaleListing(BaseModel):
+    id: UUID
+    price: float
+    description: str | None = None
+    listing_status: str
+
+
 class VehicleDetailResponse(VehicleResponse):
     owner: UserPublic
     follower_count: int = 0
     is_following: bool = False
-    spot_count: int = 0
-    has_spotted: bool = False
+    sale_listing: VehicleSaleListing | None = None
 
 
 class VehicleFollowResponse(BaseModel):
@@ -553,9 +566,6 @@ class VehicleFollowResponse(BaseModel):
     follower_count: int
 
 
-class VehicleSpotResponse(BaseModel):
-    spotted: bool
-    spot_count: int
 
 
 class BusinessTaggedWork(BaseModel):

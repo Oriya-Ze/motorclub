@@ -17,6 +17,8 @@ import { MAX_IMAGE_BYTES, MediaUploadError } from "@/lib/mediaUpload";
 import { decimalOnly, digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
 const CATEGORIES = PRODUCT_CATEGORIES;
+/** Vehicles are sold from their card ("List for sale"), not here; an older vehicle listing keeps its category. */
+const SELLABLE_CATEGORIES = PRODUCT_CATEGORIES.filter((item) => item !== "vehicles");
 const MAX_IMAGES = 8;
 
 interface ProductEditorProps {
@@ -89,7 +91,7 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
       setPrice(String(draft.price || ""));
       setImages(Array.isArray(draft.images) ? draft.images.filter((item) => typeof item === "string") : []);
       if (typeof draft.category === "string" && (CATEGORIES as readonly string[]).includes(draft.category)) {
-        setCategory(draft.category as typeof category);
+        setCategory((SELLABLE_CATEGORIES as readonly string[]).includes(draft.category) ? draft.category as typeof category : "spareParts");
       }
       setCondition(String(draft.condition || ""));
       setFitMake(String(draft.fitMake || ""));
@@ -270,7 +272,7 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
             <Input id="product-name" value={name} onChange={(event) => setName(event.target.value)} />
             <label className="block text-sm" htmlFor="product-category">{t("businessSettings.productCategory")}</label>
             <select id="product-category" value={category} onChange={(event) => setCategory(event.target.value as typeof category)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-              {CATEGORIES.map((item) => <option key={item} value={item}>{t(`categories.${item}`)}</option>)}
+              {(product?.category === "vehicles" ? CATEGORIES : SELLABLE_CATEGORIES).map((item) => <option key={item} value={item}>{t(`categories.${item}`)}</option>)}
             </select>
             <label className="block text-sm" htmlFor="product-condition">{t("productEditor.conditionLabel")}</label>
             <select id="product-condition" value={condition} onChange={(event) => setCondition(event.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">

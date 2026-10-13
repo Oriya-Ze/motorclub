@@ -315,6 +315,10 @@ class Product(Base):
     pickup_area: Mapped[str | None] = mapped_column(String(120), nullable=True)
     ships: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     pending_image_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
+    # A vehicle for sale is listed from its card: the listing shows the card's name and photos and links to it.
+    vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     listing_status: Mapped[str] = mapped_column(String(20), default="published")
     moderation_status: Mapped[str] = mapped_column(String(20), default="unscanned")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

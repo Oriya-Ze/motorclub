@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_optional_user_model, get_user_model, load_users, user_to_public
 from app.media.image_assets import image_media_for_keys
-from app.models import Post, User, Vehicle, VehicleFollower, VehicleSpot
+from app.models import Post, Product, User, Vehicle, VehicleFollower
 from app.routers.social import create_notification
 from app.schemas import (
     PostResponse,
@@ -17,7 +17,7 @@ from app.schemas import (
     VehicleModItem,
     VehicleModShop,
     VehicleResponse,
-    VehicleSpotResponse,
+    VehicleSaleListing,
     VehicleUpdate,
 )
 from app.services.vehicle_brands import canonical_make, make_match_names, make_search_terms
@@ -178,31 +178,36 @@ async def _detail(db: AsyncSession, vehicle: Vehicle, owner: User, viewer: User 
     follower_count = await db.scalar(
         select(func.count()).select_from(VehicleFollower).where(VehicleFollower.vehicle_id == vehicle.id)
     )
-    spot_count = await db.scalar(
-        select(func.count()).select_from(VehicleSpot).where(VehicleSpot.vehicle_id == vehicle.id)
-    )
     is_following = False
-    has_spotted = False
     if viewer:
         is_following = await db.scalar(
             select(VehicleFollower.id).where(
                 VehicleFollower.vehicle_id == vehicle.id, VehicleFollower.user_id == viewer.id
             )
         ) is not None
-        has_spotted = await db.scalar(
-            select(VehicleSpot.id).where(VehicleSpot.vehicle_id == vehicle.id, VehicleSpot.user_id == viewer.id)
-        ) is not None
+    listing = await db.scalar(select(Product).where(Product.vehicle_id == vehicle.id))
+    is_owner = viewer is not None and viewer.id == vehicle.user_id
+    # Others see only a live listing; the owner also sees one the staff took down, so it is not listed again.
+    show_listing = listing is not None and (is_owner or listing.listing_status == "published")
     return VehicleDetailResponse(
         **base.model_dump(),
         owner=user_to_public(owner),
         follower_count=int(follower_count or 0),
         is_following=is_following,
-        spot_count=int(spot_count or 0),
-        has_spotted=has_spotted,
+        sale_listing=VehicleSaleListing(
+            id=listing.id,
+            price=listing.price,
+            description=listing.description,
+            listing_status=listing.listing_status,
+        )
+        if show_listing
+        else None,
     )
 
 
-async def _visible_vehicle(db: AsyncSession, vehicle_id: uuid.UUID, viewer: User | None) -> tuple[Vehicle, User]:
+async def _visible_vehicle(
+    db: AsyncSession, vehicle_id: uuid.UUID, viewer: User | None, *, card_for_sale: bool = False
+) -> tuple[Vehicle, User]:
     vehicle = await db.get(Vehicle, vehicle_id)
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -210,7 +215,13 @@ async def _visible_vehicle(db: AsyncSession, vehicle_id: uuid.UUID, viewer: User
     if not owner:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     if not await can_view_profile_content(db, owner.id, viewer.id if viewer else None):
-        raise HTTPException(status_code=404, detail="Vehicle not found")
+        # Listing a vehicle for sale publishes its card, as the shop links to it, even from a private profile.
+        # Only the card: the vehicle's posts and followers keep the profile's privacy.
+        for_sale = card_for_sale and await db.scalar(
+            select(Product.id).where(Product.vehicle_id == vehicle.id, Product.listing_status == "published")
+        )
+        if not for_sale:
+            raise HTTPException(status_code=404, detail="Vehicle not found")
     return vehicle, owner
 
 
@@ -467,40 +478,11 @@ async def unfollow_vehicle(
     return VehicleFollowResponse(following=False, follower_count=int(count or 0))
 
 
-@router.post("/{vehicle_id}/spot", response_model=VehicleSpotResponse)
-async def spot_vehicle(
-    vehicle_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_user_model),
-):
-    vehicle, owner = await _visible_vehicle(db, vehicle_id, user)
-    if owner.id == user.id:
-        raise HTTPException(status_code=400, detail="Cannot spot your own vehicle")
-    existing = await db.scalar(
-        select(VehicleSpot).where(VehicleSpot.vehicle_id == vehicle.id, VehicleSpot.user_id == user.id)
-    )
-    if not existing:
-        db.add(VehicleSpot(vehicle_id=vehicle.id, user_id=user.id))
-        label = vehicle.nickname or f"{vehicle.make} {vehicle.model}"
-        await create_notification(
-            db,
-            owner.id,
-            user.id,
-            "vehicle_spot",
-            f"{user.full_name} spotted {label}",
-            body=user.full_name,
-            link=f"/vehicles/{vehicle.id}",
-        )
-        await db.commit()
-    count = await db.scalar(select(func.count()).select_from(VehicleSpot).where(VehicleSpot.vehicle_id == vehicle.id))
-    return VehicleSpotResponse(spotted=True, spot_count=int(count or 0))
-
-
 @router.get("/{vehicle_id}", response_model=VehicleDetailResponse)
 async def get_vehicle(
     vehicle_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     viewer: User | None = Depends(get_optional_user_model),
 ):
-    vehicle, owner = await _visible_vehicle(db, vehicle_id, viewer)
+    vehicle, owner = await _visible_vehicle(db, vehicle_id, viewer, card_for_sale=True)
     return await _detail(db, vehicle, owner, viewer)

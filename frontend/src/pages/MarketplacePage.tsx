@@ -1,7 +1,7 @@
 import { ShoppingBag } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import ProductCard from "@/components/ProductCard";
@@ -22,6 +22,7 @@ export default function MarketplacePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [category, setCategory] = useState<string>("");
   const [selected, setSelected] = useState<Product | null>(null);
+  const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const queryClient = useQueryClient();
 
@@ -57,7 +58,7 @@ export default function MarketplacePage() {
   useEffect(() => {
     if (!productParam) return;
     api.getProduct(productParam)
-      .then(setSelected)
+      .then((product) => (product.vehicle_id ? navigate(`/vehicles/${product.vehicle_id}`) : setSelected(product)))
       .catch(() => toast.error(t("productEditor.unavailable")));
     const next = new URLSearchParams(searchParams);
     next.delete("product");
@@ -174,7 +175,8 @@ export default function MarketplacePage() {
             <button
               key={product.id}
               type="button"
-              onClick={() => setSelected(product)}
+              // A vehicle listing is the vehicle's card, so it opens the card.
+              onClick={() => (product.vehicle_id ? navigate(`/vehicles/${product.vehicle_id}`) : setSelected(product))}
               className="h-full min-w-0 text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
               <ProductCard product={product} className="h-full" />

@@ -2,9 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Clock, EyeOff, FileText, Package, Pencil, Trash2, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import EditProductModal from "@/components/EditProductModal";
 import OwnerMediaThumb from "@/components/OwnerMediaThumb";
+import StoredImage from "@/components/StoredImage";
 import { Button } from "@/components/ui/Button";
 import { api, Product } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,7 @@ function productState(product: Product): { state: ProductState; help?: string } 
 
 /** The viewer's own products with their review status, for every member and business. */
 export default function MyProducts() {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Product | null>(null);
@@ -67,7 +70,9 @@ export default function MyProducts() {
           const { icon: Icon, className } = STATE_STYLE[state];
           return (
             <li key={product.id} className="flex items-start gap-3 rounded-2xl border border-border/50 bg-card/50 p-3">
-              {product.image_urls?.[0] ? (
+              {product.vehicle_id && product.image_urls?.[0] ? (
+                <StoredImage sourceKey={product.image_urls[0]} className="h-16 w-16 shrink-0 rounded-xl bg-black" loading="lazy" />
+              ) : product.image_urls?.[0] ? (
                 <OwnerMediaThumb storageKey={product.image_urls[0]} className="h-16 w-16 shrink-0 rounded-xl bg-black" />
               ) : (
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-muted">
@@ -86,7 +91,12 @@ export default function MyProducts() {
                 {help ? <p className="text-xs leading-relaxed text-muted-foreground">{t(`productEditor.statusHelp.${help}`)}</p> : null}
               </div>
               <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
-                <Button variant="ghost" size="sm" onClick={() => setEditing(product)} aria-label={t("productEditor.edit", { name: product.name })}>
+                {/* A vehicle listing is edited on its card, where the owner sets the price. */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => (product.vehicle_id ? navigate(`/vehicles/${product.vehicle_id}`) : setEditing(product))}
+                  aria-label={t("productEditor.edit", { name: product.name })}>
                   <Pencil className="h-4 w-4" aria-hidden />
                 </Button>
                 <Button
