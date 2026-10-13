@@ -17,6 +17,19 @@ import { api, Vehicle, VehicleCatalogVariant, VehicleModItem } from "@/lib/api";
 import { formatEngineLabel } from "@/lib/formatLabels";
 import { digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
+/**
+ * The model years a catalog version covers, newest first. A version still in production (no end year) runs to
+ * next year, since cars are sold as next year's model before the year turns.
+ */
+function variantYears(variant: VehicleCatalogVariant): string[] {
+  const from = variant.year_from ?? variant.year_to;
+  if (!from) return [];
+  const to = Math.max(from, variant.year_to ?? new Date().getFullYear() + 1);
+  const years: string[] = [];
+  for (let year = Math.min(to, from + 60); year >= from; year -= 1) years.push(String(year));
+  return years;
+}
+
 const emptyForm = {
   makeId: "",
   modelId: "",
@@ -152,11 +165,21 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   });
 
   const applyVariant = (variant: VehicleCatalogVariant) => {
-    const year = variant.year_to ? String(variant.year_to) : variant.year_from ? String(variant.year_from) : "";
+    const years = variantYears(variant);
     const extras = [variant.horsepower ? `${variant.horsepower} כ״ס` : null, variant.fuel].filter(Boolean);
     const engine = formatEngineLabel(variant.engine || extras.join(" · "));
-    setForm((prev) => ({ ...prev, variantId: variant.id, trim: variant.trim, engine, year: year || prev.year }));
+    // A single model year fills itself in; a range waits for the owner to pick the exact year.
+    setForm((prev) => ({
+      ...prev,
+      variantId: variant.id,
+      trim: variant.trim,
+      engine,
+      year: years.length === 1 ? years[0] : years.includes(prev.year) ? prev.year : "",
+    }));
   };
+
+  const selectedVariant = form.manual ? undefined : catalogVariants.find((variant) => variant.id === form.variantId);
+  const yearChoices = selectedVariant ? variantYears(selectedVariant) : [];
 
   const variantLabel = (variant: VehicleCatalogVariant) => {
     const years =
@@ -344,7 +367,16 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                   </>
                 )}
                 <Field id={`${id}-year`} label={t("garage.year")}>
-                  <Input id={`${id}-year`} value={form.year} onChange={(e) => setForm({ ...form, year: digitsOnly(e.target.value, YEAR_DIGITS) })} dir="ltr" inputMode="numeric" />
+                  {yearChoices.length > 1 ? (
+                    <Select id={`${id}-year`} value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })}>
+                      <option value="">{t("garage.editor.selectYear", { from: yearChoices[yearChoices.length - 1], to: yearChoices[0] })}</option>
+                      {yearChoices.map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input id={`${id}-year`} value={form.year} onChange={(e) => setForm({ ...form, year: digitsOnly(e.target.value, YEAR_DIGITS) })} dir="ltr" inputMode="numeric" />
+                  )}
                 </Field>
                 <Field id={`${id}-color`} label={t("garage.color")}>
                   <Input id={`${id}-color`} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
