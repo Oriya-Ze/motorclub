@@ -11,8 +11,9 @@ import {
   Share2,
   Star,
   Wrench,
+  Flag,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ import Avatar from "@/components/Avatar";
 import AddVehicleForm from "@/components/AddVehicleForm";
 import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
+import ProductCard from "@/components/ProductCard";
+import ProductDetailModal from "@/components/ProductDetailModal";
 import VehicleCard from "@/components/VehicleCard";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
 import VerifiedBadge from "@/components/VerifiedBadge";
@@ -29,7 +32,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, BusinessTaggedWork, Post, Vehicle } from "@/lib/api";
+import { api, BusinessTaggedWork, Post, Product, Vehicle } from "@/lib/api";
 import {
   DAY_KEYS,
   getBusinessListPath,
@@ -43,7 +46,7 @@ import ReportDialog from "@/components/ReportDialog";
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-type Tab = "posts" | "services" | "works" | "reviews" | "garage" | "saved";
+type Tab = "posts" | "products" | "services" | "works" | "reviews" | "garage" | "saved";
 
 function StarRating({ value, onChange, readonly }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
   return (
@@ -147,7 +150,7 @@ export default function BusinessProfilePage() {
 
   useEffect(() => {
     const requested = searchParams.get("tab");
-    if (requested === "garage" || requested === "posts" || requested === "services" || requested === "works" || requested === "reviews") {
+    if (requested === "garage" || requested === "posts" || requested === "products" || requested === "services" || requested === "works" || requested === "reviews") {
       setTab(requested);
     }
     if (requested === "saved" && isOwn) setTab("saved");
@@ -158,6 +161,17 @@ export default function BusinessProfilePage() {
     queryFn: () => (isOwn ? api.getMyGarage() : api.getUserGarage(userId!)),
     enabled: Boolean(userId) && tab === "garage",
   });
+
+  // The same published products the shop shows for this business.
+  const { data: productPage, isLoading: productsLoading } = useQuery({
+    queryKey: ["business-products", userId],
+    queryFn: () => api.getProducts({ businessId: userId!, limit: 50 }),
+    enabled: Boolean(userId) && tab === "products",
+  });
+  const businessProducts = productPage?.items ?? [];
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const reviewFormRef = useRef<HTMLDivElement>(null);
+  const [jumpToReview, setJumpToReview] = useState(false);
 
   const { data: savedPosts = [], isLoading: savedLoading } = useQuery({
     queryKey: ["saved-posts"],
@@ -253,6 +267,17 @@ export default function BusinessProfilePage() {
     return null;
   }, [business, reviews]);
 
+  // After «דרג»: once the reviews tab has rendered its form, scroll to it and focus the first star.
+  useEffect(() => {
+    if (!jumpToReview || tab !== "reviews" || reviewsLoading) return;
+    const form = reviewFormRef.current;
+    if (!form) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    form.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+    form.querySelector<HTMLElement>("button, input, textarea")?.focus({ preventScroll: true });
+    setJumpToReview(false);
+  }, [jumpToReview, tab, reviewsLoading]);
+
   if (isLoading) return <ProfileSkeleton />;
   if (error || !business) {
     const backPath = getBusinessListPath();
@@ -272,11 +297,16 @@ export default function BusinessProfilePage() {
   const reviewCount = business.review_count ?? reviews.length;
   const canReview = Boolean(authUser && !isOwn);
 
-  const openReviewsTab = () => setTab("reviews");
+  // «דרג» opens the reviews tab and brings the rating form into view (see the effect below).
+  const openReviewsTab = () => {
+    setTab("reviews");
+    setJumpToReview(true);
+  };
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "posts", label: t("workshops.posts") },
     { id: "garage", label: isOwn ? t("garage.myGarage") : t("garage.tools") },
+    { id: "products", label: t("businessProfile.products") },
     { id: "services", label: t("businessProfile.services") },
     { id: "works", label: t("businessProfile.works") },
     { id: "reviews", label: t("businessProfile.reviews") },
@@ -285,6 +315,7 @@ export default function BusinessProfilePage() {
 
   const loading =
     tab === "posts" ? postsLoading
+    : tab === "products" ? productsLoading
     : tab === "services" ? servicesLoading
     : tab === "works" ? worksLoading
     : tab === "garage" ? garageLoading
@@ -293,19 +324,38 @@ export default function BusinessProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-20 md:pb-8">
-      {backPath && (
-        <Link
-          to={backPath}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowRight className="w-4 h-4 rtl:rotate-180" />
-          {t("productEditor.back")}
-        </Link>
+      {(backPath || !isOwn) && (
+        // One row: back at the start, report at the end, so the two never run into each other.
+        <div className="flex items-center justify-between gap-3">
+          {backPath ? (
+            <Link
+              to={backPath}
+              className="inline-flex min-h-9 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowRight className="w-4 h-4 ltr:rotate-180" aria-hidden />
+              {t("productEditor.back")}
+            </Link>
+          ) : (
+            <span />
+          )}
+          {!isOwn && (
+            <button
+              type="button"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+              onClick={() => setReporting(true)}
+            >
+              <Flag className="w-3.5 h-3.5" aria-hidden />
+              {t("reports.title")}
+            </button>
+          )}
+        </div>
       )}
-      {!isOwn && (
-        <button type="button" className="text-xs text-muted-foreground underline" onClick={() => setReporting(true)}>
-          {t("reports.title")}
-        </button>
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+          onChanged={() => queryClient.invalidateQueries({ queryKey: ["business-products", userId] })}
+        />
       )}
       {reporting && userId && <ReportDialog targetType="profile" targetId={userId} onClose={() => setReporting(false)} />}
 
@@ -492,6 +542,8 @@ export default function BusinessProfilePage() {
             <button
               key={id}
               type="button"
+              aria-current={tab === id ? "page" : undefined}
+              ref={tab === id ? (el) => el?.scrollIntoView({ block: "nearest", inline: "nearest" }) : undefined}
               onClick={() => setTab(id)}
               className={cn(
                 "shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
@@ -551,6 +603,30 @@ export default function BusinessProfilePage() {
         ) : (
           <div className="space-y-4">{savedPosts.map((post: Post) => <PostCard key={post.id} post={post} />)}</div>
         )
+      ) : tab === "products" ? (
+        businessProducts.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60 px-4 space-y-3">
+            <p>{isOwn ? t("businessProfile.noProductsOwn") : t("businessProfile.noProducts")}</p>
+            {isOwn && (
+              <Link to="/marketplace?mine=1" className="inline-flex text-sm font-medium text-primary hover:underline">
+                {t("productEditor.tabMine")}
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {businessProducts.map((product) => (
+              <button
+                key={product.id}
+                type="button"
+                onClick={() => setSelectedProduct(product)}
+                className="h-full min-w-0 text-start rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+              >
+                <ProductCard product={product} className="h-full" />
+              </button>
+            ))}
+          </div>
+        )
       ) : tab === "works" ? (
         works.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60 px-4">
@@ -595,7 +671,7 @@ export default function BusinessProfilePage() {
       ) : (
         <div className="space-y-4">
           {canReview && (
-            <Card className="border-border/60">
+            <Card ref={reviewFormRef} className="border-border/60 scroll-mt-24">
               <CardContent className="pt-4 pb-4 space-y-3">
                 <h3 className="font-semibold">
                   {myReview ? t("businessProfile.yourReview") : t("businessProfile.writeReview")}
