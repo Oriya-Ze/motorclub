@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import FeedPage from "@/pages/FeedPage";
 import LandingPage from "@/pages/LandingPage";
+import LogoLoader from "@/components/LogoLoader";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -8,7 +9,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <LogoLoader />
       </div>
     );
   }

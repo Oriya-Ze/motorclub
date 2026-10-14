@@ -23,6 +23,7 @@ import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
 // The composer and its cropper load with the first tap on "create", not with every page.
 const CreatePostModal = lazy(pageLoaders.createPost);
 import { cn, displayUsername } from "@/lib/utils";
+import LogoLoader from "@/components/LogoLoader";
 
 const navItems = [
   { to: "/", label: "feed", icon: Home },
@@ -175,7 +176,7 @@ function AuthenticatedLayout() {
           edgeToEdge ? "px-0 md:px-4" : "px-4",
         )}
       >
-        <Suspense fallback={<div className="min-h-[50vh]" role="status" aria-label={t("loading")} />}>
+        <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center"><LogoLoader delayed /></div>}>
           <Outlet />
         </Suspense>
       </main>
@@ -241,7 +242,7 @@ function GuestLayout() {
         </div>
       </header>
       <main className="feed-scroll max-w-7xl mx-auto px-4 py-4 md:py-6 page-enter">
-        <Suspense fallback={<div className="min-h-[50vh]" role="status" aria-label={t("loading")} />}>
+        <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center"><LogoLoader delayed /></div>}>
           <Outlet />
         </Suspense>
       </main>

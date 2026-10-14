@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { mediaUrl } from "@/lib/media";
 import { displayName, formatHandle } from "@/lib/utils";
+import LogoLoader from "@/components/LogoLoader";
 
 export default function StoryViewerPage() {
   const { t } = useTranslation();
@@ -97,7 +98,7 @@ export default function StoryViewerPage() {
 
       <div className="relative flex-1 flex items-center justify-center min-h-0">
         {isLoading || !story ? (
-          <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <LogoLoader />
         ) : story.media_type === "video" ? (
           <video
             src={mediaUrl(story.media_url)}

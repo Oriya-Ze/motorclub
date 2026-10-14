@@ -4,6 +4,7 @@ import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import HomePage from "@/pages/HomePage";
 import { pageLoaders, preloadAllPagesWhenIdle } from "@/lib/pageLoaders";
+import LogoLoader from "@/components/LogoLoader";
 
 const AuthPage = lazy(pageLoaders.auth);
 const OAuthCallbackPage = lazy(pageLoaders.oauthCallback);
@@ -46,7 +47,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Suspense fallback={<div className="min-h-screen gradient-bg" role="status" aria-label="טוען" />}>
+      <Suspense fallback={<LogoLoader fullScreen />}>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
@@ -64,7 +65,7 @@ export default function App() {
           <Route
             path="admin/*"
             element={
-              <Suspense fallback={<div className="min-h-screen gradient-bg" role="status" aria-label="טוען" />}>
+              <Suspense fallback={<LogoLoader fullScreen />}>
                 <AdminConsole />
               </Suspense>
             }

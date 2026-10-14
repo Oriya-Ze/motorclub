@@ -15,6 +15,7 @@ import AdminLog from "@/pages/admin/AdminLog";
 import AdminMedia from "@/pages/admin/AdminMedia";
 import AdminOverviewPage from "@/pages/admin/AdminOverview";
 import AdminReports from "@/pages/admin/AdminReports";
+import LogoLoader from "@/components/LogoLoader";
 
 const NAV = [
   { to: "/admin", label: "סקירה", icon: LayoutDashboard, end: true, count: null },
@@ -37,11 +38,7 @@ export default function AdminConsole() {
   });
 
   if (me.isLoading) {
-    return (
-      <div className="min-h-screen gradient-bg flex items-center justify-center" role="status" aria-label="טוען">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <LogoLoader fullScreen />;
   }
   if (me.isError) return <Navigate to="/" replace />;
 

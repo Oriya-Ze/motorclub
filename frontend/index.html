@@ -37,7 +37,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Heebo:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until the app renders, which replaces it: the same logo loader as in the app (index.css). -->
+      <div class="boot-loader gradient-bg">
+        <div class="logo-loader" style="width: 3.5rem; height: 3.5rem" role="status" aria-label="טוען...">
+          <span class="logo-loader__ring" aria-hidden="true"></span>
+          <img class="logo-loader__mark" src="/logo-192.png" alt="" width="56" height="56" />
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
