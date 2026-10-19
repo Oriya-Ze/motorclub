@@ -5,18 +5,21 @@ import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 
 const REASONS = ["spam", "harassment", "sexual_or_violence", "impersonation", "fraud", "irrelevant"] as const;
+/** A vehicle card is reported for its content only; the server accepts just these two. */
+const VEHICLE_REASONS = ["wrong_info", "irrelevant"] as const;
 
 export default function ReportDialog({
   targetType,
   targetId,
   onClose,
 }: {
-  targetType: "post" | "profile" | "product" | "story";
+  targetType: "post" | "profile" | "product" | "story" | "vehicle";
   targetId: string;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [reason, setReason] = useState<string>("spam");
+  const reasons: readonly string[] = targetType === "vehicle" ? VEHICLE_REASONS : REASONS;
+  const [reason, setReason] = useState<string>(reasons[0]);
   const [details, setDetails] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -45,7 +48,7 @@ export default function ReportDialog({
         <h2 id="report-title" className="text-lg font-semibold">{t("reports.title")}</h2>
         <label className="block text-sm" htmlFor="report-reason">{t("reports.reason")}</label>
         <select id="report-reason" value={reason} onChange={(event) => setReason(event.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm">
-          {REASONS.map((item) => (
+          {reasons.map((item) => (
             <option key={item} value={item}>{t(`reports.reasons.${item}`)}</option>
           ))}
         </select>

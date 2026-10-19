@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
+import { Camera, Flag, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
+import ReportDialog from "@/components/ReportDialog";
 import ShareSheet from "@/components/ShareSheet";
 import VehicleCard from "@/components/VehicleCard";
 import VehicleImageCarousel from "@/components/VehicleImageCarousel";
@@ -51,6 +52,7 @@ export default function VehiclePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showShare, setShowShare] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Partial<Vehicle>>({});
   const [photosBusy, setPhotosBusy] = useState(false);
@@ -331,9 +333,15 @@ export default function VehiclePage() {
               {!isOwner && (
                 <div className="flex flex-wrap gap-2">
                   {user ? (
-                    <Button size="sm" variant={vehicle.is_following ? "outline" : "default"} disabled={followMut.isPending} onClick={() => followMut.mutate()}>
-                      {vehicle.is_following ? t("garage.unfollowVehicle") : t("garage.followVehicle")}
-                    </Button>
+                    <>
+                      <Button size="sm" variant={vehicle.is_following ? "outline" : "default"} disabled={followMut.isPending} onClick={() => followMut.mutate()}>
+                        {vehicle.is_following ? t("garage.unfollowVehicle") : t("garage.followVehicle")}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setReporting(true)}>
+                        <Flag className="w-4 h-4 me-1" aria-hidden />
+                        {t("reports.title")}
+                      </Button>
+                    </>
                   ) : (
                     <Link to="/auth">
                       <Button size="sm">{t("login")}</Button>
@@ -505,6 +513,7 @@ export default function VehiclePage() {
         text={t("shareVehicleMessage", { name: title })}
         sentToastKey="vehicleSharedToUser"
       />
+      {reporting && <ReportDialog targetType="vehicle" targetId={vehicle.id} onClose={() => setReporting(false)} />}
     </div>
   );
 }

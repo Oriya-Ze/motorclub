@@ -28,7 +28,7 @@ export interface AdminReportTarget {
 }
 
 export interface AdminReportGroup {
-  target_type: "post" | "product" | "profile" | "story";
+  target_type: "post" | "product" | "profile" | "story" | "vehicle";
   target_id: string;
   count: number;
   reasons: string[];

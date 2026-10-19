@@ -152,6 +152,7 @@ export const REPORT_REASONS: Record<string, string> = {
   impersonation: "התחזות",
   fraud: "חשד להונאה",
   irrelevant: "תוכן לא רלוונטי",
+  wrong_info: "מידע שגוי",
 };
 
 export const TARGET_LABELS: Record<string, string> = {
@@ -159,7 +160,7 @@ export const TARGET_LABELS: Record<string, string> = {
   product: "מוצר",
   profile: "פרופיל",
   story: "סטורי",
-  vehicle: "רכב",
+  vehicle: "כלי",
   message: "הודעה פרטית",
   group: "קבוצה",
   event: "אירוע",

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import is_platform_admin, require_admin, require_staff
-from app.models import BusinessUpgradeRequest, ContentReport, MediaScan, ModerationAction, Post, Product, User
+from app.models import BusinessUpgradeRequest, ContentReport, MediaScan, ModerationAction, Post, Product, User, Vehicle
 from app.schemas import (
     BusinessUpgradeApproveBody,
     BusinessUpgradeRejectBody,
@@ -239,6 +239,18 @@ async def _report_target(db: AsyncSession, target_type: str, target_id: str) -> 
             "hidden": product.listing_status == "hidden",
             "link": f"/marketplace?product={product.id}",
         }
+    if target_type == "vehicle":
+        vehicle = await db.get(Vehicle, target_uuid)
+        if not vehicle:
+            return None
+        owner = await db.get(User, vehicle.user_id)
+        return {
+            "exists": True,
+            "author": owner.username if owner else None,
+            "text": _vehicle_label(vehicle),
+            "image": await _vehicle_preview_image(db, vehicle),
+            "link": f"/vehicles/{vehicle.id}",
+        }
     if target_type == "story":
         story = await db.get(Story, target_uuid)
         if not story:
@@ -286,6 +298,71 @@ async def update_report(
     )
     await db.commit()
     return {"id": str(report.id), "status": report.status}
+
+
+def _vehicle_label(vehicle: Vehicle) -> str:
+    catalog = " ".join(str(part) for part in (vehicle.year, vehicle.make, vehicle.model) if part)
+    nickname = (vehicle.nickname or "").strip()
+    return f"{nickname} · {catalog}" if nickname else catalog
+
+
+async def _vehicle_preview_image(db: AsyncSession, vehicle: Vehicle) -> str | None:
+    """The cover photo's processed copy: the media Lambda deletes vehicle originals once it has made them."""
+    from app.media.image_assets import build_image_media_map
+    from app.media.keys import is_private_storage_key
+
+    cover = next((key for key in (vehicle.image_urls or []) if key and not is_private_storage_key(key)), None)
+    if not cover:
+        return None
+    media = (await build_image_media_map(db, [cover])).get(cover)
+    candidates = [media.thumb_key, media.display_key] if media else []
+    return next((key for key in [*candidates, cover] if key and not is_private_storage_key(key)), None)
+
+
+@router.delete("/vehicles/{vehicle_id}")
+async def delete_reported_vehicle(
+    vehicle_id: uuid.UUID,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    staff: User = Depends(require_staff),
+):
+    """Remove a vehicle card, with its photos, sale listing and follows. The owner is told, without the reviewer's name."""
+    from app.routers.social import create_notification
+    from app.services.media_cleanup import delete_media_files, unreferenced_media
+
+    vehicle = await db.get(Vehicle, vehicle_id)
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    reason = _required_reason(body)
+    owner = await db.get(User, vehicle.user_id)
+    if owner and owner.id != staff.id and is_platform_admin(owner):
+        raise HTTPException(status_code=400, detail="cannot_moderate_admin")
+    label = _vehicle_label(vehicle)
+    db.add(
+        ModerationAction(
+            actor_id=staff.id,
+            action="delete_vehicle",
+            target_type="vehicle",
+            target_id=str(vehicle.id),
+            reason=f"{label} (@{owner.username if owner else '?'}): {reason}",
+        )
+    )
+    if owner:
+        await create_notification(
+            db,
+            user_id=owner.id,
+            actor_id=None,
+            ntype="vehicle_removed",
+            title=f"כרטיס הרכב «{label}» הוסר",
+            body="צוות האתר הסיר את הכרטיס בעקבות דיווח של חברי הקהילה.",
+            link="/profile?tab=garage",
+        )
+    media = [*(vehicle.image_urls or []), vehicle.walkaround_url, vehicle.sound_url]
+    await db.delete(vehicle)
+    orphaned = await unreferenced_media(db, media)
+    await db.commit()
+    delete_media_files(orphaned)
+    return {"id": str(vehicle_id), "deleted": True}
 
 
 @router.post("/products/{product_id}/visibility")

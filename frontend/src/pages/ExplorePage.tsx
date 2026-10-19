@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom";
 import ExploreHashtagPanel from "@/components/explore/ExploreHashtagPanel";
 import ExplorePhotoGrid from "@/components/explore/ExplorePhotoGrid";
 import ExploreTabs from "@/components/explore/ExploreTabs";
-import ExploreVehicleCarousel from "@/components/explore/ExploreVehicleCarousel";
+import ExploreVehicleGrid from "@/components/explore/ExploreVehicleGrid";
 import { parseExploreTab, type ExploreTab } from "@/components/explore/types";
 import PageHeading from "@/components/PageHeading";
 import UserSearch from "@/components/UserSearch";
@@ -128,7 +128,7 @@ export default function ExplorePage() {
             placeholder={t("garage.searchVehicles")}
             className="h-11"
           />
-          <ExploreVehicleCarousel
+          <ExploreVehicleGrid
             vehicles={
               vehicleSearch.length >= 2
                 ? searchedVehicles.map((v) => ({
@@ -136,6 +136,7 @@ export default function ExplorePage() {
                     make: v.make,
                     model: v.model,
                     year: v.year,
+                    nickname: v.nickname,
                     thumbnail: pickStoredImageUrl(v.image_urls?.[0], v.image_media, "feed") || undefined,
                     owner: v.owner,
                   }))

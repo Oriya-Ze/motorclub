@@ -1149,6 +1149,13 @@ class ApiClient {
     return this.request(`/admin/businesses/${userId}/visibility`, { method: "POST", body: JSON.stringify({ hidden, reason }) });
   }
 
+  adminDeleteVehicle(vehicleId: string, reason: string) {
+    return this.request<{ id: string; deleted: boolean }>(`/admin/vehicles/${vehicleId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ reason }),
+    });
+  }
+
   setProductVisibility(productId: string, hidden: boolean, reason: string) {
     return this.request<{ id: string; listing_status: string }>(`/admin/products/${productId}/visibility`, {
       method: "POST",

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, Eye, Heart, MessageCircle, ShoppingBag, UserPlus, Users, X } from "lucide-react";
+import { Bell, Car, Check, Eye, Heart, MessageCircle, ShoppingBag, UserPlus, Users, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ const iconMap: Record<string, typeof Bell> = {
   vehicle_spot: Eye,
   vehicle_post: MessageCircle,
   product_review: ShoppingBag,
+  vehicle_removed: Car,
 };
 
 export default function NotificationsPage() {

@@ -104,6 +104,20 @@ export default function AdminReports() {
                         }}
                       />
                     )}
+                    {target && group.target_type === "vehicle" && (
+                      <ReasonAction
+                        label="מחיקת הכלי"
+                        variant="destructive"
+                        onSubmit={async (reason) => {
+                          // Irreversible: cancelling keeps the reason form open.
+                          if (!window.confirm("למחוק את כרטיס הכלי, כולל התמונות שלו ומודעת מכירה אם יש? אי אפשר לבטל.")) {
+                            throw new Error("המחיקה בוטלה");
+                          }
+                          await api.adminDeleteVehicle(group.target_id, reason);
+                          await closeAll(group, "resolved", reason);
+                        }}
+                      />
+                    )}
                     {target?.author && (
                       <Link to={`/admin/accounts?q=${encodeURIComponent(target.author)}`} className="inline-flex h-9 items-center rounded-xl border border-border px-4 text-sm hover:bg-muted">
                         לחשבון של @{target.author}

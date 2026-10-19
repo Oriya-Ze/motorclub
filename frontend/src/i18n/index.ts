@@ -813,6 +813,7 @@ const resources = {
           impersonation: "התחזות",
           fraud: "חשד להונאה",
           irrelevant: "תוכן לא רלוונטי",
+          wrong_info: "מידע שגוי",
         },
       },
       moderation: {
@@ -2065,6 +2066,7 @@ const resources = {
           impersonation: "Impersonation",
           fraud: "Suspected fraud",
           irrelevant: "Irrelevant",
+          wrong_info: "Wrong information",
         },
       },
       moderation: {

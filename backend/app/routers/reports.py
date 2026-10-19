@@ -8,11 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_user_model
-from app.models import ContentReport, Post, Product, User
+from app.models import ContentReport, Post, Product, User, Vehicle
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 REASONS = frozenset({"spam", "harassment", "sexual_or_violence", "impersonation", "fraud", "irrelevant"})
+# A vehicle card is reported for what it says, not for conduct: wrong details, or something that is not a vehicle.
+VEHICLE_REASONS = frozenset({"wrong_info", "irrelevant"})
+TARGET_TYPES = frozenset({"post", "profile", "product", "story", "vehicle"})
 OPEN_STATUSES = frozenset({"new", "reviewing"})
 
 
@@ -29,9 +32,9 @@ async def create_report(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    if body.target_type not in {"post", "profile", "product", "story"}:
+    if body.target_type not in TARGET_TYPES:
         raise HTTPException(status_code=400, detail="Invalid target")
-    if body.reason not in REASONS:
+    if body.reason not in (VEHICLE_REASONS if body.target_type == "vehicle" else REASONS):
         raise HTTPException(status_code=400, detail="Invalid reason")
     await _assert_target(db, body.target_type, body.target_id)
     hour_ago = datetime.now(UTC) - timedelta(hours=1)
@@ -72,6 +75,8 @@ async def _assert_target(db: AsyncSession, target_type: str, target_id: uuid.UUI
         found = await db.get(Post, target_id)
     elif target_type == "product":
         found = await db.get(Product, target_id)
+    elif target_type == "vehicle":
+        found = await db.get(Vehicle, target_id)
     elif target_type == "story":
         from app.models import Story
 
