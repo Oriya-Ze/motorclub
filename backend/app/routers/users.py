@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -139,6 +139,22 @@ async def update_profile(
     return user_to_private(user)
 
 
+@router.post("/me/deletion-code")
+async def send_account_deletion_code(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """Email the code that confirms deleting the account. A signed-in session alone cannot delete it."""
+    from app.config import settings
+    from app.rate_limit import enforce_rate_limit
+    from app.services.account_deletion_code import mask_email, send_deletion_code
+
+    await enforce_rate_limit(request, "account:deletion-code", identifier=str(user.id), limit=5, window_seconds=3600)
+    await send_deletion_code(db, user)
+    return {"sent": True, "email": mask_email(user.email), "expires_minutes": settings.account_deletion_code_expire_minutes}
+
+
 @router.delete("/me")
 async def delete_account(
     body: AccountDeleteRequest,
@@ -147,13 +163,12 @@ async def delete_account(
 ):
     """Delete the member's account, everything it owns, its uploaded files, and its sign-in identity.
 
-    The member types their username to confirm.
+    Only with the code emailed to the account's address, so a session left open on someone else's device is not enough.
     """
     from app.services.account_deletion import delete_account as delete_member_account
+    from app.services.account_deletion_code import check_deletion_code
 
-    typed = body.confirm_username.strip().lstrip("@").lower()
-    if typed != (user.username or "").lower():
-        raise HTTPException(status_code=400, detail="confirmation_mismatch")
+    await check_deletion_code(db, user, body.code)
     await delete_member_account(db, user)
     return {"deleted": True}
 

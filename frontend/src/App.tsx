@@ -31,6 +31,7 @@ const MarketplacePage = lazy(pageLoaders.marketplace);
 const ServicesPage = lazy(pageLoaders.services);
 const ProfilePage = lazy(pageLoaders.profile);
 const SettingsPage = lazy(pageLoaders.settings);
+const DeleteAccountPage = lazy(pageLoaders.deleteAccount);
 
 // The admin console is a separate page with its own layout, loaded only when staff open it.
 const AdminConsole = lazy(() => import("@/pages/admin/AdminConsole"));
@@ -94,6 +95,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="profile/:userId" element={<ProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="settings/delete-account" element={<DeleteAccountPage />} />
           </Route>
         </Route>
 

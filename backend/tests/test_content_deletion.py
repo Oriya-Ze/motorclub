@@ -245,14 +245,12 @@ async def test_member_can_delete_their_account_and_everything_it_owns(tmp_path, 
         await db.commit()
     member.profile_picture_url = avatar_key
     try:
-        async with get_session_factory()() as db:
-            fresh = await db.get(User, member.id)
-        async with _client_as(fresh) as client:
-            wrong = await client.request("DELETE", "/api/v1/users/me", json={"confirm_username": "someone-else"})
-            assert wrong.status_code == 400
-            assert wrong.json()["detail"] == "confirmation_mismatch"
-        app.dependency_overrides.clear()
+        sent: list[str] = []
 
+        async def _capture(_to: str, code: str) -> None:
+            sent.append(code)
+
+        monkeypatch.setattr("app.services.account_deletion_code.send_account_deletion_email", _capture)
         # Resolve the member inside the request's own session, as get_user_model does.
         from fastapi import Depends
 
@@ -263,7 +261,19 @@ async def test_member_can_delete_their_account_and_everything_it_owns(tmp_path, 
 
         app.dependency_overrides[get_user_model] = _member
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            res = await client.request("DELETE", "/api/v1/users/me", json={"confirm_username": f"@{member.username.upper()}"})
+            # Typing the username, the old confirmation, is no longer enough.
+            old = await client.request("DELETE", "/api/v1/users/me", json={"confirm_username": member.username})
+            assert old.status_code == 422
+            missing = await client.request("DELETE", "/api/v1/users/me", json={"code": "123456"})
+            assert missing.json()["detail"] == "deletion_code_missing"
+            requested = await client.post("/api/v1/users/me/deletion-code")
+            assert requested.status_code == 200, requested.text
+            assert requested.json()["email"].endswith("@example.com") and member.email not in requested.text
+            assert len(sent) == 1 and len(sent[0]) == 6
+            wrong_code = "000000" if sent[0] != "000000" else "111111"
+            wrong = await client.request("DELETE", "/api/v1/users/me", json={"code": wrong_code})
+            assert wrong.status_code == 400 and wrong.json()["detail"] == "deletion_code_invalid"
+            res = await client.request("DELETE", "/api/v1/users/me", json={"code": sent[0]})
             assert res.status_code == 200, res.text
         async with get_session_factory()() as db:
             assert await db.get(User, member.id) is None

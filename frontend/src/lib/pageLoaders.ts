@@ -28,6 +28,7 @@ export const pageLoaders = {
   services: () => import("@/pages/ServicesPage"),
   profile: () => import("@/pages/ProfilePage"),
   settings: () => import("@/pages/SettingsPage"),
+  deleteAccount: () => import("@/pages/DeleteAccountPage"),
   createPost: () => import("@/components/CreatePostModal"),
 };
 

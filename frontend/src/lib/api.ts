@@ -905,10 +905,15 @@ class ApiClient {
     });
   }
 
-  deleteAccount(confirmUsername: string) {
+  /** Emails the code that confirms deleting the account; returns the masked address it went to. */
+  requestAccountDeletionCode() {
+    return this.request<{ sent: boolean; email: string; expires_minutes: number }>("/users/me/deletion-code", { method: "POST" });
+  }
+
+  deleteAccount(code: string) {
     return this.request<{ deleted: boolean }>("/users/me", {
       method: "DELETE",
-      body: JSON.stringify({ confirm_username: confirmUsername }),
+      body: JSON.stringify({ code }),
     });
   }
 

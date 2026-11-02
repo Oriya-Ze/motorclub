@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import BusinessSettingsSection from "@/components/BusinessSettingsSection";
 import BusinessUpgradeModal from "@/components/BusinessUpgradeModal";
 import Avatar from "@/components/Avatar";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClassName } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { SettingsSkeleton } from "@/components/Skeleton";
 import { Input } from "@/components/ui/Input";
@@ -74,21 +74,12 @@ export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { user, refreshUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const deleteAccount = useMutation({
-    mutationFn: () => api.deleteAccount(deleteConfirm),
-    onSuccess: () => {
-      logout();
-      toast.success(t("accountDeletion.done"));
-      navigate("/", { replace: true });
-    },
-    onError: (err: Error) => toast.error(err.message || t("accountDeletion.failed")),
-  });
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [fullName, setFullName] = useState("");
   const [showUpgradeForm, setShowUpgradeForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
+  // ?tab=account opens a tab directly, e.g. coming back from the delete-account page; an unknown tab falls back below.
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => (searchParams.get("tab") as SettingsTab | null) ?? "profile");
 
   const avatarUpload = useImageCropUpload({
     purpose: "avatar",
@@ -477,40 +468,17 @@ export default function SettingsPage() {
 
             {activeTab === "account" && user && (
               <Card className="border-destructive/40">
-                <CardContent className="pt-5 pb-5 space-y-3">
-                  <h3 className="font-semibold text-destructive">{t("accountDeletion.title")}</h3>
-                  <p className="text-sm text-muted-foreground">{t("accountDeletion.body")}</p>
-                  <form
-                    className="space-y-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (deleteConfirm.trim() && window.confirm(t("accountDeletion.confirm"))) deleteAccount.mutate();
-                    }}
+                <CardContent className="pt-5 pb-5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <h3 className="font-semibold text-destructive">{t("accountDeletion.title")}</h3>
+                    <p className="text-sm text-muted-foreground">{t("accountDeletion.settingsHint")}</p>
+                  </div>
+                  <Link
+                    to="/settings/delete-account"
+                    className={cn(buttonClassName({ variant: "outline", size: "sm" }), "shrink-0 border-destructive/50 text-destructive hover:text-destructive")}
                   >
-                    <label className="block text-sm" htmlFor="delete-account-username">
-                      {t("accountDeletion.typeUsername", { username: user.username })}
-                    </label>
-                    <Input
-                      id="delete-account-username"
-                      value={deleteConfirm}
-                      onChange={(e) => setDeleteConfirm(e.target.value)}
-                      dir="ltr"
-                      autoComplete="off"
-                      autoCapitalize="none"
-                      spellCheck={false}
-                    />
-                    <Button
-                      type="submit"
-                      variant="destructive"
-                      size="sm"
-                      disabled={
-                        deleteAccount.isPending ||
-                        deleteConfirm.trim().replace(/^@/, "").toLowerCase() !== (user.username || "").toLowerCase()
-                      }
-                    >
-                      {deleteAccount.isPending ? t("accountDeletion.deleting") : t("accountDeletion.submit")}
-                    </Button>
-                  </form>
+                    {t("accountDeletion.open")}
+                  </Link>
                 </CardContent>
               </Card>
             )}

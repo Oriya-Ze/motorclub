@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     app_url: str = ""
     signup_code_expire_minutes: int = 30
     password_reset_code_expire_minutes: int = 30
+    account_deletion_code_expire_minutes: int = 15
     turnstile_site_key: str = ""
     turnstile_secret_key: str = ""
 

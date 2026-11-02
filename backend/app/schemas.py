@@ -389,7 +389,9 @@ class ProductPage(BaseModel):
 
 
 class AccountDeleteRequest(BaseModel):
-    confirm_username: str = Field(min_length=1, max_length=64)
+    """The code emailed by POST /users/me/deletion-code."""
+
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class ProfileUpdate(BaseModel):

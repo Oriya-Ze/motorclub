@@ -49,7 +49,7 @@ export function takeAuthNext(): string | null {
   }
 }
 
-export type AuthIntent = "parts" | "publish" | "services" | "business";
+export type AuthIntent = "parts" | "publish" | "services" | "business" | "deleteAccount";
 
 export function authIntent(next: string | null): AuthIntent | null {
   if (!next) return null;
@@ -58,6 +58,7 @@ export function authIntent(next: string | null): AuthIntent | null {
   if (path === "/marketplace" && params.get("create") === "1") return "publish";
   if (path === "/marketplace" || path.startsWith("/marketplace/")) return "parts";
   if (path === "/services" || path.startsWith("/services/")) return "services";
-  if (path === "/settings" || path.startsWith("/settings/")) return "business";
+  if (path === "/settings/delete-account") return "deleteAccount";
+  if (path === "/settings" && params.get("upgrade") === "1") return "business";
   return null;
 }

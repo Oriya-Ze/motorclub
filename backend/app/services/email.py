@@ -149,3 +149,47 @@ async def send_password_reset_email(to_email: str, code: str) -> None:
         raise RuntimeError(f"Failed to send password reset email (status {response.status_code})")
 
     logger.info("Password reset email sent to %s", to_email)
+
+
+def _account_deletion_email_html(code: str) -> str:
+    app = settings.app_name
+    site = settings.app_url or "https://motorclub.co.il"
+    return f"""
+    <div dir="rtl" style="font-family:Heebo,Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#111;margin:0 0 12px">אישור מחיקת החשבון</h2>
+      <p style="color:#444;line-height:1.6">קיבלנו בקשה למחוק את החשבון שלך ב-{app}. אחרי שתזין את הקוד יימחקו החשבון,
+      הפוסטים, הכלים, המוצרים, ההודעות וכל הקבצים שהעלית, ואי אפשר יהיה לשחזר אותם.</p>
+      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#e11d24">{code}</p>
+      <p style="color:#666;font-size:14px">הקוד תקף ל-{settings.account_deletion_code_expire_minutes} דקות. אם לא ביקשת למחוק את החשבון,
+      אל תמסור את הקוד לאף אחד, ומומלץ להחליף סיסמה.</p>
+      <p style="margin-top:24px"><a href="{site}" style="color:#e11d24">{site}</a></p>
+    </div>
+    """
+
+
+async def send_account_deletion_email(to_email: str, code: str) -> None:
+    if settings.is_local and not settings.resend_api_key and not settings.resend_secret_arn:
+        logger.info("Local account deletion code for %s: %s", to_email, code)
+        return
+
+    api_key = _load_resend_api_key()
+    from_email = settings.resend_from_email
+    if not from_email:
+        raise RuntimeError("RESEND_FROM_EMAIL is required to send account deletion emails")
+
+    payload = {
+        "from": f"{settings.resend_from_name} <{from_email}>",
+        "to": [to_email],
+        "subject": f"{settings.app_name} — קוד למחיקת החשבון",
+        "html": _account_deletion_email_html(code),
+    }
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.post(
+            "https://api.resend.com/emails",
+            json=payload,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        )
+    if response.status_code >= 400:
+        logger.error("Resend API error %s: %s", response.status_code, response.text[:500])
+        raise RuntimeError(f"Failed to send account deletion email (status {response.status_code})")
+    logger.info("Account deletion email sent to %s", to_email)
