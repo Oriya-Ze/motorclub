@@ -240,11 +240,12 @@ jobs:
             --exclude "index.html" --exclude "sw.js" --exclude "sw-redirect.js" --exclude "registerSW.js" --exclude "workbox-*.js" \
             --exclude "manifest.json" --exclude "manifest.webmanifest" \
             --cache-control "public, max-age=86400"
-          # The page and the service worker are checked on every visit, so a deploy shows up at once.
+          # The page and the service worker: browsers check them on every visit, so a deploy shows up at once, and
+          # CloudFront answers that check from the edge (s-maxage) because the invalidation below clears it on deploy.
           aws s3 cp frontend/dist "s3://$FRONTEND_BUCKET" --recursive --only-show-errors --exclude "*" \
             --include "index.html" --include "sw.js" --include "sw-redirect.js" --include "registerSW.js" --include "workbox-*.js" \
             --include "manifest.json" --include "manifest.webmanifest" \
-            --cache-control "no-cache"
+            --cache-control "public, max-age=0, must-revalidate, s-maxage=86400"
 
       - name: Invalidate CDN
         run: |
