@@ -10,6 +10,17 @@
         }
         var t = localStorage.getItem("motorclub_theme");
         document.documentElement.classList.toggle("dark", t !== "light");
+        // A signed-out visitor to "/" sees the landing page: start its hero photo now rather than once the app has
+        // loaded. Keep in step with HERO_PHOTO in LandingPage.tsx.
+        if (location.pathname === "/" && !localStorage.getItem("access_token")) {
+          var hero = document.createElement("link");
+          hero.rel = "preload";
+          hero.as = "image";
+          hero.type = "image/webp";
+          hero.href = "/landing/landing-911-hero.webp";
+          hero.setAttribute("fetchpriority", "high");
+          document.head.appendChild(hero);
+        }
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />

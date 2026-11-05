@@ -19,9 +19,11 @@ interface VehicleImageCarouselProps {
   alts?: string[];
   /** "smart" (the default) fills the frame unless that would cut too much, then shows the whole photo on black. */
   fit?: ImageFit;
+  /** For a carousel below the fold: its photos wait until they near the screen, behind what is visible. */
+  lazy?: boolean;
 }
 
-export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts, fit = "smart" }: VehicleImageCarouselProps) {
+export default function VehicleImageCarousel({ urls, imageMedia, className, imageClassName, alt, alts, fit = "smart", lazy = false }: VehicleImageCarouselProps) {
   const { t, i18n } = useTranslation();
   const [idx, setIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
@@ -72,7 +74,8 @@ export default function VehicleImageCarousel({ urls, imageMedia, className, imag
             className={cn("w-full h-56 sm:h-64 rounded-xl bg-black", imageClassName)}
             draggable={false}
             decoding="async"
-            fetchPriority={idx === 0 ? "high" : "low"}
+            loading={lazy ? "lazy" : undefined}
+            fetchPriority={idx === 0 && !lazy ? "high" : "low"}
           />
         </button>
 

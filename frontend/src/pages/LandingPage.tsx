@@ -11,12 +11,13 @@ import { LANDING_SHOWCASE_IDS, selectLandingShowcase } from "@/lib/landingShowca
 import { mediaUrl } from "@/lib/media";
 import { cn } from "@/lib/utils";
 
-const HERO_PHOTO = "/landing/landing-911-hero.jpg";
+// Also preloaded by index.html for signed-out visitors to "/", so keep the two in step.
+const HERO_PHOTO = "/landing/landing-911-hero.webp";
 
 // The hero already shows the front, so the sample passport opens on the rear.
 const DEMO_PHOTOS = [
-  "/landing/landing-911-rear.jpg",
-  "/landing/landing-911-detail.jpg",
+  "/landing/landing-911-rear.webp",
+  "/landing/landing-911-detail.webp",
   HERO_PHOTO,
 ];
 
@@ -187,6 +188,7 @@ function SamplePassport() {
       <VehicleImageCarousel
         fit="cover"
         urls={DEMO_PHOTOS}
+        lazy
         className="rounded-none"
         imageClassName="rounded-none h-56 sm:h-80 lg:h-[30rem]"
         alt={t("landing.sampleNickname")}
