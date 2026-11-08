@@ -38,7 +38,7 @@ export default function PostPage() {
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground rounded-lg px-1 py-0.5"
         >
-          <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+          <ArrowRight className="w-4 h-4 ltr:rotate-180" aria-hidden />
           {t("back")}
         </button>
       </div>

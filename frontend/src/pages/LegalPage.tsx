@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +9,28 @@ import { legalContent } from "@/content/legal";
 type LegalLocationState = {
   returnTo?: string;
 };
+
+/** A paragraph with "[label](href)" links: app paths open in the app, mailto: opens the mail client. */
+function renderParagraph(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const pattern = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    const [whole, label, href] = match;
+    const at = match.index ?? 0;
+    if (at > last) parts.push(text.slice(last, at));
+    parts.push(
+      href.startsWith("/") ? (
+        <Link key={at} to={href} className="text-primary underline-offset-2 hover:underline">{label}</Link>
+      ) : (
+        <a key={at} href={href} dir="ltr" className="text-primary underline-offset-2 hover:underline">{label}</a>
+      ),
+    );
+    last = at + whole.length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
 
 export function LegalPage({ type }: { type: "privacy" | "terms" }) {
   const { t, i18n } = useTranslation();
@@ -33,7 +56,7 @@ export function LegalPage({ type }: { type: "privacy" | "terms" }) {
           navigate(returnTo);
         }}
       >
-        <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+        <ArrowRight className="w-4 h-4 ltr:rotate-180" aria-hidden />
         {t("backToAuth")}
       </Button>
 
@@ -53,7 +76,7 @@ export function LegalPage({ type }: { type: "privacy" | "terms" }) {
               <h2 className="text-lg font-semibold">{section.title}</h2>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="text-muted-foreground leading-relaxed text-sm">
-                  {paragraph}
+                  {renderParagraph(paragraph)}
                 </p>
               ))}
             </section>

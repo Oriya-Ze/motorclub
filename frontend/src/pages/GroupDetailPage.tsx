@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Crown, Lock, MessageCircle, MoreHorizontal, Send, Share2, Shield, Trash2, UserMinus, Users, X } from "lucide-react";
+import { ArrowRight, Check, Crown, Lock, MessageCircle, MoreHorizontal, Send, Share2, Shield, Trash2, UserMinus, Users, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -239,8 +239,9 @@ export default function GroupDetailPage() {
         tab === "chat" ? "h-[calc(100dvh-11rem)] md:h-[calc(100dvh-8rem)]" : "pb-20 md:pb-6",
       )}
     >
-      <Link to="/groups" className="inline-flex text-sm text-muted-foreground hover:text-primary shrink-0">
-        {t("groups")}
+      <Link to="/groups" className="inline-flex min-h-9 items-center gap-1.5 text-sm text-muted-foreground hover:text-primary shrink-0">
+        <ArrowRight className="w-4 h-4 ltr:rotate-180" aria-hidden />
+        {t("back")}
       </Link>
 
       {/* Raised above the cards after it, and not clipping its contents, so the options menu opens on top. Only the

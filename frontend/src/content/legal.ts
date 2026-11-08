@@ -1,6 +1,7 @@
 export type LegalSection = {
   id?: string;
   title: string;
+  /** Plain text; "[label](href)" becomes a link (an app path, or mailto:). */
   paragraphs: string[];
 };
 
@@ -79,14 +80,14 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
       ],
     },
     terms: {
-      lastUpdated: "2 באוקטובר 2026",
+      lastUpdated: "8 בנובמבר 2026",
       intro:
         "ברוכים הבאים ל-MotorClub IL. השימוש באפליקציה כפוף לתנאים אלה. אם אינך מסכים/ה — אל תשתמש/י בשירות.",
       sections: [
         {
           title: "כשירות לשימוש",
           paragraphs: [
-            "השירות מיועד למשתמשים בני 16 ומעלה.",
+            "השירות מיועד למשתמשים בני 12 ומעלה.",
             "עליך לספק פרטים נכונים בעת ההרשמה ולשמור על סודיות פרטי ההתחברות.",
           ],
         },
@@ -94,9 +95,10 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           id: "community-rules",
           title: "כללי הקהילה",
           paragraphs: [
-            "אין לפרסם תוכן מיני מפורש, אלימות גרפית או סמלי שנאה.",
-            "אם תמונה נחסמת, הפוסט כולו נשמר כטיוטה ואינו גלוי לאחרים עד שכל התמונות בגרסה הנוכחית עומדות בכללים.",
-            "אפשר לבקש בדיקה נוספת. הבקשה מתייחסת לגרסה שנחסמה.",
+            "אין לפרסם תוכן מיני, אלימות גרפית או סמלי שנאה.",
+            "פרסום תכנים ושיתופם באתר ובאפליקציה, ככל שיהיו, נתונים לשיקול דעתה הבלעדי של הנהלת האתר.",
+            "השימוש באתר ובאפליקציה הוא באחריות המשתמשים בלבד, והנהלת האתר לא תהיה חשופה לתביעה מכל סוג בגין שימוש לא הגון של משתמשים באתר.",
+            "הנהלת האתר רשאית להשתמש בתכנים המפורסמים באתר לצרכיו העסקיים של האתר.",
           ],
         },
         {
@@ -110,8 +112,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
         {
           title: "תוכן משתמשים",
           paragraphs: [
-            "הבעלות על התוכן שאתה מפרסם נשארת שלך.",
-            "בפרסום תוכן, אתה מעניק לנו רישיון לא בלעדי להציג, לאחסן ולהפיץ את התוכן במסגרת השירות.",
+            "בפרסום תוכן, אתה מעניק לנו רשות להציג, לאחסן ולהפיץ את התוכן במסגרת השירות.",
             "אתה אחראי/ת לכל תוכן שאתה מפרסם, כולל תמונות וטקסט.",
           ],
         },
@@ -126,20 +127,20 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "הגבלת אחריות",
           paragraphs: [
             "השירות ניתן \"כפי שהוא\" (AS IS). איננו מתחייבים לזמינות רציפה או לתוכן שמפרסמים משתמשים.",
-            "MotorClub IL לא תישא באחריות לנזקים עקיפים הנובעים מהשימוש בשירות, בכפוף לדין.",
+            "MotorClub IL לא תישא באחריות לנזקים ישירים או עקיפים הנובעים מהשימוש בשירות, בכפוף לדין.",
           ],
         },
         {
           title: "סיום שימוש",
           paragraphs: [
-            "באפשרותך להפסיק שימוש בכל עת ולמחוק את החשבון בהגדרות. אנו רשאים להשעות או למחוק חשבון שמפר תנאים.",
+            "באפשרותך להפסיק את השימוש בכל עת ולמחוק את החשבון [בהגדרות](/settings?tab=account). הנהלת האתר רשאית להשעות או למחוק חשבון לפי שיקול דעתה.",
           ],
         },
         {
           title: "דין וסמכות שיפוט",
           paragraphs: [
             "על תנאים אלה יחולו דיני מדינת ישראל. סמכות השיפוט הבלעדית — בתי המשפט המוסמכים בישראל.",
-            "לשאלות: legal@motorclub.co.il",
+            "לשאלות: [motorclub.co.il@gmail.com](mailto:motorclub.co.il@gmail.com)",
           ],
         },
       ],
@@ -208,14 +209,14 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
       ],
     },
     terms: {
-      lastUpdated: "October 2, 2026",
+      lastUpdated: "November 8, 2026",
       intro:
         "Welcome to MotorClub IL. By using the app you agree to these terms. If you do not agree, do not use the service.",
       sections: [
         {
           title: "Eligibility",
           paragraphs: [
-            "You must be at least 16 years old to use the service.",
+            "You must be at least 12 years old to use the service.",
             "You must provide accurate registration details and keep your credentials secure.",
           ],
         },
@@ -223,9 +224,10 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           id: "community-rules",
           title: "Community rules",
           paragraphs: [
-            "Do not publish explicit sexual content, graphic violence, or hate symbols.",
-            "If one image is blocked, the whole post stays a private draft until every image in the current version follows the rules.",
-            "You can request another review. The request refers to the blocked version.",
+            "Do not publish sexual content, graphic violence, or hate symbols.",
+            "Publishing and sharing any content on the site and in the app is at the sole discretion of the site's management.",
+            "Users use the site and the app at their own responsibility only, and the site's management will not be exposed to any claim of any kind arising from improper use of the site by users.",
+            "The site's management may use content published on the site for the site's business purposes.",
           ],
         },
         {
@@ -239,8 +241,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
         {
           title: "User content",
           paragraphs: [
-            "You retain ownership of content you publish.",
-            "By posting, you grant us a non-exclusive license to host, display, and distribute it within the service.",
+            "By posting content, you grant us permission to display, host, and distribute it within the service.",
             "You are responsible for all content you publish, including images and text.",
           ],
         },
@@ -255,20 +256,20 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "Disclaimer",
           paragraphs: [
             "The service is provided \"as is\". We do not guarantee uninterrupted availability or user-generated content accuracy.",
-            "MotorClub IL is not liable for indirect damages arising from use of the service, to the extent permitted by law.",
+            "MotorClub IL is not liable for direct or indirect damages arising from use of the service, to the extent permitted by law.",
           ],
         },
         {
           title: "Termination",
           paragraphs: [
-            "You may stop using the service at any time and delete your account in Settings. We may suspend or delete accounts that violate these terms.",
+            "You may stop using the service at any time and delete your account [in Settings](/settings?tab=account). The site's management may suspend or delete an account at its discretion.",
           ],
         },
         {
           title: "Governing law",
           paragraphs: [
             "These terms are governed by the laws of the State of Israel. Exclusive jurisdiction: competent courts in Israel.",
-            "Questions: legal@motorclub.co.il",
+            "Questions: [motorclub.co.il@gmail.com](mailto:motorclub.co.il@gmail.com)",
           ],
         },
       ],

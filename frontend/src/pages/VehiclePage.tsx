@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Flag, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
+import { ArrowRight, Camera, Flag, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -203,8 +203,9 @@ export default function VehiclePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 pb-20 md:pb-6">
-      <Link to={isOwner ? "/profile?tab=garage" : ownerPath} className="inline-flex text-sm text-muted-foreground hover:text-primary">
-        {isOwner ? t("garage.title") : t("garage.ownerProfile")}
+      <Link to={isOwner ? "/profile?tab=garage" : ownerPath} className="inline-flex min-h-9 items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+        <ArrowRight className="w-4 h-4 ltr:rotate-180" aria-hidden />
+        {t("back")}
       </Link>
 
       <Card className="overflow-hidden">
