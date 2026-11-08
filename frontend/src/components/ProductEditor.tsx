@@ -62,8 +62,37 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
   const [fieldError, setFieldError] = useState("");
   const [lowQuality, setLowQuality] = useState(false);
 
+  // Set after a save or after editing a product, so the next new product opens on an empty form.
+  const startFresh = useRef(false);
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setPrice("");
+    setCategory("spareParts");
+    setCondition("");
+    setFitMake("");
+    setFitModel("");
+    setYearFrom("");
+    setYearTo("");
+    setBrand("");
+    setSku("");
+    setPickup("");
+    setShips(false);
+    setImages([]);
+    setLocalFiles({});
+    setLocalPreviews({});
+    setAdjust(null);
+    setSavedAt(null);
+    setFieldError("");
+    setLowQuality(false);
+  };
+
   useEffect(() => {
     if (!open) return;
+    // The editor stays mounted between openings. A new product starts empty after a save or after editing another
+    // product (otherwise their details would still fill the form); a form closed by mistake keeps what was typed.
+    if (product || startFresh.current) resetForm();
+    startFresh.current = Boolean(product);
     if (product) {
       setName(product.name);
       setDescription(product.description || "");
@@ -186,6 +215,7 @@ export default function ProductEditor({ open, onClose, onSaved, product }: Produ
         ? await api.updateProduct(product.id, body)
         : await api.createProduct(body);
       if (!product && user) localStorage.removeItem(draftKey(user.id));
+      startFresh.current = true;
       if (saved.listing_status === "published") toast.success(t("productEditor.published"));
       // The editor closes right away, so a held product gets a longer toast that says what happens next.
       else if (publish) {

@@ -243,8 +243,10 @@ export default function GroupDetailPage() {
         {t("groups")}
       </Link>
 
-      <Card className="overflow-hidden shrink-0">
-        <div className="h-20 sm:h-24 bg-muted/70" />
+      {/* Raised above the cards after it, and not clipping its contents, so the options menu opens on top. Only the
+          cover band is clipped to the card's rounded corners. */}
+      <Card className="relative z-10 shrink-0">
+        <div className="h-20 sm:h-24 rounded-t-2xl bg-muted/70" />
         <CardContent className="relative pt-0 pb-4 px-4 sm:px-6 space-y-3">
           <div className="flex items-end gap-3 sm:gap-4 -mt-8">
             <GroupMark id={group.id} name={group.name} size="lg" className="border-4 border-card" />
@@ -284,14 +286,17 @@ export default function GroupDetailPage() {
                   className="h-9 w-9"
                   onClick={() => setShowMenu((v) => !v)}
                   aria-label={t("groupOptions")}
+                  aria-haspopup="menu"
+                  aria-expanded={showMenu}
                 >
                   <MoreHorizontal className="w-5 h-5" />
                 </Button>
                 {showMenu && (
-                  <div className="absolute end-0 top-full mt-1 z-20 min-w-[180px] glass-card rounded-xl py-1">
+                  <div role="menu" className="absolute end-0 top-full mt-1 z-30 min-w-[180px] rounded-xl border border-border bg-card py-1 shadow-xl">
                     {group.is_member && group.my_role !== "owner" && (
                       <button
                         type="button"
+                        role="menuitem"
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-muted/50 text-start"
                         onClick={() => {
                           setShowMenu(false);
@@ -304,6 +309,7 @@ export default function GroupDetailPage() {
                     {isOwner && (
                       <button
                         type="button"
+                        role="menuitem"
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted/50 text-start"
                         onClick={() => {
                           setShowMenu(false);
