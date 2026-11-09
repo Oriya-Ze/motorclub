@@ -2,9 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, Clock, ExternalLink, ImagePlus, MapPin, Package, Plus, Trash2, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import CreateProductModal from "@/components/CreateProductModal";
 import MyProducts from "@/components/MyProducts";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -29,7 +28,7 @@ export default function BusinessSettingsSection() {
   const { t } = useTranslation();
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
+  const navigate = useNavigate();
   const [businessName, setBusinessName] = useState("");
   const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
   const [businessEntity, setBusinessEntity] = useState<BusinessEntity | "">("");
@@ -382,7 +381,7 @@ export default function BusinessSettingsSection() {
             <Package className="w-4 h-4 text-primary" />
             <h4 className="font-semibold">{t("businessSettings.productsSection")}</h4>
           </div>
-          <Button size="sm" className="gap-1.5" onClick={() => setShowCreate(true)}>
+          <Button size="sm" className="gap-1.5" onClick={() => navigate("/marketplace?create=1")}>
             <Plus className="w-4 h-4" />
             {t("businessSettings.addProduct")}
           </Button>
@@ -391,14 +390,6 @@ export default function BusinessSettingsSection() {
         <MyProducts />
       </div>
 
-      <CreateProductModal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onCreated={() => {
-          void queryClient.invalidateQueries({ queryKey: ["my-products"] });
-          void queryClient.invalidateQueries({ queryKey: ["products"] });
-        }}
-      />
     </div>
   );
 }
