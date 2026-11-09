@@ -80,7 +80,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
       ],
     },
     terms: {
-      lastUpdated: "8 בנובמבר 2026",
+      lastUpdated: "9 בנובמבר 2026",
       intro:
         "ברוכים הבאים ל-MotorClub IL. השימוש באפליקציה כפוף לתנאים אלה. אם אינך מסכים/ה — אל תשתמש/י בשירות.",
       sections: [
@@ -134,6 +134,22 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "סיום שימוש",
           paragraphs: [
             "באפשרותך להפסיק את השימוש בכל עת ולמחוק את החשבון [בהגדרות](/settings?tab=account). הנהלת האתר רשאית להשעות או למחוק חשבון לפי שיקול דעתה.",
+          ],
+        },
+        {
+          id: "business-terms",
+          title: "תנאים לעסקים",
+          paragraphs: [
+            "פרטי העסק שנמסרו בבקשת השדרוג ובהגדרות העסק נכונים, ומי שמגיש/ה אותם מורשה לפעול בשם העסק.",
+            "האחריות למוצרים ולשירותים שהעסק מציע, למחיריהם, לאיכותם ולעמידה בדין, כולל דיני הגנת הצרכן, היא של העסק בלבד. הנהלת האתר אינה צד לעסקה בין העסק ללקוחותיו.",
+            "פרטי העסק, המוצרים, השירותים והביקורות מוצגים לכל משתמשי האתר.",
+            "הנהלת האתר רשאית לבדוק בקשה לפרופיל עסקי, לאשר או לדחות אותה, ולהסיר פרופיל עסקי, מוצר או שירות לפי שיקול דעתה.",
+          ],
+        },
+        {
+          title: "עדכונים לתנאי השימוש",
+          paragraphs: [
+            "הנהלת האתר רשאית לעדכן את תנאי השימוש, ומעדכנת אותם מעת לעת. אפשר לצפות בנוסח העדכני בכל עת בעמוד זה, ותאריך העדכון האחרון מופיע בראשו.",
           ],
         },
         {
@@ -209,7 +225,7 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
       ],
     },
     terms: {
-      lastUpdated: "November 8, 2026",
+      lastUpdated: "November 9, 2026",
       intro:
         "Welcome to MotorClub IL. By using the app you agree to these terms. If you do not agree, do not use the service.",
       sections: [
@@ -263,6 +279,22 @@ export const legalContent: Record<"he" | "en", LegalContent> = {
           title: "Termination",
           paragraphs: [
             "You may stop using the service at any time and delete your account [in Settings](/settings?tab=account). The site's management may suspend or delete an account at its discretion.",
+          ],
+        },
+        {
+          id: "business-terms",
+          title: "Terms for businesses",
+          paragraphs: [
+            "The business details given in the upgrade request and in the business settings are accurate, and whoever submits them is authorized to act on behalf of the business.",
+            "The business alone is responsible for the products and services it offers, their prices and quality, and compliance with the law, including consumer protection law. The site's management is not a party to any transaction between the business and its customers.",
+            "The business details, products, services and reviews are shown to all users of the site.",
+            "The site's management may review a business profile request, approve or reject it, and remove a business profile, product or service at its discretion.",
+          ],
+        },
+        {
+          title: "Changes to these terms",
+          paragraphs: [
+            "The site's management may update these terms, and does so from time to time. The current version can be viewed at any time on this page, and the date of the latest update appears at the top.",
           ],
         },
         {

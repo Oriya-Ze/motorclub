@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import BusinessCategoryFields from "@/components/BusinessCategoryFields";
+import { legalContent } from "@/content/legal";
 import type { BusinessEntity, BusinessType, BusinessUpgradeFormData } from "@/lib/businessTypes";
 import { digitsOnly, PHONE_MAX_DIGITS, REGISTRATION_DIGITS } from "@/lib/numericInput";
 
@@ -22,7 +23,7 @@ export default function BusinessUpgradeModal({
   isSubmitting,
   defaultContactName = "",
 }: BusinessUpgradeModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [form, setForm] = useState({
     business_name: "",
     business_phone: "",
@@ -36,7 +37,9 @@ export default function BusinessUpgradeModal({
   });
   const [types, setTypes] = useState<BusinessType[]>([]);
   const [entity, setEntity] = useState<BusinessEntity | "">("");
-  const [errors, setErrors] = useState<{ types?: string; entity?: string }>({});
+  const [errors, setErrors] = useState<{ types?: string; entity?: string; terms?: string }>({});
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const businessTerms = legalContent[i18n.language === "en" ? "en" : "he"].terms.sections.find((section) => section.id === "business-terms");
   const id = useId();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   // The parent passes a new function on every render; reading it from a ref keeps the effect from re-running and moving focus.
@@ -66,9 +69,10 @@ export default function BusinessUpgradeModal({
     const missing = {
       types: types.length ? undefined : t("businessUpgradeForm.needCategory"),
       entity: entity ? undefined : t("businessUpgradeForm.needEntity"),
+      terms: acceptedTerms ? undefined : t("businessUpgradeForm.needTerms"),
     };
     setErrors(missing);
-    if (missing.types || missing.entity || !entity) return;
+    if (missing.types || missing.entity || missing.terms || !entity) return;
     onSubmit({
       business_name: form.business_name.trim(),
       business_type: types[0],
@@ -189,6 +193,38 @@ export default function BusinessUpgradeModal({
               className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none"
             />
           </div>
+
+          <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4" aria-labelledby={`${id}-terms-title`}>
+            <h3 id={`${id}-terms-title`} className="text-sm font-semibold">{t("businessUpgradeForm.termsTitle")}</h3>
+            <ul className="list-disc space-y-1.5 ps-5 text-xs leading-relaxed text-muted-foreground">
+              {businessTerms?.paragraphs.map((paragraph) => <li key={paragraph}>{paragraph}</li>)}
+            </ul>
+            <a
+              href="/terms-of-service#business-terms"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex min-h-9 items-center text-xs text-primary underline-offset-2 hover:underline"
+            >
+              {t("businessUpgradeForm.termsFull")}
+            </a>
+            <label className="flex min-h-10 cursor-pointer items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => {
+                  setAcceptedTerms(e.target.checked);
+                  if (e.target.checked) setErrors((prev) => ({ ...prev, terms: undefined }));
+                }}
+                aria-invalid={Boolean(errors.terms)}
+                aria-describedby={errors.terms ? `${id}-terms-error` : undefined}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+              />
+              <span>{t("businessUpgradeForm.termsAccept")}</span>
+            </label>
+            {errors.terms && (
+              <p id={`${id}-terms-error`} role="alert" className="text-xs text-destructive">{errors.terms}</p>
+            )}
+          </section>
 
           <p className="text-xs text-muted-foreground">{t("businessUpgradeForm.reviewNote")}</p>
 
