@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Clock, ExternalLink, ImagePlus, MapPin, Package, Plus, Trash2, Wrench } from "lucide-react";
+import { BarChart3, Clock, ExternalLink, ImagePlus, MapPin, Package, Trash2, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import MyProducts from "@/components/MyProducts";
 import Avatar from "@/components/Avatar";
@@ -22,13 +22,12 @@ import {
   mapsEmbedUrl,
 } from "@/lib/businessProfile";
 import { mediaUrl } from "@/lib/media";
-import { decimalOnly, digitsOnly, PHONE_MAX_DIGITS, REGISTRATION_DIGITS } from "@/lib/numericInput";
+import { digitsOnly, PHONE_MAX_DIGITS, REGISTRATION_DIGITS } from "@/lib/numericInput";
 
 export default function BusinessSettingsSection() {
   const { t } = useTranslation();
   const { user, refreshUser } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [businessName, setBusinessName] = useState("");
   const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
   const [businessEntity, setBusinessEntity] = useState<BusinessEntity | "">("");
@@ -43,9 +42,6 @@ export default function BusinessSettingsSection() {
   const [profilePictureUrl, setProfilePictureUrl] = useState("");
   const [certifications, setCertifications] = useState("");
   const [serviceCities, setServiceCities] = useState("");
-  const [newServiceName, setNewServiceName] = useState("");
-  const [newServicePrice, setNewServicePrice] = useState("");
-  const [newServiceDesc, setNewServiceDesc] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -120,23 +116,6 @@ export default function BusinessSettingsSection() {
       queryClient.invalidateQueries({ queryKey: ["user"] });
       queryClient.invalidateQueries({ queryKey: ["services"] });
       toast.success(t("businessSettings.saved"));
-    },
-    onError: (err: Error) => toast.error(err.message),
-  });
-
-  const createService = useMutation({
-    mutationFn: () =>
-      api.createBusinessService({
-        name: newServiceName.trim(),
-        description: newServiceDesc.trim() || undefined,
-        price_from: newServicePrice ? Number(newServicePrice) : undefined,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-business-services"] });
-      setNewServiceName("");
-      setNewServicePrice("");
-      setNewServiceDesc("");
-      toast.success(t("businessSettings.serviceCreated"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -351,21 +330,6 @@ export default function BusinessSettingsSection() {
           <Wrench className="w-4 h-4 text-primary" />
           <h4 className="font-semibold">{t("businessSettings.servicesSection")}</h4>
         </div>
-        <div className="space-y-2 rounded-xl border border-border/50 p-3">
-          <Input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} placeholder={t("businessSettings.serviceName")} />
-          <Input value={newServicePrice} onChange={(e) => setNewServicePrice(decimalOnly(e.target.value))} placeholder={t("businessSettings.servicePriceFrom")} dir="ltr" inputMode="decimal" />
-          <textarea
-            value={newServiceDesc}
-            onChange={(e) => setNewServiceDesc(e.target.value)}
-            rows={2}
-            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm resize-none"
-            placeholder={t("businessSettings.serviceDescription")}
-          />
-          <Button size="sm" disabled={!newServiceName.trim() || createService.isPending} onClick={() => createService.mutate()}>
-            <Plus className="w-4 h-4" />
-            {t("businessSettings.addService")}
-          </Button>
-        </div>
         {servicesLoading ? (
           <p className="text-sm text-muted-foreground">{t("loading")}</p>
         ) : services.length === 0 ? (
@@ -376,15 +340,9 @@ export default function BusinessSettingsSection() {
       </div>
 
       <div className="space-y-4 border-t border-border/50 pt-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Package className="w-4 h-4 text-primary" />
-            <h4 className="font-semibold">{t("businessSettings.productsSection")}</h4>
-          </div>
-          <Button size="sm" className="gap-1.5" onClick={() => navigate("/marketplace?create=1")}>
-            <Plus className="w-4 h-4" />
-            {t("businessSettings.addProduct")}
-          </Button>
+        <div className="flex items-center gap-2">
+          <Package className="w-4 h-4 text-primary" />
+          <h4 className="font-semibold">{t("businessSettings.productsSection")}</h4>
         </div>
 
         <MyProducts />

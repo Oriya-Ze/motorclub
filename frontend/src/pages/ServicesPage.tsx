@@ -1,15 +1,17 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { MapPin, Phone, Star, Wrench } from "lucide-react";
+import { MapPin, Phone, Plus, Star, Wrench } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import Avatar from "@/components/Avatar";
+import CreateServiceDialog from "@/components/CreateServiceDialog";
 import EmptyState from "@/components/EmptyState";
 import ServicesSearchBar from "@/components/ServicesSearchBar";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ListPageSkeleton } from "@/components/Skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { BusinessPublic, BUSINESS_CATEGORIES, getBusinessProfilePath } from "@/lib/businessProfile";
 import { businessTypesOf } from "@/lib/businessTypes";
@@ -19,6 +21,9 @@ import { cn } from "@/lib/utils";
 export default function ServicesPage() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { user } = useAuth();
+  const isBusiness = user?.account_type === "business";
+  const [showCreate, setShowCreate] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState("");
 
@@ -44,10 +49,19 @@ export default function ServicesPage() {
 
   return (
     <div className="space-y-5 pb-20 md:pb-6">
-      <div>
-        <h1 className="text-2xl font-display tracking-wide">{t("services")}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t("servicesSubtitle")}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-display tracking-wide">{t("services")}</h1>
+          <p className="text-sm text-muted-foreground mt-1">{t("servicesSubtitle")}</p>
+        </div>
+        {isBusiness && (
+          <Button size="sm" className="shrink-0 gap-1.5" onClick={() => setShowCreate(true)}>
+            <Plus className="w-4 h-4" aria-hidden />
+            {t("businessSettings.addService")}
+          </Button>
+        )}
       </div>
+      {showCreate && <CreateServiceDialog onClose={() => setShowCreate(false)} />}
 
       <ServicesSearchBar onDebouncedChange={handleDebouncedSearch} />
 
