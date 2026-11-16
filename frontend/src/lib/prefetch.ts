@@ -36,7 +36,7 @@ const routePrefetch: Record<string, (qc: QueryClient) => void> = {
   "/explore": (qc) => {
     void qc.prefetchQuery({ queryKey: ["explore-posts"], queryFn: () => api.explorePosts() });
     void qc.prefetchQuery({ queryKey: ["explore-vehicles"], queryFn: () => api.exploreVehicles() });
-    void qc.prefetchQuery({ queryKey: ["trending-hashtags"], queryFn: () => api.trendingHashtags() });
+    void qc.prefetchQuery({ queryKey: ["services", "", ""], queryFn: () => api.getServices({}) });
   },
   "/services": (qc) => {
     void qc.prefetchQuery({ queryKey: ["services", "", ""], queryFn: () => api.getServices() });

@@ -1,8 +1,8 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -204,6 +204,92 @@ async def trending_hashtags(db: AsyncSession = Depends(get_db), _=Depends(get_cu
                 counts[tag] = counts.get(tag, 0) + 1
     sorted_tags = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:20]
     return [{"tag": t, "count": c} for t, c in sorted_tags]
+
+
+SEARCH_POST_LIMIT = 30
+SEARCH_TAG_LIMIT = 12
+
+
+def _escape_like(text: str) -> str:
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+@explore_router.get("/search")
+async def explore_search(
+    q: str = Query(min_length=1, max_length=80),
+    db: AsyncSession = Depends(get_db),
+    viewer: User = Depends(get_user_model),
+):
+    """Posts (photo, video or text) and hashtags matching q. People, businesses, products and vehicles come from
+    their own search endpoints, which already apply their visibility rules."""
+    from app.media.keys import is_private_storage_key
+    from app.media.video_assets import build_video_media_map
+
+    stem = q.strip()
+    tag = stem.lstrip("#").strip().lower()
+    if not tag:
+        return {"posts": [], "hashtags": []}
+    text_pattern = f"%{_escape_like(stem)}%"
+    tag_pattern = f"%{_escape_like(tag)}%"
+    tags_text = func.array_to_string(Post.hashtags, " ")
+
+    rows = (
+        await db.execute(
+            select(Post)
+            .where(publicly_visible(), or_(Post.content.ilike(text_pattern), cast(tags_text, String).ilike(tag_pattern)))
+            .order_by(Post.created_at.desc())
+            .limit(SEARCH_POST_LIMIT * 2)
+        )
+    ).scalars().all()
+    user_map = await load_users(db, (p.user_id for p in rows))
+    viewable = await viewable_owner_ids(db, user_map, viewer.id)
+    posts = [p for p in rows if p.user_id in viewable and p.user_id in user_map][:SEARCH_POST_LIMIT]
+
+    image_keys = [p.image_urls[0] for p in posts if p.image_urls and not is_private_storage_key(p.image_urls[0])]
+    video_keys = [p.video_urls[0] for p in posts if not p.image_urls and p.video_urls]
+    image_map = await build_image_media_map(db, list(dict.fromkeys(image_keys)))
+    video_map = await build_video_media_map(db, list(dict.fromkeys(video_keys))) if video_keys else {}
+    items = []
+    for p in posts:
+        kind, thumb = "text", None
+        if p.image_urls:
+            source = p.image_urls[0]
+            if not is_private_storage_key(source):
+                media = image_map.get(source)
+                thumb = (media.thumb_key if media else None) or source
+            kind = "image"
+        elif p.video_urls:
+            video = video_map.get(p.video_urls[0])
+            thumb = (video.thumb_key or video.poster_key) if video else None
+            kind = "video"
+        if kind == "image" and not thumb:
+            continue  # its photo is still private, so it cannot show as a tile
+        items.append({
+            "id": str(p.id),
+            "kind": kind,
+            "thumbnail": thumb,
+            "content": (p.content or "")[:200],
+            "author": user_to_public(user_map[p.user_id]),
+        })
+
+    tag_rows = (
+        await db.execute(
+            select(Post.user_id, Post.hashtags)
+            .where(publicly_visible(), cast(tags_text, String).ilike(tag_pattern))
+            .limit(300)
+        )
+    ).all()
+    # Count only posts this viewer could open, so a private profile's tags do not leak through the numbers.
+    tag_viewable = await viewable_owner_ids(db, list({owner for owner, _ in tag_rows}), viewer.id)
+    counts: dict[str, int] = {}
+    for owner, tags in tag_rows:
+        if owner not in tag_viewable:
+            continue
+        for value in tags or []:
+            if tag in value.lower():
+                counts[value] = counts.get(value, 0) + 1
+    ranked = sorted(counts.items(), key=lambda item: (item[0].lower() != tag, -item[1], item[0]))[:SEARCH_TAG_LIMIT]
+    return {"posts": items, "hashtags": [{"tag": value, "count": count} for value, count in ranked]}
 
 
 @explore_router.get("/vehicles")

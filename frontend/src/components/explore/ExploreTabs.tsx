@@ -1,4 +1,4 @@
-import { Camera, Hash, Warehouse } from "lucide-react";
+import { Camera, Store, Warehouse } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { EXPLORE_TABS, type ExploreTab } from "./types";
@@ -6,7 +6,7 @@ import { EXPLORE_TABS, type ExploreTab } from "./types";
 const TAB_META: Record<ExploreTab, { icon: typeof Camera; labelKey: string }> = {
   photos: { icon: Camera, labelKey: "exploreTabPhotos" },
   vehicles: { icon: Warehouse, labelKey: "exploreTabVehicles" },
-  tags: { icon: Hash, labelKey: "exploreTabTags" },
+  businesses: { icon: Store, labelKey: "exploreTabBusinesses" },
 };
 
 interface ExploreTabsProps {

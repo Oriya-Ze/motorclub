@@ -40,6 +40,19 @@ export interface ExploreVehicleModPreview {
   shop_name?: string | null;
 }
 
+export interface ExploreSearchPost {
+  id: string;
+  kind: "image" | "video" | "text";
+  thumbnail?: string | null;
+  content?: string | null;
+  author?: User | null;
+}
+
+export interface ExploreSearchResult {
+  posts: ExploreSearchPost[];
+  hashtags: Array<{ tag: string; count: number }>;
+}
+
 export interface ExploreVehicle {
   id: string;
   make: string;
@@ -736,6 +749,11 @@ class ApiClient {
 
   trendingHashtags() {
     return this.request<Array<{ tag: string; count: number }>>("/explore/hashtags");
+  }
+
+  /** Posts (photo, video or text) and hashtags matching q; the other result groups use their own search calls. */
+  exploreSearch(q: string) {
+    return this.request<ExploreSearchResult>(`/explore/search?q=${encodeURIComponent(q)}`);
   }
 
   exploreVehicles() {

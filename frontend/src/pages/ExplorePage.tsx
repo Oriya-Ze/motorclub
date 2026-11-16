@@ -1,15 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Hash } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, Hash, Search, Store, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import ExploreHashtagPanel from "@/components/explore/ExploreHashtagPanel";
+import BusinessCard from "@/components/BusinessCard";
+import EmptyState from "@/components/EmptyState";
+import ExploreSearchResults from "@/components/explore/ExploreSearchResults";
 import ExplorePhotoGrid from "@/components/explore/ExplorePhotoGrid";
 import ExploreTabs from "@/components/explore/ExploreTabs";
 import ExploreVehicleGrid from "@/components/explore/ExploreVehicleGrid";
 import { parseExploreTab, type ExploreTab } from "@/components/explore/types";
 import PageHeading from "@/components/PageHeading";
-import UserSearch from "@/components/UserSearch";
+import { ListPageSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { api } from "@/lib/api";
@@ -22,15 +24,34 @@ export default function ExplorePage() {
   const vehicleSearch = vehicleQuery.trim();
   const tag = params.get("tag")?.trim() || "";
   const tab = parseExploreTab(params.get("tab"));
+  // The search lives in the URL (?q=), so going back from a result returns to the same results.
+  const urlQuery = params.get("q") ?? "";
+  const [searchText, setSearchText] = useState(urlQuery);
+  const search = urlQuery.trim();
+  const searching = search.length >= 2;
+
+  useEffect(() => setSearchText(urlQuery), [urlQuery]);
+
+  useEffect(() => {
+    if (searchText === urlQuery) return;
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(params);
+      if (searchText.trim()) next.set("q", searchText);
+      else next.delete("q");
+      setParams(next, { replace: true });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: explorePosts = [], isLoading: postsLoading } = useQuery({
     queryKey: ["explore-posts"],
     queryFn: () => api.explorePosts(),
   });
 
-  const { data: hashtags = [], isLoading: tagsLoading } = useQuery({
-    queryKey: ["trending-hashtags"],
-    queryFn: () => api.trendingHashtags(),
+  const { data: businesses = [], isLoading: businessesLoading } = useQuery({
+    queryKey: ["services", "", ""],
+    queryFn: () => api.getServices({}),
+    enabled: tab === "businesses" && !searching,
   });
 
   const { data: searchedVehicles = [], isLoading: searchLoading } = useQuery({
@@ -42,7 +63,7 @@ export default function ExplorePage() {
   const { data: vehicles = [], isLoading: vehiclesLoading } = useQuery({
     queryKey: ["explore-vehicles"],
     queryFn: () => api.exploreVehicles(),
-    enabled: tab === "vehicles",
+    enabled: tab === "vehicles" && !searching,
   });
 
   const { data: tagPosts = [], isLoading: tagPostsLoading } = useQuery({
@@ -61,7 +82,6 @@ export default function ExplorePage() {
   const clearTag = () => {
     const nextParams = new URLSearchParams(params);
     nextParams.delete("tag");
-    if (!nextParams.get("tab")) nextParams.set("tab", "tags");
     setParams(nextParams, { replace: true });
   };
 
@@ -106,9 +126,34 @@ export default function ExplorePage() {
     <div className="space-y-5 pb-20 md:pb-6 max-w-2xl mx-auto">
       <PageHeading subtitle={t("exploreSubtitle")}>{t("explore")}</PageHeading>
 
-      <div className="md:hidden">
-        <UserSearch />
+      <div className="relative">
+        <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Input
+          type="search"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder={t("exploreSearch.placeholder")}
+          aria-label={t("exploreSearch.label")}
+          enterKeyHint="search"
+          className="h-11 ps-9 pe-10"
+        />
+        {searchText && (
+          <button
+            type="button"
+            onClick={() => setSearchText("")}
+            aria-label={t("exploreSearch.clear")}
+            className="absolute end-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        )}
       </div>
+
+      {searching ? (
+        <ExploreSearchResults key={search} query={search} />
+      ) : (
+      <>
+      {search.length === 1 && <p className="text-sm text-muted-foreground">{t("exploreSearch.minChars")}</p>}
 
       <ExploreTabs active={tab} onChange={setTab} />
 
@@ -147,10 +192,20 @@ export default function ExplorePage() {
         </section>
       )}
 
-      {tab === "tags" && (
+      {tab === "businesses" && (
         <section className="space-y-3">
-          <h2 className="font-display text-xl tracking-wide">{t("trendingHashtags")}</h2>
-          <ExploreHashtagPanel hashtags={hashtags} isLoading={tagsLoading} />
+          <h2 className="font-display text-xl tracking-wide">{t("exploreBusinesses")}</h2>
+          {businessesLoading ? (
+            <ListPageSkeleton rows={3} />
+          ) : businesses.length === 0 ? (
+            <EmptyState icon={Store} title={t("noServices")} className="py-12" />
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {businesses.map((business) => (
+                <BusinessCard key={business.id} service={business} />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -159,10 +214,12 @@ export default function ExplorePage() {
           <Button variant="outline" size="sm" onClick={() => setTab("vehicles")}>
             {t("exploreTabVehicles")}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setTab("tags")}>
-            {t("exploreTabTags")}
+          <Button variant="outline" size="sm" onClick={() => setTab("businesses")}>
+            {t("exploreTabBusinesses")}
           </Button>
         </div>
+      )}
+      </>
       )}
     </div>
   );
