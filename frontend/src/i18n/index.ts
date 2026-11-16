@@ -466,7 +466,7 @@ const resources = {
       exploreBusinesses: "עסקים מהקהילה",
       exploreSearch: {
         label: "חיפוש בגילוי",
-        placeholder: "חיפוש משתמשים, עסקים, פוסטים, האשטאגים, מוצרים ורכבים",
+        placeholder: "חיפוש",
         clear: "ניקוי החיפוש",
         minChars: "יש להקליד לפחות 2 תווים",
         searching: "מחפש…",
@@ -1783,7 +1783,7 @@ const resources = {
       exploreBusinesses: "Businesses from the community",
       exploreSearch: {
         label: "Search Explore",
-        placeholder: "Search people, businesses, posts, hashtags, products and cars",
+        placeholder: "Search",
         clear: "Clear search",
         minChars: "Type at least 2 characters",
         searching: "Searching…",
