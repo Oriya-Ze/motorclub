@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { startBootGate, whenBootSettled } from "@/lib/bootGate";
 import { preloadPage } from "@/lib/pageLoaders";
 import { conversationsQuery, unreadCountQuery } from "@/lib/liveQueries";
 
@@ -23,11 +24,15 @@ function prefetchFeed(queryClient: QueryClient) {
  */
 export function prefetchAppData(queryClient: QueryClient) {
   prefetchFeed(queryClient);
-  void queryClient.prefetchQuery(unreadCountQuery);
-  void queryClient.prefetchQuery(conversationsQuery);
-  void queryClient.prefetchQuery({
-    queryKey: ["settings"],
-    queryFn: () => api.getSettings(),
+  startBootGate(queryClient);
+  // Counters and settings are not on the first screen; they follow once it is in (see bootGate).
+  whenBootSettled(() => {
+    void queryClient.prefetchQuery(unreadCountQuery);
+    void queryClient.prefetchQuery(conversationsQuery);
+    void queryClient.prefetchQuery({
+      queryKey: ["settings"],
+      queryFn: () => api.getSettings(),
+    });
   });
 }
 

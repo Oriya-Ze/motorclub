@@ -116,6 +116,10 @@ class CognitoAuthProvider(AuthProvider):
     async def _get_jwks(self) -> dict:
         global _jwks_cache
         if _jwks_cache is None:
+            from app.jwks_prefetch import prefetched
+
+            _jwks_cache = prefetched()
+        if _jwks_cache is None:
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.jwks_url)
                 response.raise_for_status()

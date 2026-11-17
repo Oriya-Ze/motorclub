@@ -4,8 +4,6 @@ import asyncio
 import time
 from functools import lru_cache
 
-import boto3
-from botocore.exceptions import ClientError
 from fastapi import HTTPException, Request
 
 from app.config import settings
@@ -18,6 +16,9 @@ logger = get_logger(__name__)
 def _table():
     if not settings.rate_limit_table:
         return None
+    # Loaded on the first rate-limited request (auth writes), not at import, to keep cold starts short.
+    import boto3
+
     dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
     return dynamodb.Table(settings.rate_limit_table)
 
@@ -54,7 +55,11 @@ def _check_sync(key: str, limit: int, window_seconds: int) -> None:
             table.put_item(Item={"pk": key, "count": 1, "expires_at": now + window_seconds})
     except HTTPException:
         raise
-    except ClientError as exc:
+    except Exception as exc:
+        from botocore.exceptions import ClientError
+
+        if not isinstance(exc, ClientError):
+            raise
         logger.warning("Rate limit check failed: %s", exc)
 
 

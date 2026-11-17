@@ -21,7 +21,7 @@ async def test_s3_create_upload_request_presigned_put(monkeypatch) -> None:
     mock_client = MagicMock()
     mock_client.generate_presigned_url.return_value = "https://s3.example.com/presigned"
 
-    with patch("app.media.s3.boto3.client", return_value=mock_client):
+    with patch("boto3.client", return_value=mock_client):
         storage = S3MediaStorage()
         user_id = uuid.uuid4()
         request = await storage.create_upload_request(
@@ -50,7 +50,7 @@ def test_s3_factory_requires_bucket(monkeypatch) -> None:
 
     monkeypatch.setenv("S3_MEDIA_BUCKET", "test-bucket")
     reload_settings()
-    with patch("app.media.s3.boto3.client", return_value=MagicMock()):
+    with patch("boto3.client", return_value=MagicMock()):
         storage = get_media_storage()
     assert isinstance(storage, S3MediaStorage)
 
@@ -60,7 +60,7 @@ def test_s3_resolve_url_uses_media_base_url(monkeypatch) -> None:
     monkeypatch.setenv("S3_MEDIA_BUCKET", "test-bucket")
     monkeypatch.setenv("MEDIA_BASE_URL", "https://media.example.com")
     reload_settings()
-    with patch("app.media.s3.boto3.client", return_value=MagicMock()):
+    with patch("boto3.client", return_value=MagicMock()):
         storage = S3MediaStorage()
     key = f"users/{uuid.uuid4()}/posts/abc.jpg"
     assert storage.resolve_url(key) == f"https://media.example.com/{key}"

@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { pageLoaders } from "@/lib/pageLoaders";
 import { prefetchAppData, prefetchRoute } from "@/lib/prefetch";
+import { useBootSettled } from "@/lib/bootGate";
 
 // The composer and its cropper load with the first tap on "create", not with every page.
 const CreatePostModal = lazy(pageLoaders.createPost);
@@ -62,8 +63,9 @@ function AuthenticatedLayout() {
     if (user) prefetchAppData(queryClient);
   }, [user, queryClient]);
 
-  const { data: unread } = useQuery({ ...unreadCountQuery, refetchInterval: LIVE_POLL_MS });
-  useQuery({ ...conversationsQuery, refetchInterval: LIVE_POLL_MS });
+  const bootSettled = useBootSettled();
+  const { data: unread } = useQuery({ ...unreadCountQuery, refetchInterval: LIVE_POLL_MS, enabled: bootSettled });
+  useQuery({ ...conversationsQuery, refetchInterval: LIVE_POLL_MS, enabled: bootSettled });
 
   const edgeToEdge =
     location.pathname === "/" || /^\/posts\/[^/]+$/.test(location.pathname);

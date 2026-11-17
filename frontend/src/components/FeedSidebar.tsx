@@ -1,24 +1,44 @@
 import { useQuery } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 import { Calendar, Hash } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
+import { useBootSettled } from "@/lib/bootGate";
+
+const WIDE = "(min-width: 1024px)";
+
+function subscribeWide(listener: () => void) {
+  const query = window.matchMedia(WIDE);
+  query.addEventListener("change", listener);
+  return () => query.removeEventListener("change", listener);
+}
+
+/** The sidebar shows only on wide screens (lg); a phone never sees it, so it should not load it either. */
+function useWideScreen() {
+  return useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false);
+}
 
 export default function FeedSidebar() {
   const { t, i18n } = useTranslation();
+  const wide = useWideScreen();
+  const bootSettled = useBootSettled();
+  const enabled = wide && bootSettled;
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
     queryFn: () => api.getEvents(),
     staleTime: 120_000,
+    enabled,
   });
 
   const { data: hashtags = [] } = useQuery({
     queryKey: ["trending-hashtags"],
     queryFn: () => api.trendingHashtags(),
     staleTime: 120_000,
+    enabled,
   });
 
   const upcoming = events

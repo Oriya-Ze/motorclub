@@ -1,8 +1,5 @@
 from uuid import UUID
 
-import boto3
-from botocore.config import Config
-from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import HTTPException
 
 import app.config as app_config
@@ -17,6 +14,10 @@ class S3MediaStorage(MediaStorage):
             raise ValueError("S3_MEDIA_BUCKET is required when MEDIA_STORAGE_PROVIDER=s3")
         self._bucket = app_config.settings.s3_media_bucket
         region = app_config.settings.aws_region
+        # boto3 loads here, not at import: most requests never touch S3, and a cold start should not pay for it.
+        import boto3
+        from botocore.config import Config
+
         self._client = boto3.client(
             "s3",
             region_name=region,
@@ -60,7 +61,11 @@ class S3MediaStorage(MediaStorage):
                 },
                 ExpiresIn=expires_in,
             )
-        except (BotoCoreError, ClientError) as exc:
+        except Exception as exc:
+            from botocore.exceptions import BotoCoreError, ClientError
+
+            if not isinstance(exc, (BotoCoreError, ClientError)):
+                raise
             raise HTTPException(status_code=503, detail="Unable to create upload URL") from exc
 
         return UploadRequest(

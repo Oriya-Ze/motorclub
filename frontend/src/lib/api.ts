@@ -375,6 +375,35 @@ export class ApiError extends Error {
   }
 }
 
+/** Auth endpoints answer for themselves: a 401 there is the answer, not a sign that the session needs refreshing. */
+const NO_REFRESH_PATHS = new Set([
+  "/auth/login",
+  "/auth/register",
+  "/auth/confirm",
+  "/auth/refresh",
+  "/auth/logout",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/oauth/callback",
+  "/auth/resend-confirmation",
+]);
+
+/** Refresh this long before the access token expires, so a request never leaves with a token about to lapse. */
+const REFRESH_MARGIN_SECONDS = 60;
+
+/** Seconds since the epoch at which a JWT expires, or null when it cannot be read. */
+function tokenExpiry(token: string): number | null {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "="));
+    const exp = (JSON.parse(json) as { exp?: unknown }).exp;
+    return typeof exp === "number" ? exp : null;
+  } catch {
+    return null;
+  }
+}
+
 class ApiClient {
   private token: string | null = localStorage.getItem("access_token");
   private refreshToken: string | null = localStorage.getItem("refresh_token");
@@ -455,24 +484,20 @@ class ApiClient {
       ...(isForm ? {} : { "Content-Type": "application/json" }),
       ...(options.headers as Record<string, string>),
     };
+    const pathOnly = path.split("?")[0];
+    const canRefresh = !skipRefresh && Boolean(this.refreshToken) && !NO_REFRESH_PATHS.has(pathOnly);
+
+    // A member coming back after the access token lapsed would otherwise send every first request, get a 401,
+    // refresh, and send it again. Refreshing first (once, shared by all requests) saves that round trip.
+    if (canRefresh && this.token) {
+      const exp = tokenExpiry(this.token);
+      if (exp !== null && exp - Date.now() / 1000 < REFRESH_MARGIN_SECONDS) await this.refreshAccess();
+    }
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
 
     const response = await fetch(`${API_URL}${path}`, { ...options, headers });
 
     if (response.status === 401) {
-      const pathOnly = path.split("?")[0];
-      const canRefresh =
-        !skipRefresh &&
-        Boolean(this.refreshToken) &&
-        pathOnly !== "/auth/login" &&
-        pathOnly !== "/auth/register" &&
-        pathOnly !== "/auth/confirm" &&
-        pathOnly !== "/auth/refresh" &&
-        pathOnly !== "/auth/logout" &&
-        pathOnly !== "/auth/forgot-password" &&
-        pathOnly !== "/auth/reset-password" &&
-        pathOnly !== "/auth/oauth/callback" &&
-        pathOnly !== "/auth/resend-confirmation";
       if (canRefresh) {
         const refreshed = await this.refreshAccess();
         if (refreshed) return this.request<T>(path, options, true);
