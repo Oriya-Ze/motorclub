@@ -323,6 +323,17 @@ export interface VehicleCatalogModel {
   code: string;
 }
 
+export interface VehiclePlateLookup {
+  kind: "car" | "motorcycle" | "heavy" | string;
+  make: string;
+  model: string;
+  year?: number | null;
+  trim?: string | null;
+  color?: string | null;
+  engine?: string | null;
+  fuel?: string | null;
+}
+
 export interface VehicleCatalogVariant {
   id: string;
   trim: string;
@@ -751,6 +762,11 @@ class ApiClient {
 
   getVehicleCatalogModels(makeId: string) {
     return this.request<VehicleCatalogModel[]>(`/vehicle-catalog/makes/${makeId}/models`);
+  }
+
+  /** Vehicle details from the Ministry of Transport registry. The plate is not stored. */
+  lookupVehiclePlate(plate: string) {
+    return this.request<VehiclePlateLookup>(`/vehicle-catalog/plate/${encodeURIComponent(plate)}`);
   }
 
   getVehicleCatalogVariants(makeId: string, modelId: string) {

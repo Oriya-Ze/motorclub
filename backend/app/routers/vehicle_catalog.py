@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.schemas import VehicleCatalogMake, VehicleCatalogModel, VehicleCatalogVariant
+from app.deps import get_user_model
+from app.models import User
+from app.schemas import VehicleCatalogMake, VehicleCatalogModel, VehicleCatalogVariant, VehiclePlateLookup
+from app.services import plate_lookup
 from app.services import vehicle_catalog as catalog
 
 router = APIRouter(prefix="/vehicle-catalog", tags=["vehicle-catalog"])
@@ -43,3 +46,21 @@ async def get_variants(make_id: str, model_id: str):
         )
         for v in variants
     ]
+
+
+@router.get("/plate/{plate}", response_model=VehiclePlateLookup)
+async def lookup_by_plate(plate: str, request: Request, user: User = Depends(get_user_model)):
+    """Fill the add-vehicle form from the Ministry of Transport registry. The plate is not stored."""
+    from app.rate_limit import enforce_rate_limit
+
+    number = plate_lookup.normalize_plate(plate)
+    if not number:
+        raise HTTPException(status_code=400, detail="plate_invalid")
+    await enforce_rate_limit(request, "vehicle:plate", identifier=str(user.id), limit=30, window_seconds=3600)
+    try:
+        found = await plate_lookup.lookup_plate(number)
+    except plate_lookup.PlateLookupUnavailable as exc:
+        raise HTTPException(status_code=503, detail="plate_lookup_unavailable") from exc
+    if not found or not found.make or not found.model:
+        raise HTTPException(status_code=404, detail="plate_not_found")
+    return VehiclePlateLookup(**found.__dict__)

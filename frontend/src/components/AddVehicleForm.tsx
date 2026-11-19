@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Car, PenLine, Wrench, X } from "lucide-react";
+import { AlertCircle, Camera, Car, CheckCircle2, PenLine, Search, Wrench, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useAuth } from "@/contexts/AuthContext";
-import { api, Vehicle, VehicleCatalogVariant, VehicleModItem } from "@/lib/api";
+import { api, ApiError, Vehicle, VehicleCatalogVariant, VehicleModItem, VehiclePlateLookup } from "@/lib/api";
 import { formatEngineLabel } from "@/lib/formatLabels";
 import { digitsOnly, YEAR_DIGITS } from "@/lib/numericInput";
 
@@ -46,6 +46,11 @@ const emptyForm = {
   nickname: "",
   mods: [] as VehicleModItem[],
   manual: false,
+  /** "plate" fills the details from the Ministry of Transport registry; "manual" is the catalog or free text. */
+  source: "plate" as "plate" | "manual",
+  /** Only used for the lookup; never sent with the vehicle. */
+  plate: "",
+  plateFound: false,
 };
 
 type VehicleForm = typeof emptyForm;
@@ -67,7 +72,10 @@ function readDraft(userId: string | undefined): { form: VehicleForm; images: str
     if (!raw) return null;
     const draft = JSON.parse(raw) as { form?: Partial<VehicleForm>; images?: unknown };
     const images = Array.isArray(draft.images) ? draft.images.filter((item): item is string => typeof item === "string") : [];
-    return { form: { ...emptyForm, ...draft.form, mods: Array.isArray(draft.form?.mods) ? draft.form.mods : [] }, images };
+    const form = { ...emptyForm, ...draft.form, mods: Array.isArray(draft.form?.mods) ? draft.form.mods : [] };
+    // A draft from before the plate option, with details already chosen, continues as manual entry.
+    if (!draft.form?.source && form.make) form.source = "manual";
+    return { form, images };
   } catch {
     return null;
   }
@@ -146,21 +154,21 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   const { data: catalogMakes = [], isLoading: makesLoading } = useQuery({
     queryKey: ["vehicle-catalog-makes"],
     queryFn: () => api.getVehicleCatalogMakes(),
-    enabled: !form.manual,
+    enabled: form.source === "manual" && !form.manual,
     staleTime: 86_400_000,
   });
   const makeId = form.makeId || null;
   const { data: catalogModels = [], isLoading: modelsLoading } = useQuery({
     queryKey: ["vehicle-catalog-models", makeId],
     queryFn: () => api.getVehicleCatalogModels(makeId!),
-    enabled: !form.manual && Boolean(makeId),
+    enabled: form.source === "manual" && !form.manual && Boolean(makeId),
     staleTime: 86_400_000,
   });
   const modelId = form.modelId || null;
   const { data: catalogVariants = [], isLoading: variantsLoading } = useQuery({
     queryKey: ["vehicle-catalog-variants", makeId, modelId],
     queryFn: () => api.getVehicleCatalogVariants(makeId!, modelId!),
-    enabled: !form.manual && Boolean(makeId) && Boolean(modelId),
+    enabled: form.source === "manual" && !form.manual && Boolean(makeId) && Boolean(modelId),
     staleTime: 86_400_000,
   });
 
@@ -178,7 +186,8 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
     }));
   };
 
-  const selectedVariant = form.manual ? undefined : catalogVariants.find((variant) => variant.id === form.variantId);
+  const freeText = form.source === "plate" ? form.plateFound : form.manual;
+  const selectedVariant = freeText ? undefined : catalogVariants.find((variant) => variant.id === form.variantId);
   const yearChoices = selectedVariant ? variantYears(selectedVariant) : [];
 
   const variantLabel = (variant: VehicleCatalogVariant) => {
@@ -195,7 +204,54 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   const engineText = formatEngineLabel(
     [form.engine.trim(), form.manual && form.horsepower ? `${form.horsepower} כ״ס` : ""].filter(Boolean).join(" · "),
   );
-  const missing = [!form.make.trim() && t("garage.editor.needMake"), !form.model.trim() && t("garage.editor.needModel")].filter(Boolean) as string[];
+  const missing = (
+    form.source === "plate" && !form.plateFound
+      ? [t("garage.editor.plateNeedSearch")]
+      : [!form.make.trim() && t("garage.editor.needMake"), !form.model.trim() && t("garage.editor.needModel")]
+  ).filter(Boolean) as string[];
+
+  const [plateError, setPlateError] = useState<string | null>(null);
+  const plateLookup = useMutation({
+    mutationFn: (plate: string) => api.lookupVehiclePlate(plate),
+    onMutate: () => setPlateError(null),
+    onSuccess: (found: VehiclePlateLookup) =>
+      setForm((prev) => ({
+        ...prev,
+        plateFound: true,
+        make: found.make,
+        model: found.model,
+        year: found.year ? String(found.year) : "",
+        trim: found.trim ?? "",
+        color: found.color ?? prev.color,
+        engine: found.engine ?? "",
+        horsepower: "",
+      })),
+    onError: (err: Error) => {
+      const detail = err instanceof ApiError ? err.detail : "";
+      const key =
+        detail === "plate_not_found"
+          ? "garage.editor.plateNotFound"
+          : detail === "plate_invalid"
+            ? "garage.editor.plateInvalid"
+            : detail === "plate_lookup_unavailable"
+              ? "garage.editor.plateUnavailable"
+              : null;
+      setPlateError(key ? t(key) : err.message);
+    },
+  });
+  const plateDigits = form.plate.replace(/\D/g, "");
+  const searchPlate = () => {
+    if (plateDigits.length < 5 || plateDigits.length > 8) {
+      setPlateError(t("garage.editor.plateInvalid"));
+      return;
+    }
+    plateLookup.mutate(plateDigits);
+  };
+  const switchSource = (source: VehicleForm["source"]) => {
+    if (source === form.source) return;
+    setPlateError(null);
+    setForm({ ...emptyForm, source, plate: form.plate, description: form.description, nickname: form.nickname, mods: form.mods });
+  };
 
   const createVehicle = useMutation({
     mutationFn: () =>
@@ -278,19 +334,76 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
             </Section>
 
             <Section icon={Car} title={t("garage.editor.sectionDetails")}>
+              <div role="radiogroup" aria-label={t("garage.editor.sourceLabel")} className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-muted/30 p-1">
+                {(["plate", "manual"] as const).map((source) => (
+                  <button
+                    key={source}
+                    type="button"
+                    role="radio"
+                    aria-checked={form.source === source}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${form.source === source ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+                    onClick={() => switchSource(source)}
+                  >
+                    {t(source === "plate" ? "garage.editor.sourcePlate" : "garage.editor.sourceManual")}
+                  </button>
+                ))}
+              </div>
+              {form.source === "plate" ? (
+                <div className="space-y-2">
+                  <form
+                    className="flex items-end gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      searchPlate();
+                    }}
+                  >
+                    <Field id={`${id}-plate`} label={t("garage.editor.plate")} className="flex-1">
+                      <Input
+                        id={`${id}-plate`}
+                        value={form.plate}
+                        onChange={(e) => setForm({ ...form, plate: e.target.value.replace(/[^\d\- ]/g, "").slice(0, 12) })}
+                        placeholder={t("garage.editor.platePlaceholder")}
+                        dir="ltr"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        aria-invalid={Boolean(plateError) || (tried && !form.plateFound)}
+                        aria-describedby={`${id}-plate-status`}
+                      />
+                    </Field>
+                    <Button type="submit" variant="outline" className="!shadow-none" disabled={plateLookup.isPending || !plateDigits}>
+                      <Search className="me-1 h-4 w-4" aria-hidden />
+                      {plateLookup.isPending ? t("garage.editor.plateSearching") : t("garage.editor.plateSearch")}
+                    </Button>
+                  </form>
+                  <p
+                    id={`${id}-plate-status`}
+                    role={plateError ? "alert" : "status"}
+                    className={`flex items-start gap-1.5 text-xs ${plateError ? "text-destructive" : form.plateFound ? "text-emerald-700 dark:text-emerald-400" : "text-muted-foreground"}`}
+                  >
+                    {plateError ? (
+                      <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+                    ) : form.plateFound ? (
+                      <CheckCircle2 className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+                    ) : null}
+                    <span>{plateError ?? (form.plateFound ? t("garage.editor.plateFound") : t("garage.editor.plateHint"))}</span>
+                  </p>
+                </div>
+              ) : (
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-[hsl(var(--primary))]"
                   checked={form.manual}
                   onChange={(e) =>
-                    setForm({ ...emptyForm, manual: e.target.checked, color: form.color, description: form.description, nickname: form.nickname, mods: form.mods })
+                    setForm({ ...emptyForm, source: "manual", manual: e.target.checked, color: form.color, description: form.description, nickname: form.nickname, mods: form.mods })
                   }
                 />
                 {t("garage.notInCatalog")}
               </label>
+              )}
+              {form.source === "manual" || form.plateFound ? (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {form.manual ? (
+                {freeText ? (
                   <>
                     <Field id={`${id}-make`} label={t("garage.make")}>
                       <Input id={`${id}-make`} value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} aria-invalid={tried && !form.make.trim()} />
@@ -381,10 +494,10 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                 <Field id={`${id}-color`} label={t("garage.color")}>
                   <Input id={`${id}-color`} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
                 </Field>
-                <Field id={`${id}-engine`} label={t("garage.engine")} className={form.manual ? undefined : "sm:col-span-2"}>
+                <Field id={`${id}-engine`} label={t("garage.engine")} className={form.source === "manual" && form.manual ? undefined : "sm:col-span-2"}>
                   <Input id={`${id}-engine`} value={form.engine} onChange={(e) => setForm({ ...form, engine: e.target.value })} />
                 </Field>
-                {form.manual ? (
+                {form.source === "manual" && form.manual ? (
                   <Field id={`${id}-horsepower`} label={t("garage.editor.horsepower")}>
                     <Input
                       id={`${id}-horsepower`}
@@ -396,6 +509,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                   </Field>
                 ) : null}
               </div>
+              ) : null}
             </Section>
 
             <Section icon={PenLine} title={t("garage.editor.sectionStory")}>

@@ -526,6 +526,17 @@ class VehicleCatalogVariant(BaseModel):
     year_to: int | None = None
 
 
+class VehiclePlateLookup(BaseModel):
+    kind: str
+    make: str
+    model: str
+    year: int | None = None
+    trim: str | None = None
+    color: str | None = None
+    engine: str | None = None
+    fuel: str | None = None
+
+
 class VehicleResponse(BaseModel):
     id: UUID
     user_id: UUID
