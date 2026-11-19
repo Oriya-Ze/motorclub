@@ -51,6 +51,8 @@ const emptyForm = {
   /** Only used for the lookup; never sent with the vehicle. */
   plate: "",
   plateFound: false,
+  /** The registry recorded a colour, so it is locked too (motorcycles and heavy vehicles have none). */
+  plateColor: false,
 };
 
 type VehicleForm = typeof emptyForm;
@@ -201,6 +203,10 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   };
 
   const freeText = form.source === "plate" ? form.plateFound : form.manual;
+  // Found by plate: the server takes these details from the registry again on save, and they can never be edited.
+  const locked = form.source === "plate" && form.plateFound;
+  const lockedProps = locked ? { readOnly: true, "aria-readonly": true, className: "cursor-not-allowed bg-muted/40 text-muted-foreground" } : {};
+  const colorLockedProps = locked && form.plateColor ? lockedProps : {};
   const selectedVariant = freeText ? undefined : catalogVariants.find((variant) => variant.id === form.variantId);
   const yearChoices = selectedVariant ? variantYears(selectedVariant) : [];
 
@@ -237,6 +243,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
         year: found.year ? String(found.year) : "",
         trim: found.trim ?? "",
         color: found.color ?? prev.color,
+        plateColor: Boolean(found.color),
         engine: found.engine ?? "",
         horsepower: "",
       })),
@@ -270,6 +277,7 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   const createVehicle = useMutation({
     mutationFn: () =>
       api.createVehicle({
+        plate: form.source === "plate" ? plateDigits : undefined,
         make: form.make.trim(),
         model: form.model.trim(),
         year: form.year ? parseInt(form.year, 10) : undefined,
@@ -375,7 +383,11 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                       <Input
                         id={`${id}-plate`}
                         value={form.plate}
-                        onChange={(e) => setForm({ ...form, plate: e.target.value.replace(/[^\d\- ]/g, "").slice(0, 12) })}
+                        onChange={(e) => {
+                          const plate = e.target.value.replace(/[^\d\- ]/g, "").slice(0, 12);
+                          // A different plate clears the details found for the previous one.
+                          setForm(form.plateFound ? { ...emptyForm, plate, description: form.description, nickname: form.nickname, mods: form.mods } : { ...form, plate });
+                        }}
                         placeholder={t("garage.editor.platePlaceholder")}
                         dir="ltr"
                         inputMode="numeric"
@@ -420,13 +432,13 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                 {freeText ? (
                   <>
                     <Field id={`${id}-make`} label={t("garage.make")}>
-                      <Input id={`${id}-make`} value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} aria-invalid={tried && !form.make.trim()} />
+                      <Input id={`${id}-make`} value={form.make} onChange={(e) => setForm({ ...form, make: e.target.value })} aria-invalid={tried && !form.make.trim()} {...lockedProps} />
                     </Field>
                     <Field id={`${id}-model`} label={t("garage.model")}>
-                      <Input id={`${id}-model`} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} aria-invalid={tried && !form.model.trim()} />
+                      <Input id={`${id}-model`} value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} aria-invalid={tried && !form.model.trim()} {...lockedProps} />
                     </Field>
                     <Field id={`${id}-trim`} label={t("garage.trim")}>
-                      <Input id={`${id}-trim`} value={form.trim} onChange={(e) => setForm({ ...form, trim: e.target.value })} />
+                      <Input id={`${id}-trim`} value={form.trim} onChange={(e) => setForm({ ...form, trim: e.target.value })} {...lockedProps} />
                     </Field>
                   </>
                 ) : (
@@ -502,14 +514,14 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
                       ))}
                     </Select>
                   ) : (
-                    <Input id={`${id}-year`} value={form.year} onChange={(e) => setForm({ ...form, year: digitsOnly(e.target.value, YEAR_DIGITS) })} dir="ltr" inputMode="numeric" />
+                    <Input id={`${id}-year`} value={form.year} onChange={(e) => setForm({ ...form, year: digitsOnly(e.target.value, YEAR_DIGITS) })} dir="ltr" inputMode="numeric" {...lockedProps} />
                   )}
                 </Field>
                 <Field id={`${id}-color`} label={t("garage.color")}>
-                  <Input id={`${id}-color`} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+                  <Input id={`${id}-color`} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} {...colorLockedProps} />
                 </Field>
                 <Field id={`${id}-engine`} label={t("garage.engine")} className={form.source === "manual" && form.manual ? undefined : "sm:col-span-2"}>
-                  <Input id={`${id}-engine`} value={form.engine} onChange={(e) => setForm({ ...form, engine: e.target.value })} />
+                  <Input id={`${id}-engine`} value={form.engine} onChange={(e) => setForm({ ...form, engine: e.target.value })} {...lockedProps} />
                 </Field>
                 {form.source === "manual" && form.manual ? (
                   <Field id={`${id}-horsepower`} label={t("garage.editor.horsepower")}>

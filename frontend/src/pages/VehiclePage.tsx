@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Camera, Flag, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
+import { ArrowRight, Camera, Flag, Lock, PenLine, Share2, Star, Trash2, Upload, Volume2, Wrench } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
@@ -99,12 +99,17 @@ export default function VehiclePage() {
   const saveEdit = useMutation({
     mutationFn: () =>
       api.updateVehicle(vehicleId!, {
-        make: draft.make,
-        model: draft.model,
-        year: draft.year ? Number(draft.year) : null,
-        trim: draft.trim || null,
-        color: draft.color || null,
-        engine: draft.engine || null,
+        // Details verified by licence plate are locked on the server; they are not sent at all.
+        ...(vehicle?.registry_verified
+          ? {}
+          : {
+              make: draft.make,
+              model: draft.model,
+              year: draft.year ? Number(draft.year) : null,
+              trim: draft.trim || null,
+              color: draft.color || null,
+              engine: draft.engine || null,
+            }),
         description: draft.description || null,
         nickname: draft.nickname?.trim() || null,
         walkaround_url: draft.walkaround_url || null,
@@ -151,6 +156,10 @@ export default function VehiclePage() {
       setUploadingClip(null);
     }
   };
+
+  const lockedProps = vehicle?.registry_verified
+    ? { readOnly: true, "aria-readonly": true, className: "cursor-not-allowed bg-muted/40 text-muted-foreground" }
+    : {};
 
   if (isLoading) return <ProfileSkeleton />;
   if (error || !vehicle) {
@@ -235,13 +244,19 @@ export default function VehiclePage() {
                 maxLength={40}
               />
               <p className="text-[11px] text-muted-foreground -mt-2">{t("garage.nicknameOptional")}</p>
+              {vehicle.registry_verified ? (
+                <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <Lock className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+                  {t("garage.editor.plateLocked")}
+                </p>
+              ) : null}
               <div className="grid grid-cols-2 gap-2">
-                <Input value={draft.make ?? ""} onChange={(e) => setDraft({ ...draft, make: e.target.value })} placeholder={t("garage.make")} />
-                <Input value={draft.model ?? ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })} placeholder={t("garage.model")} />
-                <Input value={draft.year ? String(draft.year) : ""} onChange={(e) => { const year = digitsOnly(e.target.value, YEAR_DIGITS); setDraft({ ...draft, year: year ? Number(year) : undefined }); }} placeholder={t("garage.year")} dir="ltr" inputMode="numeric" />
-                <Input value={draft.trim ?? ""} onChange={(e) => setDraft({ ...draft, trim: e.target.value })} placeholder={t("garage.trim")} />
-                <Input value={draft.color ?? ""} onChange={(e) => setDraft({ ...draft, color: e.target.value })} placeholder={t("garage.color")} />
-                <Input value={draft.engine ?? ""} onChange={(e) => setDraft({ ...draft, engine: e.target.value })} placeholder={t("garage.engine")} />
+                <Input value={draft.make ?? ""} onChange={(e) => setDraft({ ...draft, make: e.target.value })} placeholder={t("garage.make")} aria-label={t("garage.make")} {...lockedProps} />
+                <Input value={draft.model ?? ""} onChange={(e) => setDraft({ ...draft, model: e.target.value })} placeholder={t("garage.model")} aria-label={t("garage.model")} {...lockedProps} />
+                <Input value={draft.year ? String(draft.year) : ""} onChange={(e) => { const year = digitsOnly(e.target.value, YEAR_DIGITS); setDraft({ ...draft, year: year ? Number(year) : undefined }); }} placeholder={t("garage.year")} aria-label={t("garage.year")} dir="ltr" inputMode="numeric" {...lockedProps} />
+                <Input value={draft.trim ?? ""} onChange={(e) => setDraft({ ...draft, trim: e.target.value })} placeholder={t("garage.trim")} aria-label={t("garage.trim")} {...lockedProps} />
+                <Input value={draft.color ?? ""} onChange={(e) => setDraft({ ...draft, color: e.target.value })} placeholder={t("garage.color")} aria-label={t("garage.color")} {...lockedProps} />
+                <Input value={draft.engine ?? ""} onChange={(e) => setDraft({ ...draft, engine: e.target.value })} placeholder={t("garage.engine")} aria-label={t("garage.engine")} {...lockedProps} />
               </div>
               <textarea
                 value={draft.description ?? ""}

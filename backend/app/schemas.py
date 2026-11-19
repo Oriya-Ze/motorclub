@@ -471,8 +471,10 @@ class VehicleModItem(BaseModel):
 
 
 class VehicleCreate(BaseModel):
-    make: str = Field(min_length=1, max_length=100)
-    model: str = Field(min_length=1, max_length=100)
+    # With a plate the server fills make, model, year, trim, engine and colour from the registry itself.
+    plate: str | None = Field(default=None, max_length=20)
+    make: str | None = Field(default=None, max_length=100)
+    model: str | None = Field(default=None, max_length=100)
     year: int | None = None
     trim: str | None = None
     color: str | None = None
@@ -555,6 +557,7 @@ class VehicleResponse(BaseModel):
     image_urls: list[str] | None
     image_media: list[ImageMediaResponse] | None = None
     is_primary: bool
+    registry_verified: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

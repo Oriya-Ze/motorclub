@@ -305,6 +305,8 @@ export interface Vehicle {
   image_urls?: string[] | null;
   image_media?: ImageMedia[] | null;
   is_primary: boolean;
+  /** Added by licence plate: make, model, year, trim, engine and colour are locked. */
+  registry_verified?: boolean;
   created_at: string;
   owner?: User;
   follower_count?: number;
@@ -744,7 +746,7 @@ class ApiClient {
     return this.request<Vehicle[]>(`/garage/search?q=${encodeURIComponent(q)}`);
   }
 
-  createVehicle(data: Partial<Vehicle>) {
+  createVehicle(data: Partial<Vehicle> & { plate?: string }) {
     return this.request<Vehicle>("/garage", { method: "POST", body: JSON.stringify(data) });
   }
 

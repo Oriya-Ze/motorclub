@@ -100,6 +100,8 @@ class Vehicle(Base):
     mod_items: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     image_urls: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Added by licence plate: make, model, year, trim, engine and colour came from the registry and are locked.
+    registry_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

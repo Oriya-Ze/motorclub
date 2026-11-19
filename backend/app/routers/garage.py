@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,11 @@ from app.services.visibility import can_view_profile_content, viewable_owner_ids
 router = APIRouter(prefix="/garage", tags=["garage"])
 
 MOD_CATEGORIES = {"engine", "suspension", "exterior", "audio", "other"}
+
+
+def _plain(value):
+    """Compare text the way it is stored: surrounding spaces and empty text do not count as a change."""
+    return _blank_to_none(value) if isinstance(value, str) else value
 
 
 def _blank_to_none(value: str | None) -> str | None:
@@ -169,6 +174,7 @@ async def _vehicle_response(db: AsyncSession, v: Vehicle, *, with_shops: bool = 
         image_urls=v.image_urls,
         image_media=await image_media_for_keys(db, v.image_urls),
         is_primary=v.is_primary,
+        registry_verified=bool(v.registry_verified),
         created_at=v.created_at,
     )
 
@@ -264,16 +270,45 @@ async def user_garage(
     return [await _vehicle_response(db, v) for v in result.scalars().all()]
 
 
+# Details that come from the Ministry of Transport registry when a vehicle is added by plate; nobody can change them.
+REGISTRY_FIELDS = ("make", "model", "year", "trim", "engine", "color")
+
+
+async def _registry_details(request: Request, user: User, plate: str) -> dict:
+    """Look the plate up on the server, so a vehicle marked as verified never carries details the client made up."""
+    from app.rate_limit import enforce_rate_limit
+    from app.services import plate_lookup
+
+    number = plate_lookup.normalize_plate(plate)
+    if not number:
+        raise HTTPException(status_code=400, detail="plate_invalid")
+    await enforce_rate_limit(request, "vehicle:plate", identifier=str(user.id), limit=30, window_seconds=3600)
+    try:
+        found = await plate_lookup.lookup_plate(number)
+    except plate_lookup.PlateLookupUnavailable as exc:
+        raise HTTPException(status_code=503, detail="plate_lookup_unavailable") from exc
+    if not found or not found.make or not found.model:
+        raise HTTPException(status_code=404, detail="plate_not_found")
+    return {"make": found.make, "model": found.model, "year": found.year, "trim": found.trim, "engine": found.engine, "color": found.color}
+
+
 @router.post("", response_model=VehicleResponse)
 async def create_vehicle(
     body: VehicleCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_user_model),
 ):
-    data = body.model_dump(exclude={"mod_items", "nickname"})
-    if data.get("make"):
-        data["make"] = canonical_make(data["make"]) or data["make"]
-    vehicle = Vehicle(user_id=user.id, **data, nickname=_blank_to_none(body.nickname))
+    data = body.model_dump(exclude={"mod_items", "nickname", "plate"})
+    verified = bool(body.plate and body.plate.strip())
+    if verified:
+        registry = await _registry_details(request, user, body.plate)
+        # The registry wins; a colour the registry does not record (motorcycles, heavy vehicles) is the owner's.
+        data.update({field: value for field, value in registry.items() if value or field != "color"})
+    if not (data.get("make") or "").strip() or not (data.get("model") or "").strip():
+        raise HTTPException(status_code=422, detail="make_and_model_required")
+    data["make"] = canonical_make(data["make"]) or data["make"]
+    vehicle = Vehicle(user_id=user.id, **data, nickname=_blank_to_none(body.nickname), registry_verified=verified)
     if body.mod_items is not None:
         _apply_mod_items(vehicle, body.mod_items)
     db.add(vehicle)
@@ -309,6 +344,11 @@ async def update_vehicle(
         data["sound_url"] = _blank_to_none(data["sound_url"])
     if "make" in data and data["make"]:
         data["make"] = canonical_make(data["make"]) or data["make"]
+    if vehicle.registry_verified:
+        # Sending the same value back is fine (the edit form sends every field); changing it is not.
+        changed = [field for field in REGISTRY_FIELDS if field in data and _plain(data[field]) != _plain(getattr(vehicle, field))]
+        if changed:
+            raise HTTPException(status_code=400, detail="vehicle_details_locked")
     for field, value in data.items():
         setattr(vehicle, field, value)
     if "mod_items" in body.model_fields_set:
