@@ -65,12 +65,20 @@ function draftKey(userId: string) {
   return `motorclub_vehicle_draft_v1:${userId}`;
 }
 
+/** A draft is there to survive closing the editor by mistake, not to come back days later. */
+const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
 function readDraft(userId: string | undefined): { form: VehicleForm; images: string[] } | null {
   if (!userId) return null;
   try {
     const raw = localStorage.getItem(draftKey(userId));
     if (!raw) return null;
-    const draft = JSON.parse(raw) as { form?: Partial<VehicleForm>; images?: unknown };
+    const draft = JSON.parse(raw) as { form?: Partial<VehicleForm>; images?: unknown; savedAt?: unknown };
+    // Drafts from before the time limit have no savedAt and are dropped like old ones.
+    if (typeof draft.savedAt !== "number" || Date.now() - draft.savedAt > DRAFT_MAX_AGE_MS) {
+      localStorage.removeItem(draftKey(userId));
+      return null;
+    }
     const images = Array.isArray(draft.images) ? draft.images.filter((item): item is string => typeof item === "string") : [];
     const form = { ...emptyForm, ...draft.form, mods: Array.isArray(draft.form?.mods) ? draft.form.mods : [] };
     // A draft from before the plate option, with details already chosen, continues as manual entry.
@@ -139,11 +147,17 @@ export default function AddVehicleForm({ existingCount, onCreated, onClose }: Pr
   }, []);
 
   // Keep a draft as the member types, so closing the editor never loses the work.
+  const firstRender = useRef(true);
   useEffect(() => {
     if (!user) return;
+    // Opening the editor is not an edit: a restored draft keeps its original time.
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
     const handle = window.setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(user.id), JSON.stringify({ form, images }));
+        localStorage.setItem(draftKey(user.id), JSON.stringify({ form, images, savedAt: Date.now() }));
       } catch {
         // storage full or blocked: the editor still works without a draft
       }
