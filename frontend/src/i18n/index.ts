@@ -513,6 +513,8 @@ const resources = {
         title: "הכלים שלי",
         subtitle: "נהל את הרכבים שלך",
         add: "הוסף רכב",
+        verified: "מאומת",
+        verifiedHint: "הפרטים אומתו מול מאגר משרד התחבורה לפי מספר רישוי",
         editor: {
           title: "כלי חדש",
           sectionPhotos: "תמונות",
@@ -1844,6 +1846,8 @@ const resources = {
         title: "My rides",
         subtitle: "Manage your vehicles",
         add: "Add vehicle",
+        verified: "Verified",
+        verifiedHint: "Details verified against the Ministry of Transport registry by licence plate",
         editor: {
           title: "New machine",
           sectionPhotos: "Photos",

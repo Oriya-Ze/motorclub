@@ -357,6 +357,7 @@ async def explore_vehicles(
             "thumbnail": public_image_key(media, source),
             "has_mods": bool(preview),
             "mod_preview": preview,
+            "registry_verified": bool(v.registry_verified),
             "owner": user_to_public(owner),
         })
     return items

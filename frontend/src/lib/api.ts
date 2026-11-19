@@ -178,6 +178,8 @@ export interface Product {
   moderation_status?: string;
   /** Set when the listing sells a vehicle card; the shop then links to the card. */
   vehicle_id?: string | null;
+  /** The listed vehicle was added by licence plate, so its make, model and year are verified. */
+  vehicle_verified?: boolean;
   created_at: string;
   seller?: User | null;
 }

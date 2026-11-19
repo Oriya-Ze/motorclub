@@ -377,6 +377,8 @@ class ProductResponse(BaseModel):
     listing_status: str = "published"
     moderation_status: str = "unscanned"
     vehicle_id: UUID | None = None
+    # A vehicle listing whose car was added by licence plate: make, model and year come from the registry.
+    vehicle_verified: bool = False
     created_at: datetime
     seller: UserPublic | None = None
 

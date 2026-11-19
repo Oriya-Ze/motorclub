@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import EmptyState from "@/components/EmptyState";
 import FitImage from "@/components/FitImage";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
+import VerifiedVehicleBadge from "@/components/VerifiedVehicleBadge";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { CardGridSkeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +21,7 @@ export interface ExploreVehicleItem {
   nickname?: string | null;
   thumbnail?: string | null;
   has_mods?: boolean;
+  registry_verified?: boolean;
   owner?: User | null;
 }
 
@@ -71,6 +73,7 @@ export default function ExploreVehicleGrid({ vehicles, isLoading }: ExploreVehic
             >
               <div className="relative aspect-video bg-black">
                 <VehicleThumb thumbnail={v.thumbnail} alt={name} />
+                {v.registry_verified && <VerifiedVehicleBadge overlay className="absolute top-2 start-2" />}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-2.5">
                 {v.nickname?.trim() && <p className="truncate text-xs font-medium text-primary">{v.nickname}</p>}

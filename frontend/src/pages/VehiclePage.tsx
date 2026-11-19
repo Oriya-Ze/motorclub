@@ -12,6 +12,7 @@ import ShareSheet from "@/components/ShareSheet";
 import VehicleCard from "@/components/VehicleCard";
 import VehicleImageCarousel from "@/components/VehicleImageCarousel";
 import VehicleModEditor from "@/components/VehicleModEditor";
+import VerifiedVehicleBadge from "@/components/VerifiedVehicleBadge";
 import VehicleSaleSection from "@/components/VehicleSaleSection";
 import VehiclePhotosField from "@/components/VehiclePhotosField";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeleton";
@@ -305,6 +306,7 @@ export default function VehiclePage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="text-2xl font-display tracking-wide">{title}</h1>
+                    {vehicle.registry_verified && <VerifiedVehicleBadge className="text-xs" />}
                     {isOwner && vehicle.is_primary && (
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                         <Star className="w-3 h-3 fill-primary" />

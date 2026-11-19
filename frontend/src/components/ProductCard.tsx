@@ -3,6 +3,7 @@ import BusinessListingBadge from "@/components/BusinessListingBadge";
 import Avatar from "@/components/Avatar";
 import FitImage from "@/components/FitImage";
 import StoredImage from "@/components/StoredImage";
+import VerifiedVehicleBadge from "@/components/VerifiedVehicleBadge";
 import { Product } from "@/lib/api";
 import { pickStoredImageUrl } from "@/lib/postMedia";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ export default function ProductCard({
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">{t("productEditor.noPhoto")}</div>
         )}
         {seller?.account_type === "business" && <BusinessListingBadge className="absolute top-2 start-2" />}
+        {product.vehicle_verified && <VerifiedVehicleBadge overlay className="absolute top-2 end-2" />}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <h3 className="line-clamp-2 min-h-10 text-sm font-semibold">{product.name}</h3>

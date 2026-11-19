@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import StoredImage from "@/components/StoredImage";
 import VehiclePlaceholder from "@/components/VehiclePlaceholder";
+import VerifiedVehicleBadge from "@/components/VerifiedVehicleBadge";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Vehicle } from "@/lib/api";
 import { pickStoredImageUrl } from "@/lib/postMedia";
@@ -48,6 +49,7 @@ export default function VehicleCard({ vehicle: v, featured = false, showPrimary 
                 {t("garage.primaryBadge")}
               </span>
             )}
+            {v.registry_verified && <VerifiedVehicleBadge overlay />}
             {(v.image_urls?.length ?? 0) > 1 && (
               <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-black/55 text-white">
                 <Camera className="w-3 h-3" />

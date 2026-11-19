@@ -109,6 +109,10 @@ async def test_vehicle_added_by_plate_is_locked(monkeypatch):
             same = {k: car[k] for k in ("make", "model", "year", "trim", "engine", "color")}
             ok = await client.patch(f"/api/v1/garage/{vid}", json={**same, "description": "עדכון", "nickname": "הלבנה"})
             assert ok.status_code == 200 and ok.json()["description"] == "עדכון" and ok.json()["model"] == "SELTOS"
+            # A sale listing of the car says it is verified; one of a manual car does not.
+            listing = await client.post("/api/v1/marketplace/vehicle-listings", json={"vehicle_id": vid, "price": 95000})
+            assert listing.status_code == 200, listing.text
+            assert listing.json()["vehicle_verified"] is True
 
             # A motorcycle has no colour in the registry, so the owner's colour is kept.
             _registry(monkeypatch, {plate_lookup.MOTORCYCLE_RESOURCE_ID: BIKE_ROW})
@@ -122,6 +126,8 @@ async def test_vehicle_added_by_plate_is_locked(monkeypatch):
             manual = await client.post("/api/v1/garage", json={"make": "מאזדה", "model": "MX-5", "registry_verified": True})
             assert manual.status_code == 200 and manual.json()["registry_verified"] is False
             assert (await client.patch(f"/api/v1/garage/{manual.json()['id']}", json={"model": "MX-5 RF"})).status_code == 200
+            manual_listing = await client.post("/api/v1/marketplace/vehicle-listings", json={"vehicle_id": manual.json()["id"], "price": 50000})
+            assert manual_listing.status_code == 200 and manual_listing.json()["vehicle_verified"] is False
             assert (await client.post("/api/v1/garage", json={"make": "מאזדה"})).status_code == 422
     finally:
         app.dependency_overrides.clear()

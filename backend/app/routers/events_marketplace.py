@@ -188,6 +188,7 @@ async def _product_response(
         listing_status=product.listing_status,
         moderation_status=product.moderation_status,
         vehicle_id=product.vehicle_id,
+        vehicle_verified=bool(vehicle and vehicle.registry_verified),
         created_at=product.created_at,
         seller=user_to_public(seller) if seller and seller.is_active else None,
     )

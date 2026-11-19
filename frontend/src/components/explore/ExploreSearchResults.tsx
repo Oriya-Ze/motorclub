@@ -133,6 +133,7 @@ export default function ExploreSearchResults({ query }: { query: string }) {
           model: v.model,
           year: v.year,
           nickname: v.nickname,
+          registry_verified: v.registry_verified,
           thumbnail: pickStoredImageUrl(v.image_urls?.[0], v.image_media, "feed") || undefined,
           owner: v.owner,
         }))}
