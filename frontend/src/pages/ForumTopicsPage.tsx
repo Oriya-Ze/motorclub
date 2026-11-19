@@ -91,7 +91,7 @@ export default function ForumTopicsPage() {
                     <Avatar user={topic.author} size="md" />
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold">{topic.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{topic.content}</p>
+                      <p className="user-text text-sm text-muted-foreground mt-1 line-clamp-2">{topic.content}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span>{topic.author.full_name}</span>
                         <span className="flex items-center gap-1">

@@ -121,7 +121,7 @@ export default function MessagesPage() {
                           isMine ? "bg-primary text-primary-foreground" : "bg-muted"
                         )}
                       >
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        <p className="user-text whitespace-pre-wrap">{msg.content}</p>
                         <p className={cn("text-[10px] mt-1", isMine ? "text-primary-foreground/70" : "text-muted-foreground")}>
                           {formatTime(msg.created_at, i18n.language)}
                         </p>

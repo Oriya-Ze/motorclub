@@ -125,7 +125,7 @@ export default function ProductDetailModal({ product, onClose, onChanged }: Prod
             </dl>
           )}
           {product.description && (
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{product.description}</p>
+            <p className="user-text text-sm text-muted-foreground whitespace-pre-wrap">{product.description}</p>
           )}
 
           {product.seller && (

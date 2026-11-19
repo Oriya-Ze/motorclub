@@ -376,7 +376,7 @@ export default function GroupDetailPage() {
                     <div className={cn("max-w-[75%]", isMine && "text-end")}>
                       <p className="text-xs text-muted-foreground mb-0.5">{displayName(msg.author)}</p>
                       <div className={cn("rounded-2xl px-4 py-2 text-sm inline-block", isMine ? "bg-primary text-primary-foreground" : "bg-muted")}>
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        <p className="user-text whitespace-pre-wrap">{msg.content}</p>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{formatTime(msg.created_at, i18n.language)}</p>
                     </div>
@@ -543,7 +543,7 @@ export default function GroupDetailPage() {
           <CardContent className="pt-6 space-y-4">
             <div>
               <h2 className="font-semibold mb-2">{t("groupTabAbout")}</h2>
-              <p className={cn("text-sm whitespace-pre-wrap", group.description ? "text-foreground" : "text-muted-foreground")}>
+              <p className={cn("user-text text-sm whitespace-pre-wrap", group.description ? "text-foreground" : "text-muted-foreground")}>
                 {group.description || t("groupAboutEmpty")}
               </p>
             </div>

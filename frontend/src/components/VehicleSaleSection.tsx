@@ -156,7 +156,7 @@ export default function VehicleSaleSection({ vehicle, isOwner }: { vehicle: Vehi
         </p>
         <p className="text-xl font-bold">{formatIls(listing.price)}</p>
       </div>
-      {listing.description && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{listing.description}</p>}
+      {listing.description && <p className="user-text whitespace-pre-wrap text-sm text-muted-foreground">{listing.description}</p>}
       {isOwner && !live && <p className="text-sm text-destructive" role="status">{t("garage.sale.hiddenByStaff")}</p>}
       <div className="flex flex-wrap gap-2">
         {isOwner ? (

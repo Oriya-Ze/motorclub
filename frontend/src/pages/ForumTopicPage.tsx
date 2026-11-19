@@ -129,7 +129,7 @@ export default function ForumTopicPage() {
               </Button>
             )}
           </div>
-          <p className="whitespace-pre-wrap">{topic.content}</p>
+          <p className="user-text whitespace-pre-wrap">{topic.content}</p>
         </CardContent>
       </Card>
 
@@ -151,7 +151,7 @@ export default function ForumTopicPage() {
                         </span>
                       )}
                     </div>
-                    <p className="whitespace-pre-wrap text-sm">{r.content}</p>
+                    <p className="user-text whitespace-pre-wrap text-sm">{r.content}</p>
                   </div>
                   {user?.id === r.user_id && (
                     <button

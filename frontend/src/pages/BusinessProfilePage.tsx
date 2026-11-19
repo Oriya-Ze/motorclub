@@ -476,7 +476,7 @@ export default function BusinessProfilePage() {
           </div>
 
           {business.business_description && (
-            <p className="text-sm sm:text-[15px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
+            <p className="user-text text-sm sm:text-[15px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {business.business_description}
             </p>
           )}
@@ -670,7 +670,7 @@ export default function BusinessProfilePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold">{service.name}</h3>
-                    {service.description && <p className="text-sm text-muted-foreground mt-1">{service.description}</p>}
+                    {service.description && <p className="user-text text-sm text-muted-foreground mt-1">{service.description}</p>}
                     <div className="flex flex-wrap gap-3 mt-2 text-sm text-primary font-medium">
                       {service.price_from != null && <span>₪{service.price_from.toLocaleString()}+</span>}
                       {service.duration_minutes != null && (

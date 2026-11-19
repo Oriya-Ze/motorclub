@@ -691,3 +691,10 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Text members write. Each line takes the direction of its first letter, so an English line inside a Hebrew post
+   reads left to right with its punctuation in place (and a Hebrew line in an English post the other way). */
+.user-text {
+  unicode-bidi: plaintext;
+  text-align: start;
+}

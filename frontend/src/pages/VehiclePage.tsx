@@ -375,7 +375,7 @@ export default function VehiclePage() {
               {vehicle.description && (
                 <div>
                   <h2 className="text-sm font-semibold mb-1">{t("garage.story")}</h2>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{vehicle.description}</p>
+                  <p className="user-text text-sm text-muted-foreground whitespace-pre-wrap">{vehicle.description}</p>
                 </div>
               )}
 

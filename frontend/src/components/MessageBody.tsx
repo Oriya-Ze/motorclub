@@ -59,7 +59,7 @@ export function messageWithoutShareChrome(content: string): string {
 export function MessageText({ content, mine }: { content: string; mine?: boolean }) {
   const linkClass = mine ? "underline break-all" : "text-primary underline break-all";
   return (
-    <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+    <p className="user-text whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
       {messageParts(content).map((part, index) =>
         part.type === "link" ? (
           <a key={index} href={part.value} className={linkClass}>
@@ -112,7 +112,7 @@ export function SharedPostPreview({ href, onOpen }: { href: string; onOpen?: () 
         <span className="min-w-0 text-sm font-medium truncate">{data.author.full_name}</span>
       </span>
       {data.content ? (
-        <span className="block px-3 pt-1.5 text-sm text-foreground/85 leading-snug line-clamp-2">{data.content}</span>
+        <span className="user-text block px-3 pt-1.5 text-sm text-foreground/85 leading-snug line-clamp-2">{data.content}</span>
       ) : null}
       {thumb ? (
         <img src={mediaUrl(thumb)} alt="" className="mt-2 w-full max-h-64 object-contain bg-muted" />

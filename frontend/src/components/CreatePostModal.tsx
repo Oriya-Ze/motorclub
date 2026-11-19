@@ -1153,7 +1153,7 @@ export default function CreatePostModal({ open, onClose, initialVehicleId, onPub
                 </div>
               )}
               {content.trim() ? (
-                <p className="whitespace-pre-wrap px-3 pb-3 text-sm">{content}</p>
+                <p className="user-text whitespace-pre-wrap px-3 pb-3 text-sm">{content}</p>
               ) : (
                 <p className="px-3 pb-3 text-sm text-muted-foreground">{t("composer.previewEmpty")}</p>
               )}

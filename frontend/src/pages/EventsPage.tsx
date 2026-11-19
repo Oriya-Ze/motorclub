@@ -115,7 +115,7 @@ export default function EventsPage() {
           </div>
           <h3 className="font-semibold text-lg">{event.title}</h3>
           {event.description && (
-            <p className="text-sm text-muted-foreground">{event.description}</p>
+            <p className="user-text text-sm text-muted-foreground">{event.description}</p>
           )}
           <div className="flex flex-col gap-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">

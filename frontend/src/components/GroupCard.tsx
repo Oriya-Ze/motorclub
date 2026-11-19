@@ -55,7 +55,7 @@ export default function GroupCard({ group }: { group: Group }) {
               <p className="text-xs text-amber-600 mt-0.5">{t("groupJoinPending")}</p>
             )}
             {group.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{group.description}</p>
+              <p className="user-text text-sm text-muted-foreground line-clamp-2 mt-0.5">{group.description}</p>
             )}
             {group.category && t(`groupCategories.${group.category.toLowerCase()}`, { defaultValue: "" }) ? (
               <p className="text-xs text-primary mt-1">

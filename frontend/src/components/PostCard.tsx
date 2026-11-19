@@ -303,7 +303,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
             <PostMediaCarousel items={mediaItems} mode={isDetail ? "detail" : "feed"} openSignal={fullScreenSignal} />
           ) : !unpublished && post.content ? (
             <div className="px-4 pb-2 min-h-[60px]">
-              <PostText text={post.content} className="whitespace-pre-wrap" />
+              <PostText text={post.content} className="user-text whitespace-pre-wrap" />
             </div>
           ) : null}
           {heartBurst > 0 && (
@@ -315,7 +315,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
 
         {hasMedia && post.content && (
           <div className="px-4 pt-3" onClick={stopClick}>
-            <PostText text={post.content} className="whitespace-pre-wrap text-sm" />
+            <PostText text={post.content} className="user-text whitespace-pre-wrap text-sm" />
           </div>
         )}
 
@@ -370,7 +370,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
                   <Avatar user={c.author} size="xs" />
                   <div className="flex-1 bg-muted/50 rounded-xl px-3 py-2">
                     <p className="text-xs font-medium">{c.author.full_name}</p>
-                    <p className="text-sm">{c.content}</p>
+                    <p className="user-text text-sm">{c.content}</p>
                   </div>
                   {(c.user_id === user?.id || isAuthor) && (
                     <button
