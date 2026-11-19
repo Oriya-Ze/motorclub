@@ -3,13 +3,14 @@
  * as its own chunk, and only for staff. Hebrew only, since it is an internal tool.
  */
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, BadgeCheck, Building2, Film, Flag, Gavel, LayoutDashboard, ScrollText, Users } from "lucide-react";
+import { ArrowRight, BadgeCheck, Bot, Building2, Film, Flag, Gavel, LayoutDashboard, ScrollText, Users } from "lucide-react";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { cn, formatHandle } from "@/lib/utils";
 import AdminAccounts from "@/pages/admin/AdminAccounts";
 import AdminAppeals from "@/pages/admin/AdminAppeals";
+import AdminBots from "@/pages/admin/AdminBots";
 import AdminBusiness from "@/pages/admin/AdminBusiness";
 import AdminLog from "@/pages/admin/AdminLog";
 import AdminMedia from "@/pages/admin/AdminMedia";
@@ -25,6 +26,7 @@ const NAV = [
   { to: "/admin/appeals", label: "ערעורים", icon: Gavel, count: "open_appeals" },
   { to: "/admin/accounts", label: "חשבונות", icon: Users, count: null },
   { to: "/admin/log", label: "יומן פעולות", icon: ScrollText, count: null },
+  { to: "/admin/bots", label: "בוטים", icon: Bot, count: null, adminOnly: true },
 ] as const;
 
 export default function AdminConsole() {
@@ -73,7 +75,7 @@ export default function AdminConsole() {
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 lg:flex-row">
         <nav aria-label="ניווט ניהול" className="lg:w-56 lg:shrink-0">
           <ul className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible">
-            {NAV.map((item) => {
+            {NAV.filter((item) => !("adminOnly" in item) || me.data?.is_admin).map((item) => {
               const count = badge(item.count);
               return (
                 <li key={item.to} className="shrink-0">
@@ -117,6 +119,7 @@ export default function AdminConsole() {
             <Route path="appeals" element={<AdminAppeals />} />
             <Route path="accounts" element={<AdminAccounts isAdmin={Boolean(me.data?.is_admin)} />} />
             <Route path="log" element={<AdminLog />} />
+            {me.data?.is_admin && <Route path="bots" element={<AdminBots />} />}
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>

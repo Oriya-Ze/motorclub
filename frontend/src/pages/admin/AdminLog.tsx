@@ -26,6 +26,10 @@ const ACTIONS: Record<string, string> = {
   appeal_denied: "ערעור נדחה",
   appeal_stale: "ערעור על גרסה ישנה",
   retry_scans: "סריקה חוזרת",
+  bots_content: "העלאת תוכן בוטים",
+  bots_enable: "הפעלת בוטים",
+  bots_pause: "השהיית בוטים",
+  bots_delete: "מחיקת כל הבוטים",
 };
 
 export default function AdminLog() {

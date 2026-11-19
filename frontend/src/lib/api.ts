@@ -40,6 +40,24 @@ export interface ExploreVehicleModPreview {
   shop_name?: string | null;
 }
 
+export interface BotQueueRow {
+  key: string;
+  username: string | null;
+  text: string;
+  published_at: string | null;
+  expires_at: string | null;
+  post_id: string | null;
+}
+
+export interface BotStatus {
+  enabled: boolean;
+  bots: Array<{ id: string; username: string; full_name: string; posts: number; replies: number; likes: number }>;
+  posts: { total: number; published: number; expired: number };
+  replies: { total: number; published: number; expired: number };
+  upcoming: BotQueueRow[];
+  recent: BotQueueRow[];
+}
+
 export interface ExploreSearchPost {
   id: string;
   kind: "image" | "video" | "text";
@@ -1101,6 +1119,35 @@ class ApiClient {
   }
 
   // Admin console
+  getBots() {
+    return this.request<BotStatus>("/admin/bots");
+  }
+
+  uploadBotContent(content: unknown) {
+    return this.request<{ bots_created: number; bots: number; queued: number; updated: number }>("/admin/bots/content", {
+      method: "PUT",
+      body: JSON.stringify(content),
+    });
+  }
+
+  setBotsEnabled(enabled: boolean) {
+    return this.request<{ enabled: boolean }>("/admin/bots", { method: "PATCH", body: JSON.stringify({ enabled }) });
+  }
+
+  runBotTick(force: boolean) {
+    return this.request<{ skipped?: string; post?: string | null; replies?: string[]; like?: string | null }>(
+      "/admin/bots/tick",
+      { method: "POST", body: JSON.stringify({ force }) },
+    );
+  }
+
+  deleteAllBots(confirm: string) {
+    return this.request<{ bots: number; items: number; notifications: number }>("/admin/bots", {
+      method: "DELETE",
+      body: JSON.stringify({ confirm }),
+    });
+  }
+
   adminMe() {
     return this.request<{ is_admin: boolean; is_moderator: boolean }>("/admin/me");
   }

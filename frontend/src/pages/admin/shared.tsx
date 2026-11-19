@@ -165,6 +165,7 @@ export const TARGET_LABELS: Record<string, string> = {
   group: "קבוצה",
   event: "אירוע",
   media: "מדיה",
+  bots: "בוטים",
 };
 
 export function appLink(type: string, id: string): string | null {
