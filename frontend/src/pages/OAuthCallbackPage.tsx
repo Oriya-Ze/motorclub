@@ -34,13 +34,13 @@ export default function OAuthCallbackPage() {
     }
 
     completeOAuthLogin({ code, redirect_uri: oauthRedirectUri() })
-      .then((signedIn) => {
+      .then(({ user: signedIn, signupPending }) => {
         try {
           sessionStorage.removeItem(LINK_RETRY_KEY);
         } catch {
           // storage blocked: nothing to clear
         }
-        if (signedIn?.account_setup_pending) {
+        if (signupPending || signedIn?.account_setup_pending) {
           // A new member chooses a username and accepts the terms first; the saved destination waits for that.
           navigate("/auth/welcome", { replace: true });
           return;

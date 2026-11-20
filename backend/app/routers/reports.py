@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_user_model
-from app.models import ContentReport, Post, Product, User, Vehicle
+from app.models import ContentReport, HiddenPost, Post, Product, User, Vehicle
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -24,6 +24,8 @@ class ReportCreate(BaseModel):
     target_id: uuid.UUID
     reason: str
     details: str | None = Field(default=None, max_length=2000)
+    # For a post: also stop showing it in the reporter's own feed.
+    hide_post: bool = False
 
 
 @router.post("")
@@ -46,6 +48,13 @@ async def create_report(
     )
     if (recent or 0) >= 10:
         raise HTTPException(status_code=429, detail="Too many reports")
+    if body.hide_post and body.target_type == "post":
+        hidden = await db.scalar(
+            select(HiddenPost.id).where(HiddenPost.user_id == user.id, HiddenPost.post_id == body.target_id)
+        )
+        if not hidden:
+            db.add(HiddenPost(user_id=user.id, post_id=body.target_id))
+            await db.flush()
     existing = await db.scalar(
         select(ContentReport).where(
             ContentReport.reporter_id == user.id,
@@ -55,6 +64,7 @@ async def create_report(
         )
     )
     if existing:
+        await db.commit()  # the hide still applies to a repeated report
         return {"id": str(existing.id), "status": existing.status, "duplicate": True}
     report = ContentReport(
         reporter_id=user.id,

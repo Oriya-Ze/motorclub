@@ -93,6 +93,8 @@ export interface ExploreVehicle {
 }
 
 export interface AuthResponse {
+  /** A first Google sign-in: not a session; the member is created by completeGoogleSignup. */
+  google_signup?: import("@/lib/googleSignup").GoogleSignupPending | null;
   user?: User | null;
   access_token?: string | null;
   refresh_token?: string | null;
@@ -418,6 +420,7 @@ export class ApiError extends Error {
 
 /** Auth endpoints answer for themselves: a 401 there is the answer, not a sign that the session needs refreshing. */
 const NO_REFRESH_PATHS = new Set([
+  "/auth/google/complete",
   "/auth/login",
   "/auth/register",
   "/auth/confirm",
@@ -599,6 +602,17 @@ class ApiClient {
 
   getOAuthConfig() {
     return this.request<OAuthConfig>("/auth/oauth/config");
+  }
+
+  completeGoogleSignup(data: {
+    access_token: string;
+    id_token: string;
+    refresh_token?: string | null;
+    expires_in?: number | null;
+    username: string;
+    accept_terms: boolean;
+  }) {
+    return this.request<AuthResponse>("/auth/google/complete", { method: "POST", body: JSON.stringify(data) });
   }
 
   accountSetup(data: { username: string; accept_terms: boolean }) {
@@ -1143,7 +1157,7 @@ class ApiClient {
     return this.request<{ url: string }>(`/media/access-url?key=${encodeURIComponent(key)}`);
   }
 
-  createReport(data: { target_type: string; target_id: string; reason: string; details?: string }) {
+  createReport(data: { target_type: string; target_id: string; reason: string; details?: string; hide_post?: boolean }) {
     return this.request<{ id: string; status: string; duplicate: boolean }>("/reports", {
       method: "POST",
       body: JSON.stringify(data),

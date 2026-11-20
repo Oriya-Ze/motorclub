@@ -208,9 +208,11 @@ async def list_posts(
     own_profile = user_id is not None and user_id == current_user.id
     from app.services.post_moderation import publicly_visible
 
+    from app.services.post_moderation import not_hidden_by
+
     query = select(Post).order_by(Post.created_at.desc())
     if not own_profile:
-        query = query.where(publicly_visible())
+        query = query.where(publicly_visible(), not_hidden_by(current_user.id))
     if hashtag:
         query = query.where(Post.hashtags.contains([hashtag.lower()]))
     if user_id:

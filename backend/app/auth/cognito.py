@@ -53,6 +53,29 @@ def _federated_identity(claims: dict) -> tuple[str, str] | None:
     return (str(provider), str(user_id)) if provider and user_id else None
 
 
+class GoogleSignupRequired(Exception):
+    """A first Google sign-in with a new email. No member is created yet: the person chooses a username and accepts
+    the terms first (POST /auth/google/complete), and only then the account exists."""
+
+    def __init__(self, *, tokens: AuthTokens, id_token: str, suggested_username: str, full_name: str):
+        super().__init__("google_signup_required")
+        self.tokens = tokens
+        self.id_token = id_token
+        self.suggested_username = suggested_username
+        self.full_name = full_name
+
+
+def _suggest_username(raw: str) -> str:
+    """A valid username close to the email's local part, or empty when nothing sensible is left."""
+    cleaned = re.sub(r"[^a-z0-9._]", "_", (raw or "").lower())
+    cleaned = re.sub(r"[._]{2,}", "_", cleaned).strip("._")
+    cleaned = re.sub(r"^[^a-z]+", "", cleaned)[:30].rstrip("._")
+    try:
+        return validate_username(cleaned)
+    except HTTPException:
+        return ""
+
+
 def _claim_true(value) -> bool:
     return value is True or str(value).lower() == "true"
 
@@ -635,14 +658,53 @@ class CognitoAuthProvider(AuthProvider):
                 attrs = {}
 
         token_email, username, full_name = self._profile_from_claims(profile_payload, lookup_email, attrs)
-        user = await self._get_or_create_user(cognito_sub, token_email, username, full_name, setup_pending=new_from_google)
-        auth_user = self._to_auth_user(user)
         tokens = AuthTokens(
             access_token=access_token,
             refresh_token=auth_result.get("RefreshToken") or auth_result.get("refresh_token"),
             expires_in=auth_result.get("ExpiresIn") or auth_result.get("expires_in"),
         )
-        return auth_user, tokens
+        if new_from_google and id_token and not await self.db.scalar(select(User.id).where(User.cognito_sub == cognito_sub)):
+            suggestion = _suggest_username(token_email.split("@", 1)[0])
+            if suggestion:
+                suggestion = await self._ensure_unique_username(suggestion)
+            raise GoogleSignupRequired(tokens=tokens, id_token=id_token, suggested_username=suggestion, full_name=full_name)
+        user = await self._get_or_create_user(cognito_sub, token_email, username, full_name)
+        return self._to_auth_user(user), tokens
+
+    async def complete_google_signup(
+        self, *, access_token: str, id_token: str, refresh_token: str | None, expires_in: int | None, username: str
+    ) -> tuple[AuthUser, AuthTokens]:
+        """Create the member for a Google sign-in, once they chose a username and accepted the terms."""
+        from app.services.auth_lookup import check_username_availability
+
+        try:
+            access_payload = await self._decode_access_token(access_token)
+            claims = await self._decode_id_token(id_token, access_token)
+        except HTTPException as exc:
+            raise HTTPException(status_code=400, detail="google_signup_expired") from exc
+        sub = access_payload["sub"]
+        if claims.get("sub") != sub or _federated_identity(claims) is None:
+            raise HTTPException(status_code=400, detail="google_signup_expired")
+        if await self.db.scalar(select(User.id).where(User.cognito_sub == sub)):
+            raise HTTPException(status_code=409, detail="account_setup_done")
+        email = (claims.get("email") or "").strip().lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="google_signup_expired")
+        if await self.db.scalar(select(User.id).where(func.lower(User.email) == email)):
+            raise HTTPException(status_code=409, detail="Email already registered")
+        check = await check_username_availability(self.db, username, email)
+        if not check["valid"]:
+            validate_username(username)  # raises the specific reason
+        if not check["available"]:
+            raise HTTPException(status_code=409, detail="Username already taken")
+        full_name = " ".join(str(claims.get("name") or "").split())[:255] or check["username"]
+        user = User(cognito_sub=sub, email=email, username=check["username"], full_name=full_name)
+        self.db.add(user)
+        await self.db.flush()
+        self.db.add(ProfileSettings(user_id=user.id))
+        await self.db.commit()
+        await self.db.refresh(user)
+        return self._to_auth_user(user), AuthTokens(access_token=access_token, refresh_token=refresh_token, expires_in=expires_in)
 
     async def verify_token(self, token: str) -> AuthUser:
         payload = await self._decode_access_token(token)

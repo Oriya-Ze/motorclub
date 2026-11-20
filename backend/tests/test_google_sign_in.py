@@ -132,50 +132,62 @@ async def test_google_sign_in_joins_an_existing_password_account(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_new_google_member_must_finish_setup(monkeypatch):
-    email = f"google-{uuid.uuid4().hex[:6]}@example.com"
+async def test_a_new_google_member_is_saved_only_after_setup(monkeypatch):
+    from app.auth.cognito import GoogleSignupRequired
+    from app.routers import auth as auth_router
+
+    email = f"google.{uuid.uuid4().hex[:6]}@example.com"
     claims = _google_claims(email)
     other = _person("takenname")
     async with get_session_factory()() as db:
         db.add(other)
         await db.commit()
+
+    def provider_for(db):
+        provider = CognitoAuthProvider(db)
+        monkeypatch.setattr(provider, "_cognito_client", lambda: FakeCognito(None))
+
+        async def decode(token, *_):
+            if token == "expired-token-xxxxxxxxxxxx":
+                raise HTTPException(status_code=401, detail="Invalid Cognito token")
+            return claims
+
+        monkeypatch.setattr(provider, "_decode_access_token", decode)
+        monkeypatch.setattr(provider, "_decode_id_token", decode)
+        return provider
+
     try:
         async with get_session_factory()() as db:
-            provider = CognitoAuthProvider(db)
-            monkeypatch.setattr(provider, "_cognito_client", lambda: FakeCognito(None))
+            with pytest.raises(GoogleSignupRequired) as pending:
+                await provider_for(db)._complete_auth_from_tokens(
+                    {"AccessToken": "a", "IdToken": "i", "RefreshToken": "r"}, oauth=True
+                )
+            assert pending.value.suggested_username.startswith("google")
+            assert await db.scalar(select(User).where(User.email == email)) is None, "nothing is saved before setup"
 
-            async def decode(token, *_):
-                return claims
-
-            monkeypatch.setattr(provider, "_decode_access_token", decode)
-            monkeypatch.setattr(provider, "_decode_id_token", decode)
-            auth_user, _ = await provider._complete_auth_from_tokens(
-                {"AccessToken": "a", "IdToken": "i", "RefreshToken": "r"}, oauth=True
-            )
-            user = await db.get(User, auth_user.id)
-            assert user.account_setup_pending is True and user.email == email
-            user_id = user.id
-
+        monkeypatch.setattr(auth_router, "get_auth_provider", provider_for)
+        body = {"access_token": "access-token-xxxxxxxxxxxx", "id_token": "id-token-xxxxxxxxxxxxxxxx", "refresh_token": "r",
+                "expires_in": 3600, "username": "googler_one", "accept_terms": True}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            url = "/api/v1/auth/google/complete"
+            assert (await client.post(url, json={**body, "accept_terms": False})).json()["detail"] == "terms_required"
+            assert (await client.post(url, json={**body, "username": "1bad name"})).status_code == 400
+            taken = await client.post(url, json={**body, "username": other.username})
+            assert taken.status_code == 409 and taken.json()["detail"] == "Username already taken"
+            expired = await client.post(url, json={**body, "access_token": "expired-token-xxxxxxxxxxxx"})
+            assert expired.status_code == 400 and expired.json()["detail"] == "google_signup_expired"
+            async with get_session_factory()() as db:
+                assert await db.scalar(select(User).where(User.email == email)) is None
+            done = await client.post(url, json=body)
+            assert done.status_code == 200, done.text
+            session = done.json()
+            assert session["user"]["username"] == "googler_one" and session["access_token"] == body["access_token"]
+            again = await client.post(url, json={**body, "username": "googler_two"})
+            assert again.status_code == 409 and again.json()["detail"] == "account_setup_done"
         async with get_session_factory()() as db:
-            user = await db.get(User, user_id)
-            app.dependency_overrides[get_user_model] = lambda: user
-            async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-                me = await client.post("/api/v1/auth/account-setup", json={"username": "googler_one", "accept_terms": False})
-                assert me.status_code == 400 and me.json()["detail"] == "terms_required"
-                bad = await client.post("/api/v1/auth/account-setup", json={"username": "1bad name", "accept_terms": True})
-                assert bad.status_code == 400
-                taken = await client.post("/api/v1/auth/account-setup", json={"username": other.username, "accept_terms": True})
-                assert taken.status_code == 409 and taken.json()["detail"] == "Username already taken"
-                done = await client.post("/api/v1/auth/account-setup", json={"username": "googler_one", "accept_terms": True})
-                assert done.status_code == 200, done.text
-                assert done.json()["username"] == "googler_one" and done.json()["account_setup_pending"] is False
-                again = await client.post("/api/v1/auth/account-setup", json={"username": "googler_two", "accept_terms": True})
-                assert again.status_code == 409
-        async with get_session_factory()() as db:
-            stored = await db.scalar(select(User).where(User.id == user_id))
-            assert stored.username == "googler_one" and stored.account_setup_pending is False
+            stored = await db.scalar(select(User).where(User.email == email))
+            assert stored.username == "googler_one" and stored.cognito_sub == claims["sub"] and not stored.account_setup_pending
     finally:
-        app.dependency_overrides.clear()
         async with get_session_factory()() as db:
             await db.execute(delete(User).where(User.email.in_([email, other.email])))
             await db.commit()

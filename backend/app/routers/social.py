@@ -168,9 +168,14 @@ async def create_story(
 
 
 @explore_router.get("/posts")
-async def explore_posts(db: AsyncSession = Depends(get_db), _=Depends(get_current_user)):
+async def explore_posts(db: AsyncSession = Depends(get_db), viewer=Depends(get_current_user)):
+    from app.services.post_moderation import not_hidden_by
+
     result = await db.execute(
-        select(Post).where(Post.image_urls != None, publicly_visible()).order_by(Post.created_at.desc()).limit(30)
+        select(Post)
+        .where(Post.image_urls != None, publicly_visible(), not_hidden_by(viewer.id))
+        .order_by(Post.created_at.desc())
+        .limit(30)
     )
     from app.media.keys import is_private_storage_key
 
@@ -224,6 +229,7 @@ async def explore_search(
     their own search endpoints, which already apply their visibility rules."""
     from app.media.keys import is_private_storage_key
     from app.media.video_assets import build_video_media_map
+    from app.services.post_moderation import not_hidden_by
 
     stem = q.strip()
     tag = stem.lstrip("#").strip().lower()
@@ -236,7 +242,11 @@ async def explore_search(
     rows = (
         await db.execute(
             select(Post)
-            .where(publicly_visible(), or_(Post.content.ilike(text_pattern), cast(tags_text, String).ilike(tag_pattern)))
+            .where(
+                publicly_visible(),
+                not_hidden_by(viewer.id),
+                or_(Post.content.ilike(text_pattern), cast(tags_text, String).ilike(tag_pattern)),
+            )
             .order_by(Post.created_at.desc())
             .limit(SEARCH_POST_LIMIT * 2)
         )

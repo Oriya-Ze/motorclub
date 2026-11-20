@@ -84,11 +84,7 @@ export default function AuthPage() {
   }, [mode, resetCaptcha]);
 
   const handleGoogleSignIn = async () => {
-    if (mode === "register" && !form.agree) {
-      toast.error(t("agreeTermsRequired"));
-      return;
-    }
-
+    // The terms are accepted after Google, on the welcome page, before anything is saved.
     setGoogleLoading(true);
     rememberAuthNext(nextPath);
     try {

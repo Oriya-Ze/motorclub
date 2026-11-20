@@ -6,8 +6,9 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import LogoLoader from "@/components/LogoLoader";
 import { useAuth } from "@/contexts/AuthContext";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { takeAuthNext } from "@/lib/authNext";
+import { clearPendingGoogleSignup, readPendingGoogleSignup } from "@/lib/googleSignup";
 
 /**
  * After joining with Google: choose the username the community sees and accept the terms. Until this is done the
@@ -16,16 +17,19 @@ import { takeAuthNext } from "@/lib/authNext";
 export default function AccountSetupPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, loading, setSignedInUser } = useAuth();
+  const { user, loading, setSignedInUser, completeGoogleSignup, loginWithGoogle } = useAuth();
   const id = useId();
-  const [username, setUsername] = useState(() => user?.username ?? "");
+  // New with Google: nothing is saved yet. (An account from before this flow may still be marked pending.)
+  const [pending] = useState(() => (user ? null : readPendingGoogleSignup()));
+  const [username, setUsername] = useState(() => user?.username ?? pending?.suggested_username ?? "");
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
   const [saving, setSaving] = useState(false);
 
   if (loading) return <LogoLoader fullScreen />;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (!user.account_setup_pending) return <Navigate to="/" replace />;
+  if (!user && !pending) return <Navigate to="/auth" replace />;
+  if (user && !user.account_setup_pending) return <Navigate to="/" replace />;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -36,11 +40,20 @@ export default function AccountSetupPage() {
     setSaving(true);
     setError(null);
     try {
-      const updated = await api.accountSetup({ username: username.trim(), accept_terms: true });
-      setSignedInUser({ ...user, ...updated, account_setup_pending: false });
+      if (user) {
+        const updated = await api.accountSetup({ username: username.trim(), accept_terms: true });
+        setSignedInUser({ ...user, ...updated, account_setup_pending: false });
+      } else {
+        await completeGoogleSignup(username.trim());
+      }
       navigate(takeAuthNext() ?? "/", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("error"));
+      const detail = err instanceof ApiError ? err.detail : err instanceof Error ? err.message : "";
+      if (detail === "google_signup_expired" || detail === "account_setup_done") {
+        clearPendingGoogleSignup();
+        setExpired(true);
+      }
+      setError(detail === "google_signup_expired" ? t("accountSetup.expired") : err instanceof Error ? err.message : t("error"));
     } finally {
       setSaving(false);
     }
@@ -86,6 +99,11 @@ export default function AccountSetupPage() {
             </label>
             {error ? (
               <p role="alert" className="text-sm text-destructive">{error}</p>
+            ) : null}
+            {expired ? (
+              <Button type="button" variant="outline" className="w-full" onClick={() => void loginWithGoogle()}>
+                {t("accountSetup.restart")}
+              </Button>
             ) : null}
             <Button type="submit" className="w-full" disabled={saving || username.trim().length < 3}>
               {saving ? t("accountSetup.saving") : t("accountSetup.submit")}

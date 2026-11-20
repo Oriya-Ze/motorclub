@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_auth_provider
-from app.auth.cognito import CognitoAuthProvider
+from app.auth.cognito import CognitoAuthProvider, GoogleSignupRequired
 from app.auth.base import AuthTokens
 from app.config import settings
 from app.database import get_db
@@ -14,6 +14,8 @@ from app.rate_limit import _client_ip, enforce_rate_limit
 from app.schemas import (
     AccountSetupRequest,
     AuthResponse,
+    GoogleSignupComplete,
+    GoogleSignupPending,
     ChangePasswordRequest,
     ConfirmSignUpRequest,
     ForgotPasswordRequest,
@@ -177,7 +179,20 @@ async def oauth_callback(body: OAuthCallbackRequest, db: AsyncSession = Depends(
     if not isinstance(provider, CognitoAuthProvider):
         raise HTTPException(status_code=501, detail="OAuth sign-in is only available with Cognito auth")
 
-    auth_user, tokens = await provider.exchange_oauth_code(body.code, body.redirect_uri)
+    try:
+        auth_user, tokens = await provider.exchange_oauth_code(body.code, body.redirect_uri)
+    except GoogleSignupRequired as pending:
+        # Nothing is saved yet: the person chooses a username and accepts the terms, then /google/complete.
+        return AuthResponse(
+            google_signup=GoogleSignupPending(
+                access_token=pending.tokens.access_token,
+                id_token=pending.id_token,
+                refresh_token=pending.tokens.refresh_token,
+                expires_in=pending.tokens.expires_in,
+                suggested_username=pending.suggested_username,
+                full_name=pending.full_name,
+            )
+        )
 
     result = await db.execute(select(User).where(User.id == auth_user.id))
     user = result.scalar_one()
@@ -273,3 +288,24 @@ async def account_setup(
     await db.commit()
     await db.refresh(user)
     return user_to_private(user)
+
+
+@router.post("/google/complete", response_model=AuthResponse)
+async def complete_google_signup(body: GoogleSignupComplete, request: Request, db: AsyncSession = Depends(get_db)):
+    """The last step of joining with Google: the member is created only here, with the chosen username, after the
+    terms were accepted."""
+    await enforce_rate_limit(request, "auth:google-complete", limit=20, window_seconds=3600)
+    if not body.accept_terms:
+        raise HTTPException(status_code=400, detail="terms_required")
+    provider = get_auth_provider(db)
+    if not isinstance(provider, CognitoAuthProvider):
+        raise HTTPException(status_code=501, detail="OAuth sign-in is only available with Cognito auth")
+    auth_user, tokens = await provider.complete_google_signup(
+        access_token=body.access_token,
+        id_token=body.id_token,
+        refresh_token=body.refresh_token,
+        expires_in=body.expires_in,
+        username=body.username,
+    )
+    user = await db.scalar(select(User).where(User.id == auth_user.id))
+    return _session_response(user, tokens)

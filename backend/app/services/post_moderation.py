@@ -22,6 +22,13 @@ _IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 REMOVED = "removed"
 
 
+def not_hidden_by(user_id):
+    """Leaves out posts this member hid from their own feed."""
+    from app.models import HiddenPost
+
+    return Post.id.not_in(select(HiddenPost.post_id).where(HiddenPost.user_id == user_id))
+
+
 def publicly_visible(owner_id=None):
     """Posts anyone may see. With owner_id, that owner's unpublished posts are included too."""
     public = and_(Post.hidden_at.is_(None), Post.moderation_status == "published")

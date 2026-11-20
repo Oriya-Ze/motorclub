@@ -80,7 +80,28 @@ class UsernameCheckResponse(BaseModel):
     reason: str | None = None
 
 
+class GoogleSignupPending(BaseModel):
+    """A first Google sign-in: nothing is saved until POST /auth/google/complete. These tokens are not a session."""
+
+    access_token: str
+    id_token: str
+    refresh_token: str | None = None
+    expires_in: int | None = None
+    suggested_username: str = ""
+    full_name: str = ""
+
+
+class GoogleSignupComplete(BaseModel):
+    access_token: str = Field(min_length=20, max_length=8192)
+    id_token: str = Field(min_length=20, max_length=8192)
+    refresh_token: str | None = Field(default=None, max_length=8192)
+    expires_in: int | None = None
+    username: str = Field(min_length=3, max_length=30)
+    accept_terms: bool
+
+
 class AuthResponse(BaseModel):
+    google_signup: GoogleSignupPending | None = None
     user: UserPrivate | None = None
     access_token: str | None = None
     refresh_token: str | None = None

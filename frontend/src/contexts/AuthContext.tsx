@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { clearPendingGoogleSignup, readPendingGoogleSignup, savePendingGoogleSignup } from "@/lib/googleSignup";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, type AuthResponse, type OAuthConfig, type User } from "@/lib/api";
 import { buildGoogleAuthorizeUrl } from "@/lib/cognitoOAuth";
@@ -9,7 +10,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string, captchaToken?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  completeOAuthLogin: (data: { code: string; redirect_uri: string }) => Promise<User | null>;
+  completeOAuthLogin: (data: { code: string; redirect_uri: string }) => Promise<{ user: User | null; signupPending: boolean }>;
+  completeGoogleSignup: (username: string) => Promise<void>;
   setSignedInUser: (user: User) => void;
   getOAuthConfig: () => Promise<OAuthConfig>;
   register: (data: {
@@ -98,8 +100,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const completeOAuthLogin = async (data: { code: string; redirect_uri: string }) => {
     const res = await api.oauthCallback(data);
+    if (res.google_signup) {
+      // New to MotorClub: nothing is saved until a username is chosen and the terms accepted.
+      savePendingGoogleSignup(res.google_signup);
+      return { user: null, signupPending: true };
+    }
+    clearPendingGoogleSignup();
     applyAuthResponse(res, setUser);
-    return res.user ?? null;
+    return { user: res.user ?? null, signupPending: false };
+  };
+
+  const completeGoogleSignup = async (username: string) => {
+    const pending = readPendingGoogleSignup();
+    if (!pending) throw new Error("google_signup_expired");
+    const res = await api.completeGoogleSignup({
+      access_token: pending.access_token,
+      id_token: pending.id_token,
+      refresh_token: pending.refresh_token,
+      expires_in: pending.expires_in,
+      username,
+      accept_terms: true,
+    });
+    clearPendingGoogleSignup();
+    applyAuthResponse(res, setUser);
   };
 
   const setSignedInUser = (next: User) => {
@@ -140,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         loginWithGoogle,
         completeOAuthLogin,
+        completeGoogleSignup,
         setSignedInUser,
         getOAuthConfig,
         register,

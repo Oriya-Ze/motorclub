@@ -459,6 +459,18 @@ class BusinessUpgradeRequest(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class HiddenPost(Base):
+    """A post a member hid from their own feed (offered when they report it). Others still see it."""
+
+    __tablename__ = "hidden_posts"
+    __table_args__ = (UniqueConstraint("user_id", "post_id", name="uq_hidden_posts_pair"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    post_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class SavedPost(Base):
     __tablename__ = "saved_posts"
 

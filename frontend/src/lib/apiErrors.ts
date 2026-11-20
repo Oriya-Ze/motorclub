@@ -9,6 +9,7 @@ const EXACT_ERROR_KEYS: Record<string, string> = {
   vehicle_details_locked: "apiErrors.vehicleDetailsLocked",
   terms_required: "agreeTermsRequired",
   account_setup_done: "accountSetup.alreadyDone",
+  google_signup_expired: "accountSetup.expired",
   plate_not_found: "garage.editor.plateNotFound",
   plate_invalid: "garage.editor.plateInvalid",
   plate_lookup_unavailable: "garage.editor.plateUnavailable",

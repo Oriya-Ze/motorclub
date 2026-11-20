@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -22,6 +23,9 @@ export default function ReportDialog({
   const [reason, setReason] = useState<string>(reasons[0]);
   const [details, setDetails] = useState("");
   const [pending, setPending] = useState(false);
+  const [hidePost, setHidePost] = useState(true);
+  const queryClient = useQueryClient();
+  const isPost = targetType === "post";
 
   const submit = async () => {
     setPending(true);
@@ -31,8 +35,15 @@ export default function ReportDialog({
         target_id: targetId,
         reason,
         details: details.trim() || undefined,
+        hide_post: isPost && hidePost,
       });
-      toast.success(result.duplicate ? t("reports.duplicate") : t("reports.sent"));
+      if (isPost && hidePost) {
+        // The lists that leave hidden posts out are fetched again, so the post goes away right now.
+        for (const key of [["posts"], ["explore-posts"], ["explore-search"]]) void queryClient.invalidateQueries({ queryKey: key });
+        toast.success(t("reports.sentHidden"));
+      } else {
+        toast.success(result.duplicate ? t("reports.duplicate") : t("reports.sent"));
+      }
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("reports.failed"));
@@ -54,6 +65,21 @@ export default function ReportDialog({
         </select>
         <label className="block text-sm" htmlFor="report-details">{t("reports.details")}</label>
         <textarea id="report-details" value={details} onChange={(event) => setDetails(event.target.value)} rows={3} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+        {isPost && (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={hidePost}
+              onChange={(event) => setHidePost(event.target.checked)}
+              className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+              aria-describedby="report-hide-hint"
+            />
+            <span>
+              {t("reports.hidePost")}
+              <span id="report-hide-hint" className="block text-xs text-muted-foreground">{t("reports.hidePostHint")}</span>
+            </span>
+          </label>
+        )}
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>{t("crop.cancel")}</Button>
           <Button type="button" className="!shadow-none" disabled={pending} onClick={() => void submit()}>
