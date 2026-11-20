@@ -34,6 +34,12 @@ BOT_EMAIL_DOMAIN = "bots.motorclub.invalid"
 CONFIG_ID = 1
 
 _KEY = re.compile(r"^[A-Za-z0-9_-]{1,20}$")
+_IMAGE_FILE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}\.(?:jpe?g|png|webp)$", re.IGNORECASE)
+MAX_POST_IMAGES = 4
+BIO_LIMIT = 160
+AVATAR_SIDE = 640
+POST_IMAGE_SIDE = 2048
+MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 class BotContentError(ValueError):
@@ -74,7 +80,13 @@ def parse_content(data: object) -> dict:
         if username.lower() in usernames:
             raise BotContentError(f"personas[{i}]: username repeated")
         usernames.add(username.lower())
-        personas[key] = {"key": key, "username": username, "full_name": full_name}
+        avatar = persona.get("avatar")
+        if avatar is not None and (not isinstance(avatar, str) or not _IMAGE_FILE.match(avatar)):
+            raise BotContentError(f"personas[{i}]: avatar must be a file name like noa.jpg")
+        bio = persona.get("bio")
+        if bio is not None:
+            bio = " ".join(_text(bio, f"personas[{i}].bio", BIO_LIMIT).split())
+        personas[key] = {"key": key, "username": username, "full_name": full_name, "avatar": avatar, "bio": bio}
 
     posts: list[dict] = []
     post_ids: set[str] = set()
@@ -96,6 +108,14 @@ def parse_content(data: object) -> dict:
                 expires = date.fromisoformat(str(expires))
             except ValueError as exc:
                 raise BotContentError(f"posts[{i}]: expires must be a date like 2026-12-31") from exc
+        images = post.get("images") or []
+        if (
+            not isinstance(images, list)
+            or len(images) > MAX_POST_IMAGES
+            or not all(isinstance(name, str) and _IMAGE_FILE.match(name) for name in images)
+            or len(set(images)) != len(images)
+        ):
+            raise BotContentError(f"posts[{i}]: images must be up to {MAX_POST_IMAGES} different file names like p01.jpg")
         replies = []
         for j, reply in enumerate(post.get("replies") or []):
             if not isinstance(reply, dict) or reply.get("bot") not in personas:
@@ -110,6 +130,7 @@ def parse_content(data: object) -> dict:
             "text": _text(post.get("text"), f"posts[{i}]"),
             "hashtags": [t.strip().lstrip("#") for t in tags],
             "expires": expires,
+            "images": images,
             "replies": replies,
         })
     return {"personas": list(personas.values()), "posts": posts}
@@ -150,6 +171,8 @@ async def load_content(db: AsyncSession, data: object) -> dict:
             created += 1
         else:
             user.full_name = persona["full_name"]
+        if persona["bio"] is not None:
+            user.bio = persona["bio"]
         bots[persona["key"]] = user
 
     existing = {item.item_key: item for item in (await db.execute(select(BotItem))).scalars().all()}
@@ -158,13 +181,30 @@ async def load_content(db: AsyncSession, data: object) -> dict:
     def upsert(key: str, **fields) -> None:
         nonlocal queued, updated
         item = existing.get(key)
+        files = fields.get("image_files")
         if item is None:
+            fields["image_keys"] = [None] * len(files) if files else None
             db.add(BotItem(item_key=key, **fields))
             queued += 1
+        elif item.kind == "avatar":
+            # A new file name for a profile picture waits for its upload; the current picture stays until then.
+            if item.image_files != files:
+                item.image_files, item.image_keys, item.published_at = files, [None], None
+                updated += 1
         elif item.published_at is None:
+            # Photos already uploaded stay attached as long as the file name is still listed.
+            if "image_files" in fields:
+                kept = dict(zip(item.image_files or [], item.image_keys or [], strict=False))
+                fields["image_keys"] = [kept.get(name) for name in files] if files else None
             for name, value in fields.items():
                 setattr(item, name, value)
             updated += 1
+
+    for persona in content["personas"]:
+        if persona["avatar"]:
+            # A profile picture waits here until its file is uploaded (see store_image).
+            upsert(f"avatar:{persona['key']}", kind="avatar", bot_user_id=bots[persona["key"]].id, parent_key=None,
+                   position=0, text=persona["username"], hashtags=None, after_min=0, image_files=[persona["avatar"]])
 
     for i, post in enumerate(content["posts"]):
         # "expires" is the last Israel calendar day the post may go out.
@@ -172,7 +212,8 @@ async def load_content(db: AsyncSession, data: object) -> dict:
             datetime.combine(post["expires"] + timedelta(days=1), time(0), tzinfo=ISRAEL) if post["expires"] else None
         )
         upsert(post["id"], kind="post", bot_user_id=bots[post["bot"]].id, parent_key=None, position=i * 100,
-               text=post["text"], hashtags=post["hashtags"] or None, after_min=0, expires_at=expires_at)
+               text=post["text"], hashtags=post["hashtags"] or None, after_min=0, expires_at=expires_at,
+               image_files=post["images"] or None)
         for j, reply in enumerate(post["replies"]):
             upsert(f"{post['id']}.r{j + 1}", kind="reply", bot_user_id=bots[reply["bot"]].id, parent_key=post["id"],
                    position=i * 100 + j + 1, text=reply["text"], hashtags=None, after_min=reply["after_min"])
@@ -192,6 +233,7 @@ async def _publish_post(db: AsyncSession, item: BotItem, now: datetime) -> Post:
         user_id=item.bot_user_id,
         content=_post_body(item),
         hashtags=[tag.lower() for tag in item.hashtags] if item.hashtags else None,
+        image_urls=list(item.image_keys) if item.image_files else None,
         moderation_status="published",
         publish_requested=True,
         first_published_at=now,
@@ -298,16 +340,19 @@ async def run_tick(db: AsyncSession, *, now: datetime | None = None, rng: random
     last = await db.scalar(select(func.max(BotItem.published_at)).where(BotItem.kind == "post"))
     gap_ok = last is None or now - last >= MIN_GAP_BETWEEN_POSTS
     if force or (gap_ok and rng.random() < POSTS_PER_DAY / TICKS_PER_ACTIVE_DAY):
-        item = await db.scalar(
-            select(BotItem)
-            .where(
-                BotItem.kind == "post",
-                BotItem.published_at.is_(None),
-                or_(BotItem.expires_at.is_(None), BotItem.expires_at > now),
+        waiting = (
+            await db.execute(
+                select(BotItem)
+                .where(
+                    BotItem.kind == "post",
+                    BotItem.published_at.is_(None),
+                    or_(BotItem.expires_at.is_(None), BotItem.expires_at > now),
+                )
+                .order_by(BotItem.position)
             )
-            .order_by(BotItem.position)
-            .limit(1)
-        )
+        ).scalars()
+        # A post with photos waits for all of them to be uploaded; the next post goes out meanwhile.
+        item = next((i for i in waiting if not _missing_images(i)), None)
         if item is not None:
             await _publish_post(db, item, now)
             result["post"] = item.item_key
@@ -316,6 +361,100 @@ async def run_tick(db: AsyncSession, *, now: datetime | None = None, rng: random
         result["like"] = await _like_something(db, now, rng)
     await db.commit()
     return result
+
+
+def _missing_images(item: BotItem) -> list[str]:
+    files, keys = item.image_files or [], item.image_keys or []
+    return [name for n, name in enumerate(files) if n >= len(keys) or not keys[n]]
+
+
+class BotImageError(ValueError):
+    pass
+
+
+def _prepared_jpeg(data: bytes, side: int) -> bytes:
+    """Decode by content, apply EXIF rotation, flatten, shrink, and re-encode without metadata."""
+    import io
+
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    if len(data) > MAX_IMAGE_BYTES:
+        raise BotImageError("image larger than 8MB")
+    try:
+        image = Image.open(io.BytesIO(data))
+        if getattr(image, "is_animated", False):
+            raise BotImageError("animated images are not allowed")
+        image = ImageOps.exif_transpose(image)
+        if image.mode in ("RGBA", "LA", "P"):
+            image = image.convert("RGBA")
+            flat = Image.new("RGB", image.size, "white")
+            flat.paste(image, mask=image.getchannel("A"))
+            image = flat
+        image = image.convert("RGB")
+    except (UnidentifiedImageError, OSError) as exc:
+        raise BotImageError("not an image") from exc
+    image.thumbnail((side, side))
+    out = io.BytesIO()
+    image.save(out, "JPEG", quality=86, optimize=True)
+    return out.getvalue()
+
+
+def _write_public(storage_key: str, data: bytes) -> None:
+    import app.config as app_config
+    from app.services.media_gate import write_local_bytes
+
+    settings = app_config.settings
+    if settings.media_storage_provider == "s3" and settings.s3_media_bucket:
+        import boto3
+
+        boto3.client("s3", region_name=settings.aws_region).put_object(
+            Bucket=settings.s3_media_bucket, Key=storage_key, Body=data, ContentType="image/jpeg"
+        )
+        return
+    write_local_bytes(storage_key, data)
+
+
+async def store_image(db: AsyncSession, filename: str, data: bytes) -> dict:
+    """Attach an uploaded photo to every waiting bot item that lists this file name: a profile picture, or a photo
+    of a post not published yet. The admin uploading it is the review, recorded like an approval in the console.
+    Does not commit; returns the replaced files for deleting after the commit."""
+    from app.models import MediaScan
+    from app.services.image_moderation import POLICY_VERSION, content_hash
+
+    if not _IMAGE_FILE.match(filename or ""):
+        raise BotImageError("file name must look like p01.jpg")
+    items = [
+        item
+        for item in (await db.execute(select(BotItem).where(BotItem.kind.in_(["avatar", "post"])))).scalars()
+        if filename in (item.image_files or []) and (item.kind == "avatar" or item.published_at is None)
+    ]
+    if not items:
+        raise BotImageError("no profile picture or waiting post uses this file name")
+    used_by: list[str] = []
+    replaced: list[str] = []
+    for item in items:
+        avatar = item.kind == "avatar"
+        prepared = _prepared_jpeg(data, AVATAR_SIDE if avatar else POST_IMAGE_SIDE)
+        key = f"users/{item.bot_user_id}/{'avatar' if avatar else 'posts'}/{uuid.uuid4()}.jpg"
+        _write_public(key, prepared)
+        if not avatar:
+            db.add(MediaScan(storage_key=key, content_hash=content_hash(prepared), decision="approved", labels=None,
+                             model_version="admin", policy_version=POLICY_VERSION))
+        index = item.image_files.index(filename)
+        keys = list(item.image_keys or [None] * len(item.image_files))
+        keys += [None] * (len(item.image_files) - len(keys))
+        if keys[index]:
+            replaced.append(keys[index])
+        keys[index] = key
+        item.image_keys = keys
+        if avatar:
+            bot = await db.get(User, item.bot_user_id)
+            if bot.profile_picture_url and bot.profile_picture_url not in replaced:
+                replaced.append(bot.profile_picture_url)
+            bot.profile_picture_url = key
+            item.published_at = datetime.now(UTC)
+        used_by.append(item.item_key)
+    return {"file": filename, "used_by": used_by, "replaced": replaced}
 
 
 async def set_enabled(db: AsyncSession, enabled: bool) -> None:
@@ -346,6 +485,12 @@ async def bot_status(db: AsyncSession) -> dict:
         }
 
     upcoming = [i for i in items if i.kind == "post" and i.published_at is None and not expired(i)][:5]
+    missing_images = sorted({
+        name
+        for i in items
+        if (i.kind == "avatar" or (i.kind == "post" and i.published_at is None and not expired(i)))
+        for name in _missing_images(i)
+    })
     recent = sorted((i for i in items if i.published_at and i.kind == "post"), key=lambda i: i.published_at, reverse=True)[:5]
 
     def row(item: BotItem) -> dict:
@@ -357,6 +502,8 @@ async def bot_status(db: AsyncSession) -> dict:
             "published_at": item.published_at.isoformat() if item.published_at else None,
             "expires_at": item.expires_at.isoformat() if item.expires_at else None,
             "post_id": str(item.post_id) if item.post_id else None,
+            "images": len(item.image_files or []),
+            "missing_images": _missing_images(item),
         }
 
     return {
@@ -374,6 +521,7 @@ async def bot_status(db: AsyncSession) -> dict:
         ],
         "posts": summary("post"),
         "replies": summary("reply"),
+        "missing_images": missing_images,
         "upcoming": [row(i) for i in upcoming],
         "recent": [row(i) for i in recent],
     }
@@ -382,7 +530,17 @@ async def bot_status(db: AsyncSession) -> dict:
 async def delete_all_bots(db: AsyncSession) -> dict:
     """Remove every bot account with its posts, replies and likes, the notifications they caused, and the queue.
     Does not commit."""
+    from app.services.media_cleanup import user_media
+
     bot_ids = list((await db.execute(select(User.id).where(User.is_bot.is_(True)))).scalars().all())
+    # Their photos are deleted after the commit (delete_bot_files); collect them while the rows still exist.
+    media = [(bot_id, *(await user_media(db, bot_id))) for bot_id in bot_ids]
+    queued_keys = [
+        key
+        for keys in (await db.execute(select(BotItem.image_keys).where(BotItem.image_keys.is_not(None)))).scalars()
+        for key in keys or []
+        if key
+    ]
     notifications = 0
     if bot_ids:
         notifications = (await db.execute(delete(Notification).where(Notification.actor_id.in_(bot_ids)))).rowcount or 0
@@ -391,4 +549,13 @@ async def delete_all_bots(db: AsyncSession) -> dict:
         await db.execute(delete(User).where(User.id.in_(bot_ids)))
     config = await _config(db)
     config.enabled = False
-    return {"bots": len(bot_ids), "items": items, "notifications": notifications}
+    return {"bots": len(bot_ids), "items": items, "notifications": notifications, "_media": media, "_queued_keys": queued_keys}
+
+
+def delete_bot_files(removed: dict) -> None:
+    """After delete_all_bots is committed: remove the bots' photos, processed copies included."""
+    from app.services.media_cleanup import delete_media_files, delete_user_media_files
+
+    for bot_id, keys, media_ids in removed.pop("_media", []):
+        delete_user_media_files(bot_id, keys, media_ids)
+    delete_media_files(removed.pop("_queued_keys", []))

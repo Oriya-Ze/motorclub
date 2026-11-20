@@ -134,6 +134,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <p className="text-muted-foreground">{formatHandle(profile)}</p>
+                {profile.bio ? <p className="user-text mt-1.5 max-w-md text-sm text-foreground/85">{profile.bio}</p> : null}
                 {profile.profile_public === false && (
                   <p className="text-xs text-muted-foreground mt-1">{t("profile.privateAccount")}</p>
                 )}

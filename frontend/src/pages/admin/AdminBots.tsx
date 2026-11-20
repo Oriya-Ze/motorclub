@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pause, Play, Trash2, Upload, Zap } from "lucide-react";
+import { ImagePlus, Pause, Play, Trash2, Upload, Zap } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -7,6 +7,23 @@ import { api, type BotQueueRow } from "@/lib/api";
 import { AdminCard, AdminEmpty, AdminLoading, AdminSection, formatDateTime } from "@/pages/admin/shared";
 
 const DELETE_CONFIRMATION = "מחק בוטים";
+
+/** Shrink a photo in the browser before sending it: the API takes a few megabytes per request at most. */
+async function shrinkPhoto(file: File, side = 2048): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
+    if (scale === 1 && file.size < 3_000_000) return file;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    return blob ?? file;
+  } catch {
+    return file;
+  }
+}
 
 function QueueList({ rows, empty }: { rows: BotQueueRow[]; empty: string }) {
   if (!rows.length) return <AdminEmpty>{empty}</AdminEmpty>;
@@ -35,6 +52,15 @@ function QueueList({ rows, empty }: { rows: BotQueueRow[]; empty: string }) {
                 לפוסט
               </a>
             )}
+            {row.images ? (
+              <>
+                <span>·</span>
+                <span>
+                  {row.images} תמונות
+                  {row.missing_images?.length ? ` (חסרות: ${row.missing_images.join(", ")})` : ""}
+                </span>
+              </>
+            ) : null}
           </p>
           <p className="line-clamp-2" dir="auto">{row.text}</p>
         </li>
@@ -50,6 +76,7 @@ function QueueList({ rows, empty }: { rows: BotQueueRow[]; empty: string }) {
 export default function AdminBots() {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef<HTMLInputElement>(null);
   const confirmId = useId();
   const [confirm, setConfirm] = useState("");
   const status = useQuery({ queryKey: ["admin-bots"], queryFn: () => api.getBots(), refetchInterval: 60_000 });
@@ -72,6 +99,30 @@ export default function AdminBots() {
     onError: (err: Error) => toast.error(err.message),
     onSettled: () => {
       if (fileRef.current) fileRef.current.value = "";
+    },
+  });
+
+  const uploadImages = useMutation({
+    mutationFn: async (files: File[]) => {
+      const done: string[] = [];
+      const failed: string[] = [];
+      for (const file of files) {
+        try {
+          await api.uploadBotImage(await shrinkPhoto(file), file.name);
+          done.push(file.name);
+        } catch (err) {
+          failed.push(`${file.name}: ${err instanceof Error ? err.message : "שגיאה"}`);
+        }
+      }
+      return { done, failed };
+    },
+    onSuccess: ({ done, failed }) => {
+      if (done.length) toast.success(`הועלו ${done.length} תמונות`);
+      if (failed.length) toast.error(`לא הועלו: ${failed.join(" · ")}`, { duration: 10_000 });
+      refresh();
+    },
+    onSettled: () => {
+      if (imagesRef.current) imagesRef.current.value = "";
     },
   });
 
@@ -122,6 +173,11 @@ export default function AdminBots() {
               {data.posts.expired > 0 && ` (${data.posts.expired} פג תוקפם ולא יעלו)`}
               {" · "}תגובות {data.replies.published}/{data.replies.total}
             </p>
+            {data.missing_images.length > 0 && (
+              <p className="text-sm text-amber-700 dark:text-amber-400" role="status">
+                ממתינות לתמונות ({data.missing_images.length}): <span dir="ltr">{data.missing_images.join(", ")}</span>. פוסט עם תמונות יוצא רק אחרי שכולן הועלו, ובינתיים יוצאים הפוסטים הבאים. שם הקובץ צריך להיות זהה לשם בקובץ התוכן.
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               כשהם פעילים: בדיקה כל חצי שעה בין 08:00 ל־23:00, כ־2–3 פוסטים ביום, תגובות לפי ההשהיה שבקובץ, ולייקים על פוסטים ציבוריים מהימים האחרונים (עד 3 מבוטים לפוסט).
             </p>
@@ -138,6 +194,22 @@ export default function AdminBots() {
                 <Upload className="me-1 h-4 w-4" aria-hidden />
                 {upload.isPending ? "טוען…" : "העלאת קובץ תוכן"}
               </Button>
+              <Button size="sm" variant="outline" disabled={uploadImages.isPending} onClick={() => imagesRef.current?.click()}>
+                <ImagePlus className="me-1 h-4 w-4" aria-hidden />
+                {uploadImages.isPending ? "מעלה תמונות…" : "העלאת תמונות"}
+              </Button>
+              <input
+                ref={imagesRef}
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                aria-label="תמונות לבוטים"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length) uploadImages.mutate(files);
+                }}
+              />
               <input
                 ref={fileRef}
                 type="file"

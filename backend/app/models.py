@@ -31,6 +31,8 @@ class User(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone_number: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
     profile_picture_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # A line or two about the member, shown on their profile.
+    bio: Mapped[str | None] = mapped_column(String(160), nullable=True)
     account_type: Mapped[str] = mapped_column(String(20), default="personal")
     business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Every category the business chose, primary first; business_type mirrors the first one.
@@ -588,7 +590,7 @@ class BotItem(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     item_key: Mapped[str] = mapped_column(String(40), unique=True)
-    kind: Mapped[str] = mapped_column(String(10))  # "post" or "reply"
+    kind: Mapped[str] = mapped_column(String(10))  # "post", "reply", or "avatar" (a bot's profile picture)
     bot_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     parent_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
     position: Mapped[int] = mapped_column(Integer)
@@ -600,6 +602,9 @@ class BotItem(Base):
     post_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("posts.id", ondelete="SET NULL"), nullable=True)
     comment_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("comments.id", ondelete="SET NULL"), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Photo file names from the content file, and the storage keys of those uploaded so far (same order; None = missing).
+    image_files: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    image_keys: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

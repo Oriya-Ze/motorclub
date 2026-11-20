@@ -127,6 +127,8 @@ const resources = {
       forumsSubtitle: "שאלות, טיפים ודיונים עם הקהילה",
       messages: "הודעות",
       profile: {
+        bio: "קצת עליי",
+        bioPlaceholder: "שורה או שתיים עליך ועל הרכב",
         nav: "פרופיל",
         editProfile: "ערוך פרופיל",
         posts: "פוסטים",
@@ -1470,6 +1472,8 @@ const resources = {
       forumsSubtitle: "Questions, tips, and discussions with the community",
       messages: "Messages",
       profile: {
+        bio: "Bio",
+        bioPlaceholder: "A line or two about you and your car",
         nav: "Profile",
         editProfile: "Edit Profile",
         posts: "Posts",

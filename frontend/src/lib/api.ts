@@ -16,6 +16,8 @@ export interface User {
   username: string;
   full_name: string;
   profile_picture_url?: string | null;
+  /** A line or two about the member, shown on their profile. */
+  bio?: string | null;
   account_type: string;
   business_type?: string | null;
   business_types?: string[] | null;
@@ -49,6 +51,8 @@ export interface BotQueueRow {
   published_at: string | null;
   expires_at: string | null;
   post_id: string | null;
+  images?: number;
+  missing_images?: string[];
 }
 
 export interface BotStatus {
@@ -56,6 +60,8 @@ export interface BotStatus {
   bots: Array<{ id: string; username: string; full_name: string; posts: number; replies: number; likes: number }>;
   posts: { total: number; published: number; expired: number };
   replies: { total: number; published: number; expired: number };
+  /** Photo file names in the content file that were not uploaded yet (posts with photos wait for them). */
+  missing_images: string[];
   upcoming: BotQueueRow[];
   recent: BotQueueRow[];
 }
@@ -1149,6 +1155,12 @@ class ApiClient {
     return this.request<BotStatus>("/admin/bots");
   }
 
+  uploadBotImage(file: Blob, name: string) {
+    const form = new FormData();
+    form.append("file", file, name);
+    return this.request<{ file: string; used_by: string[] }>("/admin/bots/images", { method: "POST", body: form });
+  }
+
   uploadBotContent(content: unknown) {
     return this.request<{ bots_created: number; bots: number; queued: number; updated: number }>("/admin/bots/content", {
       method: "PUT",
@@ -1398,6 +1410,7 @@ class ApiClient {
 
   updateProfile(data: {
     full_name?: string;
+    bio?: string | null;
     username?: string;
     profile_picture_url?: string;
     cover_image_url?: string;

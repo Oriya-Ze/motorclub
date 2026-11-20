@@ -77,6 +77,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [fullName, setFullName] = useState("");
+  const [bio, setBio] = useState("");
   const [showUpgradeForm, setShowUpgradeForm] = useState(false);
   // ?tab=account opens a tab directly, e.g. coming back from the delete-account page; an unknown tab falls back below.
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => (searchParams.get("tab") as SettingsTab | null) ?? "profile");
@@ -97,7 +98,10 @@ export default function SettingsPage() {
   });
 
   useEffect(() => {
-    if (user) setFullName(user.full_name ?? "");
+    if (user) {
+      setFullName(user.full_name ?? "");
+      setBio(user.bio ?? "");
+    }
   }, [user]);
 
   useEffect(() => {
@@ -155,7 +159,7 @@ export default function SettingsPage() {
   });
 
   const updateProfile = useMutation({
-    mutationFn: () => api.updateProfile({ full_name: fullName.trim() }),
+    mutationFn: () => api.updateProfile({ full_name: fullName.trim(), bio: bio.trim() || null }),
     onSuccess: async () => {
       await refreshUser();
       queryClient.invalidateQueries({ queryKey: ["user"] });
@@ -190,7 +194,9 @@ export default function SettingsPage() {
     updateSettings.mutate({ language });
   };
 
-  const nameChanged = user ? fullName.trim() !== (user.full_name ?? "").trim() : false;
+  const nameChanged = user
+    ? fullName.trim() !== (user.full_name ?? "").trim() || bio.trim() !== (user.bio ?? "").trim()
+    : false;
   const accountTypeLabel =
     user?.account_type === "business" ? t("profile.businessAccount") : t("profile.personalAccount");
 
@@ -267,6 +273,21 @@ export default function SettingsPage() {
                       <div className="space-y-2">
                         <label className="text-sm font-medium">{t("fullName")}</label>
                         <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="settings-bio" className="text-sm font-medium">{t("profile.bio")}</label>
+                        <textarea
+                          id="settings-bio"
+                          value={bio}
+                          onChange={(e) => setBio(e.target.value.replace(/\s*\n\s*/g, " "))}
+                          maxLength={160}
+                          rows={2}
+                          dir="auto"
+                          placeholder={t("profile.bioPlaceholder")}
+                          aria-describedby="settings-bio-count"
+                          className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                        />
+                        <p id="settings-bio-count" className="text-xs text-muted-foreground">{bio.length}/160</p>
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium flex items-center gap-1.5">

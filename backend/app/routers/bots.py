@@ -1,6 +1,6 @@
 """Content bots: the admin console's controls, and the scheduled tick (see app/services/bots.py)."""
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,7 +73,30 @@ async def delete_bots(body: DeleteBody, db: AsyncSession = Depends(get_db), admi
     summary = await bots.delete_all_bots(db)
     _log(db, admin, "bots_delete", f"{summary['bots']} bots")
     await db.commit()
+    bots.delete_bot_files(summary)
     return summary
+
+
+@admin_router.post("/images")
+async def upload_image(
+    file: UploadFile = File(...), db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)
+):
+    """One photo named in the content file: a bot's profile picture, or a photo for a post that has not gone out."""
+    from app.services.media_cleanup import delete_media_files, unreferenced_media
+
+    data = await file.read(bots.MAX_IMAGE_BYTES + 1)
+    try:
+        result = await bots.store_image(db, file.filename or "", data)
+    except bots.BotImageError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"bot_image_invalid: {exc}") from exc
+    _log(db, admin, "bots_image", f"{result['file']} → {', '.join(result['used_by'])}")
+    replaced = result.pop("replaced")
+    await db.flush()
+    orphaned = await unreferenced_media(db, replaced)
+    await db.commit()
+    delete_media_files(orphaned)
+    return result
 
 
 @internal_router.post("/bots/tick")

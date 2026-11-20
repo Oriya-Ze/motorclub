@@ -367,9 +367,13 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
             ) : (
               comments.map((c) => (
                 <div key={c.id} className="flex gap-2">
-                  <Avatar user={c.author} size="xs" />
+                  <Link to={withReturnTo(getUserProfilePath(c.author), `${location.pathname}${location.search}`)} className="shrink-0 self-start rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-hidden tabIndex={-1}>
+                    <Avatar user={c.author} size="xs" />
+                  </Link>
                   <div className="flex-1 bg-muted/50 rounded-xl px-3 py-2">
-                    <p className="text-xs font-medium">{c.author.full_name}</p>
+                    <Link to={withReturnTo(getUserProfilePath(c.author), `${location.pathname}${location.search}`)} className="text-xs font-medium hover:underline focus-visible:outline-none focus-visible:underline">
+                      {c.author.full_name}
+                    </Link>
                     <p className="user-text text-sm">{c.content}</p>
                   </div>
                   {(c.user_id === user?.id || isAuthor) && (

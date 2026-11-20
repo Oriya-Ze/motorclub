@@ -13,6 +13,7 @@ class UserPublic(BaseModel):
     username: str
     full_name: str
     profile_picture_url: str | None = None
+    bio: str | None = None
     account_type: str = "personal"
     business_type: str | None = None
     business_types: list[str] | None = None
@@ -406,6 +407,7 @@ class AccountDeleteRequest(BaseModel):
 
 class ProfileUpdate(BaseModel):
     full_name: str | None = None
+    bio: str | None = Field(default=None, max_length=160)
     username: str | None = None
     profile_picture_url: str | None = None
     cover_image_url: str | None = None

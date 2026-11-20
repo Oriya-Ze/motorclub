@@ -244,3 +244,74 @@ def test_scheduled_event_reaches_the_tick(monkeypatch):
     outside = lambda_handler._internal_event("bot_tick", "/api/v1/internal/bots/tick")
     del outside["motorclub_internal"]
     assert lambda_handler.handler(outside, Context())["statusCode"] == 404
+
+
+def _jpeg(color: str = "red") -> bytes:
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", (900, 600), color).save(out, "JPEG")
+    return out.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_bot_photos_profile_and_post(monkeypatch, tmp_path):
+    import app.config as app_config
+
+    monkeypatch.setattr(app_config.settings, "media_storage_provider", "local")
+    monkeypatch.setattr(app_config.settings, "upload_dir", str(tmp_path))
+    tag = uuid.uuid4().hex[:6]
+    content = _content(tag)
+    content["personas"][0].update({"avatar": "a.jpg", "bio": "  GTI מ־2019,   ימי מסלול בסופ\"ש  "})
+    content["posts"][0]["images"] = ["p1.jpg"]
+    bad = _content(tag)
+    for broken in ({"avatar": "../x.jpg"}, {"bio": "x" * 200}):
+        with pytest.raises(bots.BotContentError):
+            bots.parse_content({**bad, "personas": [{**bad["personas"][0], **broken}, bad["personas"][1]]})
+    with pytest.raises(bots.BotContentError):
+        bots.parse_content({**bad, "posts": [{**bad["posts"][0], "images": ["a.gif"]}, bad["posts"][1]]})
+    try:
+        async with get_session_factory()() as db:
+            await bots.load_content(db, content)
+            await db.commit()
+            bot_a = await db.scalar(select(User).where(User.username == f"bota{tag}"))
+            assert bot_a.bio == 'GTI מ־2019, ימי מסלול בסופ"ש'
+            status = await bots.bot_status(db)
+            assert status["missing_images"] == ["a.jpg", "p1.jpg"]
+
+            # The first post waits for its photo; the second one goes out meanwhile.
+            first = await bots.run_tick(db, now=NOON, rng=_Always(), force=True)
+            assert first["post"] == f"{tag}2"
+
+            with pytest.raises(bots.BotImageError):
+                await bots.store_image(db, "unused.jpg", _jpeg())
+            with pytest.raises(bots.BotImageError):
+                await bots.store_image(db, "p1.jpg", b"not an image")
+            avatar = await bots.store_image(db, "a.jpg", _jpeg("blue"))
+            photo = await bots.store_image(db, "p1.jpg", _jpeg())
+            await db.commit()
+            assert avatar["used_by"] == [f"avatar:a"] or avatar["used_by"][0].startswith("avatar:")
+            await db.refresh(bot_a)
+            assert bot_a.profile_picture_url.startswith(f"users/{bot_a.id}/avatar/")
+            assert (tmp_path / bot_a.profile_picture_url).is_file()
+
+            second = await bots.run_tick(db, now=NOON + timedelta(hours=3), rng=_Always(), force=True)
+            assert second["post"] == f"{tag}1"
+            post = await db.scalar(select(Post).join(BotItem, BotItem.post_id == Post.id).where(BotItem.item_key == f"{tag}1"))
+            assert post.image_urls and post.image_urls[0].startswith(f"users/{bot_a.id}/posts/")
+            assert (tmp_path / post.image_urls[0]).is_file()
+            assert (await bots.bot_status(db))["missing_images"] == []
+
+            # A published post keeps its photo: a later upload of the same name no longer applies to it.
+            assert photo["used_by"] == [f"{tag}1"]
+            with pytest.raises(bots.BotImageError):
+                await bots.store_image(db, "p1.jpg", _jpeg("green"))
+
+            removed = await bots.delete_all_bots(db)
+            await db.commit()
+            bots.delete_bot_files(removed)
+            assert not (tmp_path / post.image_urls[0]).exists() and not (tmp_path / bot_a.profile_picture_url).exists()
+    finally:
+        await _cleanup()

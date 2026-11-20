@@ -126,6 +126,8 @@ async def update_profile(
         data["business_types"] = [data["business_type"], *rest]
     if "business_entity" in data:
         check_business_entity(data["business_entity"])
+    if "bio" in data:
+        data["bio"] = " ".join((data["bio"] or "").split()) or None
     from app.services.media_cleanup import delete_media_files, removed_media, unreferenced_media
 
     before = [user.profile_picture_url, user.cover_image_url, *(user.gallery_urls or [])]
