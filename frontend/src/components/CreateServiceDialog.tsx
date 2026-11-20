@@ -11,7 +11,8 @@ import { getBusinessProfilePath } from "@/lib/businessProfile";
 import { decimalOnly } from "@/lib/numericInput";
 
 /** A business adds a service from the services page; it then shows on the services tab of its profile. */
-export default function CreateServiceDialog({ onClose }: { onClose: () => void }) {
+/** showProfileLink: the success message offers the public profile; off when the dialog is opened from it. */
+export default function CreateServiceDialog({ onClose, showProfileLink = true }: { onClose: () => void; showProfileLink?: boolean }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ export default function CreateServiceDialog({ onClose }: { onClose: () => void }
       queryClient.invalidateQueries({ queryKey: ["business-services"] });
       queryClient.invalidateQueries({ queryKey: ["services"] });
       const profile = user ? `${getBusinessProfilePath(user.business_type, user.id)}?tab=services` : null;
-      toast.success(t("businessSettings.serviceCreated"), profile
+      toast.success(t("businessSettings.serviceCreated"), profile && showProfileLink
         ? { action: { label: t("businessSettings.viewPublicProfile"), onClick: () => navigate(profile) } }
         : undefined);
       onClose();

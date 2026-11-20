@@ -90,10 +90,12 @@ export default function ReportDialog({
           <p className="text-sm text-muted-foreground" role="status">{t("loading")}</p>
         ) : already ? (
           <>
-            <p className="text-sm" role="status">
-              {t(stillOpen ? "reports.already" : "reports.alreadyHandled", {
-                date: already.created_at ? new Date(already.created_at).toLocaleDateString("he-IL") : "",
-              })}
+            <p className="whitespace-pre-line text-sm" role="status">
+              {stillOpen
+                ? t("reports.already", { what: t(`reports.alreadyWhat.${targetType}`) })
+                : t("reports.alreadyHandled", {
+                    date: already.created_at ? new Date(already.created_at).toLocaleDateString("he-IL") : "",
+                  })}
             </p>
             {isPost && already.hidden && <p className="text-sm text-muted-foreground">{t("reports.hiddenAlready")}</p>}
             <div className="flex gap-2">

@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import AddVehicleForm from "@/components/AddVehicleForm";
 import CreateProductModal from "@/components/CreateProductModal";
+import CreateServiceDialog from "@/components/CreateServiceDialog";
 import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
 import ProductCard from "@/components/ProductCard";
@@ -172,6 +173,7 @@ export default function BusinessProfilePage() {
   const businessProducts = productPage?.items ?? [];
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [creatingProduct, setCreatingProduct] = useState(false);
+  const [creatingService, setCreatingService] = useState(false);
   const navigate = useNavigate();
   const reviewFormRef = useRef<HTMLDivElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
@@ -385,6 +387,7 @@ export default function BusinessProfilePage() {
           }}
         />
       )}
+      {isOwn && creatingService && <CreateServiceDialog showProfileLink={false} onClose={() => setCreatingService(false)} />}
       {reporting && userId && <ReportDialog targetType="profile" targetId={userId} onClose={() => setReporting(false)} />}
 
       <Card className="overflow-hidden shadow-glow border-border/60">
@@ -680,7 +683,16 @@ export default function BusinessProfilePage() {
           </div>
         )
       ) : tab === "services" ? (
-        services.length === 0 ? (
+        <div className="space-y-3">
+        {isOwn && (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setCreatingService(true)}>
+              <Plus className="w-4 h-4 me-1" aria-hidden />
+              {t("businessSettings.addService")}
+            </Button>
+          </div>
+        )}
+        {services.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60">
             {t("businessProfile.noServices")}
           </div>
@@ -706,7 +718,8 @@ export default function BusinessProfilePage() {
               </Card>
             ))}
           </div>
-        )
+        )}
+        </div>
       ) : (
         <div className="space-y-4">
           {canReview && (
