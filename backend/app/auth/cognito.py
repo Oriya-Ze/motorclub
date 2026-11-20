@@ -549,6 +549,19 @@ class CognitoAuthProvider(AuthProvider):
         }
         return await self._complete_auth_from_tokens(normalized, oauth=True)
 
+    @staticmethod
+    def _google_email_verified(client, claims: dict, cognito_username: str) -> bool:
+        """Whether Google confirmed the email. The app client may not be allowed to read email_verified into the
+        token, so a missing claim is read from the Google user in Cognito itself."""
+        if "email_verified" in claims:
+            return _claim_true(claims["email_verified"])
+        try:
+            google_user = client.admin_get_user(UserPoolId=settings.cognito_user_pool_id, Username=cognito_username)
+        except client.exceptions.UserNotFoundException:
+            return False
+        attrs = {attr["Name"]: attr["Value"] for attr in google_user.get("UserAttributes", [])}
+        return _claim_true(attrs.get("email_verified"))
+
     async def _link_google_to_existing_account(self, claims: dict) -> None:
         """A first Google sign-in with the email of an existing password account joins that account.
 
@@ -580,7 +593,7 @@ class CognitoAuthProvider(AuthProvider):
             return
         if not native and not member:
             return
-        if not native or not member or not _claim_true(claims.get("email_verified")):
+        if not native or not member or not self._google_email_verified(client, claims, cognito_username):
             raise HTTPException(status_code=409, detail="Email already registered")
         client.admin_delete_user(UserPoolId=settings.cognito_user_pool_id, Username=cognito_username)
         client.admin_link_provider_for_user(

@@ -23,12 +23,17 @@ class FakeCognito:
     class exceptions:
         UserNotFoundException = _NotFound
 
-    def __init__(self, native: dict | None = None, by_sub: list[str] | None = None):
+    def __init__(self, native: dict | None = None, by_sub: list[str] | None = None, google_verified: str | None = None):
         self.native = native
+        self.google_verified = google_verified
         self.by_sub = by_sub or []
         self.calls: list[tuple] = []
 
     def admin_get_user(self, UserPoolId, Username):
+        if Username.startswith("google_"):
+            if self.google_verified is None:
+                raise _NotFound
+            return {"Username": Username, "UserAttributes": [{"Name": "email_verified", "Value": self.google_verified}]}
         if self.native is None:
             raise _NotFound
         return self.native
@@ -45,7 +50,7 @@ class FakeCognito:
 
 
 def _google_claims(email: str, *, username: str = "google_1098", verified=True) -> dict:
-    return {
+    claims = {
         "sub": str(uuid.uuid4()),
         "email": email,
         "email_verified": "true" if verified else "false",
@@ -53,6 +58,9 @@ def _google_claims(email: str, *, username: str = "google_1098", verified=True) 
         "identities": [{"providerName": "Google", "userId": "1098", "providerType": "Google"}],
         "name": "Google Person",
     }
+    if verified is None:
+        del claims["email_verified"]  # the app client may not be allowed to read it into the token
+    return claims
 
 
 async def _dispose():
@@ -85,6 +93,19 @@ async def test_google_sign_in_joins_an_existing_password_account(monkeypatch):
             with pytest.raises(HTTPException) as refused:
                 await provider._link_google_to_existing_account(_google_claims(member.email, verified=False))
             assert refused.value.detail == "Email already registered" and fake.calls == []
+
+            # No email_verified in the token (as in production): Cognito's own record of the Google user decides.
+            no_claim = _google_claims(member.email, verified=None)
+            fake = FakeCognito(native, google_verified="true")
+            monkeypatch.setattr(provider, "_cognito_client", lambda: fake)
+            with pytest.raises(HTTPException) as linked_again:
+                await provider._link_google_to_existing_account(no_claim)
+            assert linked_again.value.detail == "oauth_account_linked" and ("link", "native-uuid", "1098") in fake.calls
+            fake = FakeCognito(native, google_verified="false")
+            monkeypatch.setattr(provider, "_cognito_client", lambda: fake)
+            with pytest.raises(HTTPException) as refused_again:
+                await provider._link_google_to_existing_account(no_claim)
+            assert refused_again.value.detail == "Email already registered" and fake.calls == []
 
             # Already linked: Cognito signs in as the password account itself, nothing to do.
             fake = FakeCognito(native)
