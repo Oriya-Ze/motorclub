@@ -77,6 +77,14 @@ export default function AdminReports() {
                   {group.reports.map((report) => (
                     <li key={report.id} className="text-muted-foreground">
                       {formatDateTime(report.created_at)} · {REPORT_REASONS[report.reason] ?? report.reason}
+                      {" · דיווח: "}
+                      {report.reporter ? (
+                        <a className="text-foreground hover:underline" href={`/profile/${report.reporter.id}`} target="_blank" rel="noreferrer">
+                          {report.reporter.full_name} <span dir="ltr">@{report.reporter.username}</span>
+                        </a>
+                      ) : (
+                        "חשבון שנמחק"
+                      )}
                       {report.details ? ` · "${report.details}"` : ""}
                     </li>
                   ))}

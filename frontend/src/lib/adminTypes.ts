@@ -34,7 +34,15 @@ export interface AdminReportGroup {
   reasons: string[];
   latest: string;
   status: string;
-  reports: Array<{ id: string; reason: string; details: string | null; status: string; created_at: string }>;
+  reports: Array<{
+    id: string;
+    reason: string;
+    details: string | null;
+    status: string;
+    created_at: string;
+    /** Who reported (no email). Null if the account was deleted. */
+    reporter: { id: string; username: string; full_name: string } | null;
+  }>;
   target: AdminReportTarget | null;
 }
 

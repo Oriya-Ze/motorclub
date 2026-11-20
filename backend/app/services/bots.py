@@ -316,7 +316,7 @@ async def _like_something(db: AsyncSession, now: datetime, rng: random.Random) -
     owner = await db.get(User, post.user_id)
     if owner is not None and not owner.is_bot:
         # The same notification a member's like sends (routers/posts.py toggle_like).
-        db.add(Notification(user_id=owner.id, actor_id=bot.id, type="like", title=f"{bot.full_name} liked your post", link="/"))
+        db.add(Notification(user_id=owner.id, actor_id=bot.id, type="like", title=f"{bot.full_name} liked your post", link=f"/posts/{post.id}"))
     return str(post.id)
 
 

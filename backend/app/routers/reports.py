@@ -28,6 +28,34 @@ class ReportCreate(BaseModel):
     hide_post: bool = False
 
 
+@router.get("/mine")
+async def my_report(
+    target_type: str,
+    target_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """Whether this member already reported this item, so the dialog says so instead of asking again."""
+    report = await db.scalar(
+        select(ContentReport)
+        .where(
+            ContentReport.reporter_id == user.id,
+            ContentReport.target_type == target_type,
+            ContentReport.target_id == target_id,
+        )
+        .order_by(ContentReport.created_at.desc())
+        .limit(1)
+    )
+    hidden = False
+    if target_type == "post":
+        hidden = bool(
+            await db.scalar(select(HiddenPost.id).where(HiddenPost.user_id == user.id, HiddenPost.post_id == target_id))
+        )
+    if report is None:
+        return {"reported": False, "hidden": hidden}
+    return {"reported": True, "status": report.status, "created_at": report.created_at.isoformat(), "hidden": hidden}
+
+
 @router.post("")
 async def create_report(
     body: ReportCreate,

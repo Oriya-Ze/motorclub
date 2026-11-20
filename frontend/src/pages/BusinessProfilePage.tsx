@@ -19,6 +19,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner";
 import Avatar from "@/components/Avatar";
 import AddVehicleForm from "@/components/AddVehicleForm";
+import CreateProductModal from "@/components/CreateProductModal";
 import FollowButton from "@/components/FollowButton";
 import PostCard from "@/components/PostCard";
 import ProductCard from "@/components/ProductCard";
@@ -170,6 +171,7 @@ export default function BusinessProfilePage() {
   });
   const businessProducts = productPage?.items ?? [];
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [creatingProduct, setCreatingProduct] = useState(false);
   const navigate = useNavigate();
   const reviewFormRef = useRef<HTMLDivElement>(null);
   const tabBarRef = useRef<HTMLDivElement>(null);
@@ -369,6 +371,18 @@ export default function BusinessProfilePage() {
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
           onChanged={() => queryClient.invalidateQueries({ queryKey: ["business-products", userId] })}
+        />
+      )}
+      {isOwn && (
+        <CreateProductModal
+          open={creatingProduct}
+          onClose={() => setCreatingProduct(false)}
+          onCreated={() => {
+            // A new product shows here once it passes review; until then it is under "my products".
+            for (const key of [["business-products", userId], ["product-page"], ["products"], ["my-products"]]) {
+              void queryClient.invalidateQueries({ queryKey: key });
+            }
+          }}
         />
       )}
       {reporting && userId && <ReportDialog targetType="profile" targetId={userId} onClose={() => setReporting(false)} />}
@@ -617,7 +631,16 @@ export default function BusinessProfilePage() {
           <div className="space-y-4">{savedPosts.map((post: Post) => <PostCard key={post.id} post={post} />)}</div>
         )
       ) : tab === "products" ? (
-        businessProducts.length === 0 ? (
+        <div className="space-y-3">
+        {isOwn && (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setCreatingProduct(true)}>
+              <Plus className="w-4 h-4 me-1" aria-hidden />
+              {t("businessSettings.addProduct")}
+            </Button>
+          </div>
+        )}
+        {businessProducts.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60 px-4 space-y-3">
             <p>{isOwn ? t("businessProfile.noProductsOwn") : t("businessProfile.noProducts")}</p>
             {isOwn && (
@@ -641,7 +664,8 @@ export default function BusinessProfilePage() {
               </button>
             ))}
           </div>
-        )
+        )}
+        </div>
       ) : tab === "works" ? (
         works.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground rounded-2xl border border-dashed border-border/60 px-4">

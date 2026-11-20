@@ -1157,6 +1157,11 @@ class ApiClient {
     return this.request<{ url: string }>(`/media/access-url?key=${encodeURIComponent(key)}`);
   }
 
+  getMyReport(targetType: string, targetId: string) {
+    const q = new URLSearchParams({ target_type: targetType, target_id: targetId });
+    return this.request<{ reported: boolean; status?: string; created_at?: string; hidden: boolean }>(`/reports/mine?${q}`);
+  }
+
   createReport(data: { target_type: string; target_id: string; reason: string; details?: string; hide_post?: boolean }) {
     return this.request<{ id: string; status: string; duplicate: boolean }>("/reports", {
       method: "POST",

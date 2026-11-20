@@ -67,9 +67,11 @@ interface PostCardProps {
   post: Post;
   onDeleted?: () => void;
   variant?: "feed" | "detail";
+  /** On the post page: a comment to bring into view and mark (from a comment notification). */
+  focusCommentId?: string | null;
 }
 
-function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
+function PostCard({ post, onDeleted, variant = "feed", focusCommentId }: PostCardProps) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -84,6 +86,7 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   const commentInputRef = useRef<HTMLInputElement>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -127,6 +130,17 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
   useEffect(() => () => {
     if (clickTimer.current) window.clearTimeout(clickTimer.current);
   }, []);
+
+  // Once the comments are in, scroll to the one the notification was about and mark it for a few seconds.
+  useEffect(() => {
+    if (!focusCommentId || loadingComments || !comments.some((c) => c.id === focusCommentId)) return;
+    const el = document.getElementById(`comment-${focusCommentId}`);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    setHighlighted(focusCommentId);
+    const timer = window.setTimeout(() => setHighlighted(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [focusCommentId, loadingComments, comments]);
 
   useEffect(() => {
     if (!isDetail) return;
@@ -366,7 +380,15 @@ function PostCard({ post, onDeleted, variant = "feed" }: PostCardProps) {
               <p className="text-sm text-muted-foreground">{t("noComments")}</p>
             ) : (
               comments.map((c) => (
-                <div key={c.id} className="flex gap-2">
+                <div
+                  key={c.id}
+                  id={`comment-${c.id}`}
+                  className={cn(
+                    "flex gap-2 rounded-xl transition-shadow duration-700",
+                    highlighted === c.id && "ring-2 ring-primary/70 ring-offset-2 ring-offset-background",
+                  )}
+                  aria-current={focusCommentId === c.id ? "true" : undefined}
+                >
                   <Link to={withReturnTo(getUserProfilePath(c.author), `${location.pathname}${location.search}`)} className="shrink-0 self-start rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-hidden tabIndex={-1}>
                     <Avatar user={c.author} size="xs" />
                   </Link>

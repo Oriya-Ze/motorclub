@@ -59,3 +59,41 @@ async def test_reporting_can_hide_a_post_from_the_reporters_feed():
         await get_engine().dispose()
         get_engine.cache_clear()
         get_session_factory.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_member_sees_they_already_reported_and_staff_see_who():
+    author, reporter, staff = _person("author2"), _person("reporter2"), _person("staff2")
+    staff.is_moderator = True
+    async with get_session_factory()() as db:
+        db.add_all([author, reporter, staff])
+        await db.flush()
+        post = Post(user_id=author.id, content="פוסט")
+        db.add(post)
+        await db.commit()
+    try:
+        app.dependency_overrides[get_user_model] = lambda: reporter
+        app.dependency_overrides[get_current_user] = lambda: reporter
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            params = {"target_type": "post", "target_id": str(post.id)}
+            assert (await client.get("/api/v1/reports/mine", params=params)).json() == {"reported": False, "hidden": False}
+            await client.post("/api/v1/reports", json={**params, "reason": "spam"})
+            mine = (await client.get("/api/v1/reports/mine", params=params)).json()
+            assert mine["reported"] is True and mine["status"] == "new" and mine["hidden"] is False
+        app.dependency_overrides[get_user_model] = lambda: staff
+        app.dependency_overrides[get_current_user] = lambda: staff
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            items = (await client.get("/api/v1/admin/reports", params={"status": "new", "limit": 50})).json()["items"]
+            group = next(g for g in items if g["target_id"] == str(post.id))
+            who = group["reports"][0]["reporter"]
+            assert who == {"id": str(reporter.id), "username": reporter.username, "full_name": reporter.full_name}
+            assert "email" not in who
+    finally:
+        app.dependency_overrides.clear()
+        async with get_session_factory()() as db:
+            await db.execute(delete(ContentReport).where(ContentReport.reporter_id == reporter.id))
+            await db.execute(delete(User).where(User.id.in_([author.id, reporter.id, staff.id])))
+            await db.commit()
+        await get_engine().dispose()
+        get_engine.cache_clear()
+        get_session_factory.cache_clear()

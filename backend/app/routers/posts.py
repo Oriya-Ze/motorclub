@@ -416,7 +416,7 @@ async def toggle_like(
     db.add(PostLike(post_id=post_id, user_id=user.id))
     if post.user_id != user.id:
         await create_notification(
-            db, post.user_id, user.id, "like", f"{user.full_name} liked your post", link=f"/"
+            db, post.user_id, user.id, "like", f"{user.full_name} liked your post", link=f"/posts/{post_id}"
         )
     await db.commit()
     return {"liked": True}
@@ -485,12 +485,13 @@ async def create_comment(
         raise HTTPException(status_code=404, detail="Post not found")
     _unavailable_if_hidden(post, user.id)
 
-    comment = Comment(post_id=post_id, user_id=user.id, content=body.content)
+    comment = Comment(id=uuid.uuid4(), post_id=post_id, user_id=user.id, content=body.content)
     db.add(comment)
     if post.user_id != user.id:
+        # Opens the post with this comment in view (PostPage reads ?comment=).
         await create_notification(
             db, post.user_id, user.id, "comment",
-            f"{user.full_name} commented on your post", body.content[:100], link="/"
+            f"{user.full_name} commented on your post", body.content[:100], link=f"/posts/{post_id}?comment={comment.id}"
         )
     await db.commit()
     await db.refresh(comment)

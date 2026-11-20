@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import PostCard from "@/components/PostCard";
 import { PostSkeleton } from "@/components/Skeleton";
 import { ApiError, api } from "@/lib/api";
@@ -10,6 +10,7 @@ export default function PostPage() {
   const { t } = useTranslation();
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { data: post, isLoading, isError, error } = useQuery({
     queryKey: ["post", postId],
@@ -42,7 +43,7 @@ export default function PostPage() {
           {t("back")}
         </button>
       </div>
-      <PostCard post={post} variant="detail" onDeleted={() => navigate("/")} />
+      <PostCard post={post} variant="detail" focusCommentId={searchParams.get("comment")} onDeleted={() => navigate("/")} />
     </div>
   );
 }

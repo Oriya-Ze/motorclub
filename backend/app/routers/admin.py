@@ -170,9 +170,14 @@ async def list_reports(
     rows = (
         await db.execute(base.order_by(ContentReport.created_at.desc()).offset(max(skip, 0)).limit(min(limit, 50)))
     ).scalars().all()
+    from app.deps import load_users
+
+    # Who reported: name and username for the staff; no email (only system admins see emails, in Accounts).
+    reporters = await load_users(db, {row.reporter_id for row in rows if row.reporter_id})
     grouped: dict[tuple[str, str], dict] = {}
     for row in rows:
         key = (row.target_type, str(row.target_id))
+        reporter = reporters.get(row.reporter_id) if row.reporter_id else None
         bucket = grouped.setdefault(
             key,
             {
@@ -195,6 +200,11 @@ async def list_reports(
                 "details": row.details,
                 "status": row.status,
                 "created_at": row.created_at.isoformat(),
+                "reporter": (
+                    {"id": str(reporter.id), "username": reporter.username, "full_name": reporter.full_name}
+                    if reporter
+                    else None
+                ),
             }
         )
     for bucket in grouped.values():

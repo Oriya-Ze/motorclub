@@ -218,7 +218,7 @@ async def update_settings(
                 "follow_accepted",
                 f"{_display_name(user)} accepted your follow request",
                 body=_display_name(user),
-                link=f"/users/{user.id}",
+                link=f"/profile/{user.id}",
             )
     await db.commit()
     await db.refresh(settings)
@@ -292,7 +292,7 @@ async def approve_follow_request(
             "follow_accepted",
             f"{_display_name(user)} accepted your follow request",
             body=_display_name(user),
-            link=f"/users/{user.id}",
+            link=f"/profile/{user.id}",
         )
     await db.commit()
     return {"status": FOLLOW_ACCEPTED}
@@ -324,7 +324,7 @@ async def reject_follow_request(
             "follow_rejected",
             f"{_display_name(user)} declined your follow request",
             body=_display_name(user),
-            link=f"/users/{user.id}",
+            link=f"/profile/{user.id}",
         )
     await db.commit()
     return {"status": "rejected"}
@@ -363,7 +363,7 @@ async def follow_user(
             "follow",
             f"{_display_name(user)} started following you",
             body=_display_name(user),
-            link=f"/users/{user.id}",
+            link=f"/profile/{user.id}",
         )
         await db.commit()
         return FollowStatusResponse(following=True, status=FOLLOW_ACCEPTED)
@@ -375,7 +375,7 @@ async def follow_user(
         "follow_request",
         f"{_display_name(user)} wants to follow you",
         body=_display_name(user),
-        link=f"/users/{user.id}",
+        link=f"/profile/{user.id}",
     )
     await db.commit()
     return FollowStatusResponse(following=False, status=FOLLOW_PENDING)
