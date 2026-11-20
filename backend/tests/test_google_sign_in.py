@@ -123,7 +123,7 @@ async def test_a_new_google_member_must_finish_setup(monkeypatch):
             provider = CognitoAuthProvider(db)
             monkeypatch.setattr(provider, "_cognito_client", lambda: FakeCognito(None))
 
-            async def decode(token):
+            async def decode(token, *_):
                 return claims
 
             monkeypatch.setattr(provider, "_decode_access_token", decode)
@@ -175,4 +175,44 @@ async def test_deleting_an_account_removes_its_google_sign_in(monkeypatch):
         monkeypatch.setattr(provider, "_cognito_client", lambda: fake)
         await provider.delete_identity("person@example.com", 'bad" or sub = "x')
         assert not any(call[0] == "list" for call in fake.calls), "a malformed sub never reaches the filter"
+    await _dispose()
+
+
+@pytest.mark.asyncio
+async def test_hosted_sign_in_id_token_with_at_hash_is_accepted(monkeypatch):
+    """Tokens from the Google (hosted) sign-in carry at_hash in the ID token; password sign-in tokens do not."""
+    import hashlib
+    import time
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from jose import jwk, jwt
+    from jose.utils import calculate_at_hash
+
+    from app.auth import cognito as cognito_module
+
+    settings = cognito_module.settings
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    public = jwk.construct(private.public_key().public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo), "RS256").to_dict()
+    public["kid"] = "k1"
+    monkeypatch.setattr(settings, "cognito_client_id", "client-1")
+
+    async with get_session_factory()() as db:
+        provider = CognitoAuthProvider(db)
+
+        async def jwks():
+            return {"keys": [public]}
+
+        monkeypatch.setattr(provider, "_get_jwks", jwks)
+        now = int(time.time())
+        base = {"iss": provider.issuer, "iat": now, "exp": now + 600, "sub": "s1"}
+        access = jwt.encode({**base, "token_use": "access", "client_id": "client-1"}, pem, algorithm="RS256", headers={"kid": "k1"})
+        id_claims = {**base, "token_use": "id", "aud": "client-1", "at_hash": calculate_at_hash(access, hashlib.sha256)}
+        id_token = jwt.encode(id_claims, pem, algorithm="RS256", headers={"kid": "k1"})
+
+        assert (await provider._decode_id_token(id_token, access))["sub"] == "s1"
+        other = jwt.encode({**base, "token_use": "access", "client_id": "client-1", "jti": "x"}, pem, algorithm="RS256", headers={"kid": "k1"})
+        with pytest.raises(HTTPException):
+            await provider._decode_id_token(id_token, other)  # an ID token paired with someone else's access token
     await _dispose()

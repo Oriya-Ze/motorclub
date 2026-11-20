@@ -149,7 +149,7 @@ class CognitoAuthProvider(AuthProvider):
                 _jwks_cache = response.json()
         return _jwks_cache
 
-    async def _decode_token(self, token: str, *, expected_use: str) -> dict:
+    async def _decode_token(self, token: str, *, expected_use: str, access_token: str | None = None) -> dict:
         try:
             jwks = await self._get_jwks()
             unverified = jwt.get_unverified_header(token)
@@ -160,6 +160,8 @@ class CognitoAuthProvider(AuthProvider):
                 algorithms=["RS256"],
                 issuer=self.issuer,
                 options={"verify_aud": False},
+                # An ID token from the hosted sign-in (Google) carries at_hash, checked against its access token.
+                access_token=access_token,
             )
             if payload.get("token_use") != expected_use:
                 raise HTTPException(status_code=401, detail="Invalid Cognito token type")
@@ -177,8 +179,8 @@ class CognitoAuthProvider(AuthProvider):
     async def _decode_access_token(self, token: str) -> dict:
         return await self._decode_token(token, expected_use="access")
 
-    async def _decode_id_token(self, token: str) -> dict:
-        return await self._decode_token(token, expected_use="id")
+    async def _decode_id_token(self, token: str, access_token: str | None = None) -> dict:
+        return await self._decode_token(token, expected_use="id", access_token=access_token)
 
     def _fetch_cognito_user_attributes(self, login_email: str) -> dict[str, str]:
         client = self._cognito_client()
@@ -605,7 +607,7 @@ class CognitoAuthProvider(AuthProvider):
         profile_payload = access_payload
         id_token = auth_result.get("IdToken") or auth_result.get("id_token")
         if id_token:
-            profile_payload = await self._decode_id_token(id_token)
+            profile_payload = await self._decode_id_token(id_token, access_token)
 
         if oauth:
             await self._link_google_to_existing_account(profile_payload)
