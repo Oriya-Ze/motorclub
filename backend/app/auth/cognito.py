@@ -1,9 +1,11 @@
+import json
+import re
 import uuid
 
 import httpx
 from fastapi import HTTPException
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.base import AuthProvider, AuthTokens, AuthUser
@@ -32,6 +34,27 @@ from app.services.pending_signup import (
 )
 
 _jwks_cache: dict | None = None
+
+
+_SUB = re.compile(r"^[0-9a-fA-F-]{36}$")
+
+
+def _federated_identity(claims: dict) -> tuple[str, str] | None:
+    """(provider, user id at the provider) for a Google sign-in; None for an email-and-password sign-in."""
+    identities = claims.get("identities")
+    if isinstance(identities, str):
+        try:
+            identities = json.loads(identities)
+        except ValueError:
+            return None
+    if not identities or not isinstance(identities, list) or not isinstance(identities[0], dict):
+        return None
+    provider, user_id = identities[0].get("providerName"), identities[0].get("userId")
+    return (str(provider), str(user_id)) if provider and user_id else None
+
+
+def _claim_true(value) -> bool:
+    return value is True or str(value).lower() == "true"
 
 
 def _is_uuid_like(value: str) -> bool:
@@ -226,6 +249,8 @@ class CognitoAuthProvider(AuthProvider):
         email: str,
         username: str,
         full_name: str,
+        *,
+        setup_pending: bool = False,
     ) -> User:
         result = await self.db.execute(select(User).where(User.cognito_sub == cognito_sub))
         user = result.scalar_one_or_none()
@@ -245,6 +270,7 @@ class CognitoAuthProvider(AuthProvider):
             email=email,
             username=unique_username,
             full_name=full_name,
+            account_setup_pending=setup_pending,
         )
         self.db.add(user)
         await self.db.flush()
@@ -294,8 +320,18 @@ class CognitoAuthProvider(AuthProvider):
             return False
         return True
 
-    async def delete_identity(self, email: str) -> None:
+    async def delete_identity(self, email: str, cognito_sub: str | None = None) -> None:
+        """Delete the password account and any Google sign-in of the member (a linked one goes with the account)."""
         self._delete_cognito_user(email)
+        if not cognito_sub or not _SUB.match(cognito_sub):
+            return
+        client = self._cognito_client()
+        found = client.list_users(UserPoolId=settings.cognito_user_pool_id, Filter=f'sub = "{cognito_sub}"', Limit=5)
+        for cognito_user in found.get("Users", []):
+            try:
+                client.admin_delete_user(UserPoolId=settings.cognito_user_pool_id, Username=cognito_user["Username"])
+            except client.exceptions.UserNotFoundException:
+                continue
 
     def _delete_cognito_user(self, email: str) -> None:
         client = self._cognito_client()
@@ -509,13 +545,55 @@ class CognitoAuthProvider(AuthProvider):
             "IdToken": auth_result.get("id_token"),
             "RefreshToken": auth_result.get("refresh_token"),
         }
-        return await self._complete_auth_from_tokens(normalized)
+        return await self._complete_auth_from_tokens(normalized, oauth=True)
+
+    async def _link_google_to_existing_account(self, claims: dict) -> None:
+        """A first Google sign-in with the email of an existing password account joins that account.
+
+        Cognito makes the Google sign-in a separate user. It is replaced by a link to the existing account, and the
+        member is sent through Google once more (409 oauth_account_linked), which then signs in to the existing
+        account with its own sub. Nothing happens for a Google user that is already linked, or for a new email.
+        """
+        identity = _federated_identity(claims)
+        cognito_username = str(claims.get("cognito:username") or "")
+        if not identity or not cognito_username.lower().startswith(f"{identity[0].lower()}_"):
+            return
+        email = (claims.get("email") or "").strip().lower()
+        if not email:
+            return
+        client = self._cognito_client()
+        try:
+            native = client.admin_get_user(UserPoolId=settings.cognito_user_pool_id, Username=email)
+        except client.exceptions.UserNotFoundException:
+            native = None
+        member = await self.db.scalar(
+            select(User).where(
+                func.lower(User.email) == email,
+                or_(User.cognito_sub.is_(None), User.cognito_sub != claims.get("sub")),
+            )
+        )
+        if native and native.get("UserStatus") != "CONFIRMED" and not member:
+            # A sign-up that never confirmed its code: Google proves the email, so the Google account takes it.
+            client.admin_delete_user(UserPoolId=settings.cognito_user_pool_id, Username=native["Username"])
+            return
+        if not native and not member:
+            return
+        if not native or not member or not _claim_true(claims.get("email_verified")):
+            raise HTTPException(status_code=409, detail="Email already registered")
+        client.admin_delete_user(UserPoolId=settings.cognito_user_pool_id, Username=cognito_username)
+        client.admin_link_provider_for_user(
+            UserPoolId=settings.cognito_user_pool_id,
+            DestinationUser={"ProviderName": "Cognito", "ProviderAttributeValue": native["Username"]},
+            SourceUser={"ProviderName": identity[0], "ProviderAttributeName": "Cognito_Subject", "ProviderAttributeValue": identity[1]},
+        )
+        raise HTTPException(status_code=409, detail="oauth_account_linked")
 
     async def _complete_auth_from_tokens(
         self,
         auth_result: dict,
         *,
         fallback_email: str = "",
+        oauth: bool = False,
     ) -> tuple[AuthUser, AuthTokens]:
         access_token = auth_result.get("AccessToken") or auth_result.get("access_token")
         if not access_token:
@@ -529,16 +607,20 @@ class CognitoAuthProvider(AuthProvider):
         if id_token:
             profile_payload = await self._decode_id_token(id_token)
 
+        if oauth:
+            await self._link_google_to_existing_account(profile_payload)
+        new_from_google = oauth and _federated_identity(profile_payload) is not None
+
         lookup_email = profile_payload.get("email") or fallback_email
         attrs: dict[str, str] = {}
-        if lookup_email and (not profile_payload.get("preferred_username") or not profile_payload.get("name")):
+        if lookup_email and not new_from_google and (not profile_payload.get("preferred_username") or not profile_payload.get("name")):
             try:
                 attrs = self._fetch_cognito_user_attributes(lookup_email)
             except Exception:
                 attrs = {}
 
         token_email, username, full_name = self._profile_from_claims(profile_payload, lookup_email, attrs)
-        user = await self._get_or_create_user(cognito_sub, token_email, username, full_name)
+        user = await self._get_or_create_user(cognito_sub, token_email, username, full_name, setup_pending=new_from_google)
         auth_user = self._to_auth_user(user)
         tokens = AuthTokens(
             access_token=access_token,

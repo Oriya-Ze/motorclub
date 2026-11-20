@@ -7,6 +7,8 @@ const EXACT_ERROR_KEYS: Record<string, string> = {
   account_deletion_failed: "apiErrors.accountDeletionFailed",
   removed_by_moderator: "apiErrors.removedByModerator",
   vehicle_details_locked: "apiErrors.vehicleDetailsLocked",
+  terms_required: "agreeTermsRequired",
+  account_setup_done: "accountSetup.alreadyDone",
   plate_not_found: "garage.editor.plateNotFound",
   plate_invalid: "garage.editor.plateInvalid",
   plate_lookup_unavailable: "garage.editor.plateUnavailable",
@@ -171,6 +173,9 @@ export function translateRateLimitError(): string {
 
 export function translateApiError(message: string): string {
   if (!message.trim()) return tError("error");
+  // A known message is translated whole: some contain commas ("letters, numbers, dots, or underscores").
+  const whole = EXACT_ERROR_KEYS[normalizeErrorMessage(message)];
+  if (whole) return tError(whole);
 
   return message
     .split(",")

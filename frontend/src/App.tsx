@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import HomePage from "@/pages/HomePage";
@@ -8,6 +9,7 @@ import LogoLoader from "@/components/LogoLoader";
 
 const AuthPage = lazy(pageLoaders.auth);
 const OAuthCallbackPage = lazy(pageLoaders.oauthCallback);
+const AccountSetupPage = lazy(pageLoaders.accountSetup);
 const ForgotPasswordPage = lazy(pageLoaders.forgotPassword);
 const ResetPasswordPage = lazy(pageLoaders.resetPassword);
 const LegalPage = lazy(() => pageLoaders.legal().then((m) => ({ default: m.LegalPage })));
@@ -36,6 +38,17 @@ const DeleteAccountPage = lazy(pageLoaders.deleteAccount);
 // The admin console is a separate page with its own layout, loaded only when staff open it.
 const AdminConsole = lazy(() => import("@/pages/admin/AdminConsole"));
 
+/** A member who joined with Google finishes setup (username and terms) before anything else; the terms stay readable. */
+const SETUP_OPEN_PATHS = ["/auth", "/privacy-policy", "/terms-of-service"];
+
+function AccountSetupGate() {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  if (!user?.account_setup_pending) return null;
+  if (SETUP_OPEN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return null;
+  return <Navigate to="/auth/welcome" replace />;
+}
+
 function WorkshopRedirect() {
   const { userId } = useParams();
   return <Navigate to={userId ? `/services/${userId}` : "/services"} replace />;
@@ -49,9 +62,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<LogoLoader fullScreen />}>
+      <AccountSetupGate />
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+        <Route path="/auth/welcome" element={<AccountSetupPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 

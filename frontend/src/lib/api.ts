@@ -11,6 +11,8 @@ export interface User {
   id: string;
   /** Only present on the signed-in member's own profile. */
   email?: string;
+  /** Joined with Google and still has to choose a username and accept the terms. Own profile only. */
+  account_setup_pending?: boolean;
   username: string;
   full_name: string;
   profile_picture_url?: string | null;
@@ -591,6 +593,10 @@ class ApiClient {
 
   getOAuthConfig() {
     return this.request<OAuthConfig>("/auth/oauth/config");
+  }
+
+  accountSetup(data: { username: string; accept_terms: boolean }) {
+    return this.request<User>("/auth/account-setup", { method: "POST", body: JSON.stringify(data) });
   }
 
   oauthCallback(data: { code: string; redirect_uri: string }) {

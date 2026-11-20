@@ -39,6 +39,14 @@ class UserPrivate(UserPublic):
     """The signed-in member's own profile. Only this shape carries their email."""
 
     email: str
+    account_setup_pending: bool = False
+
+
+class AccountSetupRequest(BaseModel):
+    """A member who joined with Google picks a username and accepts the terms."""
+
+    username: str = Field(min_length=3, max_length=30)
+    accept_terms: bool
 
 
 class RegisterRequest(BaseModel):

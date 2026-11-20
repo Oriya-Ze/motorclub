@@ -53,6 +53,6 @@ class AuthProvider(ABC):
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         pass
 
-    async def delete_identity(self, email: str) -> None:
+    async def delete_identity(self, email: str, cognito_sub: str | None = None) -> None:
         """Remove the sign-in identity for a deleted account. Local accounts live only in the database."""
         return None

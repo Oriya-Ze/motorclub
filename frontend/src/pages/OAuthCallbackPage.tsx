@@ -4,14 +4,17 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/Card";
 import { useAuth } from "@/contexts/AuthContext";
+import { ApiError } from "@/lib/api";
 import { oauthRedirectUri } from "@/lib/cognitoOAuth";
 import { takeAuthNext } from "@/lib/authNext";
+
+const LINK_RETRY_KEY = "motorclub_oauth_link_retry";
 
 export default function OAuthCallbackPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { completeOAuthLogin } = useAuth();
+  const { completeOAuthLogin, loginWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const handled = useRef(false);
 
@@ -31,14 +34,40 @@ export default function OAuthCallbackPage() {
     }
 
     completeOAuthLogin({ code, redirect_uri: oauthRedirectUri() })
-      .then(() => {
+      .then((signedIn) => {
+        try {
+          sessionStorage.removeItem(LINK_RETRY_KEY);
+        } catch {
+          // storage blocked: nothing to clear
+        }
+        if (signedIn?.account_setup_pending) {
+          // A new member chooses a username and accepts the terms first; the saved destination waits for that.
+          navigate("/auth/welcome", { replace: true });
+          return;
+        }
         toast.success(t("loginSuccess"));
         navigate(takeAuthNext() ?? "/", { replace: true });
       })
       .catch((err: Error) => {
+        // Google was just linked to an existing password account: one more pass through Google signs in to it.
+        if (err instanceof ApiError && err.detail === "oauth_account_linked") {
+          let retried = false;
+          try {
+            retried = sessionStorage.getItem(LINK_RETRY_KEY) === "1";
+            sessionStorage.setItem(LINK_RETRY_KEY, "1");
+          } catch {
+            retried = true;
+          }
+          if (!retried) {
+            void loginWithGoogle().catch(() => setError(t("oauthLinkFailed")));
+            return;
+          }
+          setError(t("oauthLinkFailed"));
+          return;
+        }
         setError(err.message || t("error"));
       });
-  }, [completeOAuthLogin, navigate, params, t]);
+  }, [completeOAuthLogin, loginWithGoogle, navigate, params, t]);
 
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">

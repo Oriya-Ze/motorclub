@@ -54,6 +54,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     # A content bot (see services/bots.py): it cannot sign in, and all of them can be removed at once.
     is_bot: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Joined with Google: still has to choose a username and accept the terms (POST /auth/account-setup).
+    account_setup_pending: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

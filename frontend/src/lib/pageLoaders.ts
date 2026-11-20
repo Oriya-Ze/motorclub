@@ -5,6 +5,7 @@
 export const pageLoaders = {
   auth: () => import("@/pages/AuthPage"),
   oauthCallback: () => import("@/pages/OAuthCallbackPage"),
+  accountSetup: () => import("@/pages/AccountSetupPage"),
   forgotPassword: () => import("@/pages/ForgotPasswordPage"),
   resetPassword: () => import("@/pages/ResetPasswordPage"),
   legal: () => import("@/pages/LegalPage"),

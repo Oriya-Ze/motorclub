@@ -14,7 +14,7 @@ from app.services.media_cleanup import delete_user_media_files, user_media
 async def delete_account(db: AsyncSession, user: User) -> None:
     """Rows are deleted first and committed only after the sign-in identity is gone, so a failure
     leaves the account usable rather than half deleted. Files are removed after the commit."""
-    user_id, email = user.id, user.email
+    user_id, email, cognito_sub = user.id, user.email, user.cognito_sub
     keys, media_ids = await user_media(db, user_id)
     # A bulk delete lets the database's ON DELETE rules remove the member's rows. Deleting the
     # ORM object instead would try to null out foreign keys that cannot be null.
@@ -22,7 +22,7 @@ async def delete_account(db: AsyncSession, user: User) -> None:
         db.expunge(user)
     await db.execute(sql_delete(User).where(User.id == user_id))
     try:
-        await get_auth_provider(db).delete_identity(email)
+        await get_auth_provider(db).delete_identity(email, cognito_sub)
     except Exception as exc:
         await db.rollback()
         raise HTTPException(status_code=503, detail="account_deletion_failed") from exc

@@ -12,6 +12,7 @@ from app.deps import get_current_user, get_user_model, user_to_private, user_to_
 from app.models import User
 from app.rate_limit import _client_ip, enforce_rate_limit
 from app.schemas import (
+    AccountSetupRequest,
     AuthResponse,
     ChangePasswordRequest,
     ConfirmSignUpRequest,
@@ -245,3 +246,30 @@ async def change_password(
     else:
         await provider.change_password(user.id, body.current_password, body.new_password)
     return {"message": "Password changed successfully"}
+
+
+@router.post("/account-setup", response_model=UserPrivate)
+async def account_setup(
+    body: AccountSetupRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_user_model),
+):
+    """A member who joined with Google chooses a username and accepts the terms, once."""
+    user = await db.get(User, user.id) or user
+    if not user.account_setup_pending:
+        raise HTTPException(status_code=409, detail="account_setup_done")
+    if not body.accept_terms:
+        raise HTTPException(status_code=400, detail="terms_required")
+    check = await check_username_availability(db, body.username, user.email)
+    same = check["username"].lower() == (user.username or "").lower()
+    if not check["valid"]:
+        from app.auth.validation import validate_username
+
+        validate_username(body.username)  # raises the specific reason
+    if not check["available"] and not same:
+        raise HTTPException(status_code=409, detail="Username already taken")
+    user.username = check["username"]
+    user.account_setup_pending = False
+    await db.commit()
+    await db.refresh(user)
+    return user_to_private(user)

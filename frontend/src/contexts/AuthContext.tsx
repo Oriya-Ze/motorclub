@@ -9,7 +9,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string, captchaToken?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  completeOAuthLogin: (data: { code: string; redirect_uri: string }) => Promise<void>;
+  completeOAuthLogin: (data: { code: string; redirect_uri: string }) => Promise<User | null>;
+  setSignedInUser: (user: User) => void;
   getOAuthConfig: () => Promise<OAuthConfig>;
   register: (data: {
     email: string;
@@ -98,6 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const completeOAuthLogin = async (data: { code: string; redirect_uri: string }) => {
     const res = await api.oauthCallback(data);
     applyAuthResponse(res, setUser);
+    return res.user ?? null;
+  };
+
+  const setSignedInUser = (next: User) => {
+    setUser(next);
+    cacheUser(next);
   };
 
   const register = async (data: { email: string; username: string; full_name: string; password: string }) => {
@@ -133,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         loginWithGoogle,
         completeOAuthLogin,
+        setSignedInUser,
         getOAuthConfig,
         register,
         confirmSignUp,
